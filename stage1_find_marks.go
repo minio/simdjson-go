@@ -4,6 +4,8 @@ type ParsedJson struct {
 	structural_indexes []uint32
 }
 
+const paddingSpaces64 = "                                                                "
+
 func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 
 	//if (len > pj.bytecapacity) {
@@ -52,13 +54,13 @@ func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
 
 	idx := uint64(0)
-	for ; idx <= lenminus64; idx += 64 {
+	for ; idx < lenminus64; idx += 64 {
 
 		// __builtin_prefetch(buf + idx + 128);
 
-		//	#ifdef SIMDJSON_UTF8VALIDATE
-		//	check_utf8(input_lo, input_hi, has_error, previous);
-		//	#endif
+		// #ifdef SIMDJSON_UTF8VALIDATE
+		// check_utf8(input_lo, input_hi, has_error, previous);
+		// #endif
 
 		// detect odd sequences of backslashes
 		odd_ends := find_odd_backslash_sequences(buf[idx:], &prev_iter_ends_odd_backslash)
@@ -77,48 +79,40 @@ func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 		structurals = finalize_structurals(structurals, whitespace_mask, quote_mask, quote_bits, &prev_iter_ends_pseudo_pred)
 	}
 
-	//
-	//	////////////////
-	//	/// we use a giant copy-paste which is ugly.
-	//	/// but otherwise the string needs to be properly padded or else we
-	//	/// risk invalidating the UTF-8 checks.
-	//	////////////
-	//	if (idx < len) {
-	//	uint8_t tmpbuf[64];
-	//	memset(tmpbuf, 0x20, 64);
-	//	memcpy(tmpbuf, buf + idx, len - idx);
-	//	__m256i input_lo =
-	//	_mm256_loadu_si256(reinterpret_cast<const __m256i *>(tmpbuf + 0));
-	//	__m256i input_hi =
-	//	_mm256_loadu_si256(reinterpret_cast<const __m256i *>(tmpbuf + 32));
-	//
-	//	#ifdef SIMDJSON_UTF8VALIDATE
-	//	check_utf8(input_lo, input_hi, has_error, previous);
-	//	#endif
-	//
-	//	// detect odd sequences of backslashes
-	//	uint64_t odd_ends = find_odd_backslash_sequences(
-	//	input_lo, input_hi, prev_iter_ends_odd_backslash);
-	//
-	//	// detect insides of quote pairs ("quote_mask") and also our quote_bits
-	//	// themselves
-	//	uint64_t quote_bits;
-	//	uint64_t quote_mask = find_quote_mask_and_bits(
-	//	input_lo, input_hi, odd_ends, prev_iter_inside_quote, quote_bits, error_mask);
-	//
-	//	// take the previous iterations structural bits, not our current iteration,
-	//	// and flatten
-	//	flatten_bits(base_ptr, base, idx, structurals);
-	//
-	//	uint64_t whitespace;
-	//	find_whitespace_and_structurals(input_lo, input_hi, whitespace,
-	//	structurals);
-	//
-	//	// fixup structurals to reflect quotes and add pseudo-structural characters
-	//	structurals = finalize_structurals(structurals, whitespace, quote_mask,
-	//	quote_bits, prev_iter_ends_pseudo_pred);
-	//	idx += 64;
-	//}
+	////////////////
+	/// we use a giant copy-paste which is ugly.
+	/// but otherwise the string needs to be properly padded or else we
+	/// risk invalidating the UTF-8 checks.
+	////////////
+	if idx < uint64(len(buf)) {
+		tmpbuf := [64]byte{}
+
+		remain := uint64(len(buf))-idx
+		copy(tmpbuf[:], buf[idx:])
+		copy(tmpbuf[remain:], []byte(paddingSpaces64)[:64-remain])
+
+		// #ifdef SIMDJSON_UTF8VALIDATE
+		// check_utf8(input_lo, input_hi, has_error, previous);
+		// #endif
+
+		// detect odd sequences of backslashes
+		odd_ends := find_odd_backslash_sequences(tmpbuf[:], &prev_iter_ends_odd_backslash)
+
+		// detect insides of quote pairs ("quote_mask") and also our quote_bits themselves
+		quote_bits := uint64(0)
+		quote_mask := find_quote_mask_and_bits(tmpbuf[:], odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
+
+		// take the previous iterations structural bits, not our current iteration, and flatten
+		flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
+
+		whitespace_mask := uint64(0)
+		find_whitespace_and_structurals(tmpbuf[:], &whitespace_mask, &structurals)
+
+		// fixup structurals to reflect quotes and add pseudo-structural characters
+		structurals = finalize_structurals(structurals, whitespace_mask, quote_mask, quote_bits, &prev_iter_ends_pseudo_pred)
+
+		idx += 64
+	}
 
 	// finally, flatten out the remaining structurals from the last iteration
 	flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
@@ -128,11 +122,10 @@ func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 		return false
 	}
 
-	//	if (len != base_ptr[pj.n_structural_indexes - 1]) {
-	//	// the string might not be NULL terminated, but we add a virtual NULL ending
-	//	// character.
-	//	base_ptr[pj.n_structural_indexes++] = len;
-	//}
+	if uint32(len(buf)) != pj.structural_indexes[len(pj.structural_indexes) - 1] {
+		// the string might not be NULL terminated, but we add a virtual NULL ending character.
+		pj.structural_indexes = append(pj.structural_indexes, uint32(len(buf)))
+	}
 
 	// make it safe to dereference one beyond this array
 	pj.structural_indexes = append(pj.structural_indexes, 0)
@@ -141,11 +134,10 @@ func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 		return false
 	}
 
-	//	#ifdef SIMDJSON_UTF8VALIDATE
-	//	return _mm256_testz_si256(has_error, has_error) != 0;
-	//	#endif
+	// #ifdef SIMDJSON_UTF8VALIDATE
+	// return _mm256_testz_si256(has_error, has_error) != 0;
+	// #endif
 
 	return true
-
 }
 
