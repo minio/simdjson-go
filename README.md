@@ -5,5 +5,5 @@ This is (an attempt to) port [simdjson](https://github.com/lemire/simdjson) to G
 ## Performance (WIP)
 
 ```
-BenchmarkStage1-8       30000000                47.5 ns/op      1348.38 MB/s           0 B/op          0 allocs/op
+BenchmarkStage1-8       10000000               155 ns/op        1263.83 MB/s           0 B/op          0 allocs/op
 ```
