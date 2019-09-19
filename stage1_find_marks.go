@@ -1,9 +1,5 @@
 package simdjson
 
-type ParsedJson struct {
-	structural_indexes []uint32
-}
-
 const paddingSpaces64 = "                                                                "
 
 func find_structural_bits(buf []byte, pj *ParsedJson) bool {
