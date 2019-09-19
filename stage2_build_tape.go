@@ -1,28 +1,52 @@
 package simdjson
 
+import (
+	"fmt"
+)
+
 func UPDATE_CHAR(buf []byte, pj *ParsedJson, i *uint32, idx *uint32, c *byte) {
 	*idx = pj.structural_indexes[*i]
 	*i++
 	*c = buf[*idx]
 }
 
-func parse_string(buf []byte, pj *ParsedJson, depth, idx uint32) bool {
+func parse_string_copy(src, dst []byte) {
+	copy(dst[:1], src[:1])
+}
+
+func parse_string(buf []byte, pj *ParsedJson, depth, offset uint32) bool {
+
+	pj.write_tape(pj.current_string_buf_loc - pj.string_buf, '"')
+
+	//const uint8_t *src = &buf[offset + 1];
+	//uint8_t *dst = pj.current_string_buf_loc + sizeof(uint32_t);
+	//const uint8_t *const start_of_string = dst;
+
+	parse_string_copy(buf[offset + 1:], // we know that buf at offset is a "
+					  pj.strings[pj.current_string_buf_loc:])
+
+	pj.current_string_buf_loc += 2 // dst + quote_dist + 1;
+
 	return true
 }
 
 func parse_number(buf []byte, pj *ParsedJson, idx uint32, neg bool) bool {
+	fmt.Println("parse_number()")
 	return true
 }
 
 func is_valid_true_atom(buf []byte) bool {
+	fmt.Println("is_valid_true_atom()")
 	return true
 }
 
 func is_valid_false_atom(buf []byte) bool {
+	fmt.Println("is_valid_false_atom()")
 	return true
 }
 
 func is_valid_null_atom(buf []byte) bool {
+	fmt.Println("is_valid_null_atom()")
 	return true
 }
 
