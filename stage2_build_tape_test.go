@@ -28,9 +28,28 @@ func TestStage2BuildTape(t *testing.T) {
 				{'}', 0x1},
 			},
 		},
+		{
+			`{"a":"b","c":{"d":"e"}}`,
+			[]struct {
+				c byte
+				val uint64
+			}{
+				{'r', 0x0},
+				{'{', 0xa},
+				{'"', 0x0},
+				{'"', 0x2},
+				{'"', 0x4},
+				{'{', 0x9},
+				{'"', 0x6},
+				{'"', 0x8},
+				{'}', 0x5},
+				{'}', 0x1},
+			},
+		},
 	}
 
 	for i, tc := range testCases {
+
 		pj := ParsedJson{}
 		pj.structural_indexes = make([]uint32, 0, 1024)
 		pj.tape = make([]uint64, 0, 1024)
@@ -46,7 +65,7 @@ func TestStage2BuildTape(t *testing.T) {
 		}
 
 		for ii, tp := range pj.tape {
-			// fmt.Printf("%s: 0x%x\n", string(byte((tp >> 56))), tp&0xffffffffffffff)
+			// fmt.Printf("{'%s', 0x%x},\n", string(byte((tp >> 56))), tp&0xffffffffffffff)
 			expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
 			if tp != expected {
 				t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", ii, tp, expected)
