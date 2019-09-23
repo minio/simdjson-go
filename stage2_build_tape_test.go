@@ -23,9 +23,9 @@ func TestStage2BuildTape(t *testing.T) {
 				{'r', 0x0},
 				{'{', 0x7},
 				{'"', 0x0},
-				{'"', 0x2},
-				{'"', 0x4},
 				{'"', 0x6},
+				{'"', 0xc},
+				{'"', 0x12},
 				{'}', 0x1},
 			},
 		},
@@ -38,11 +38,11 @@ func TestStage2BuildTape(t *testing.T) {
 				{'r', 0x0},
 				{'{', 0xa},
 				{'"', 0x0},
-				{'"', 0x2},
-				{'"', 0x4},
-				{'{', 0x9},
 				{'"', 0x6},
-				{'"', 0x8},
+				{'"', 0xc},
+				{'{', 0x9},
+				{'"', 0x12},
+				{'"', 0x18},
 				{'}', 0x5},
 				{'}', 0x1},
 			},
@@ -56,18 +56,35 @@ func TestStage2BuildTape(t *testing.T) {
 				{'r', 0x0},
 				{'{', 0x10},
 				{'"', 0x0},
-				{'"', 0x2},
-				{'"', 0x4},
+				{'"', 0x6},
+				{'"', 0xc},
 				{'[', 0xf},
 				{'{', 0xa},
-				{'"', 0x6},
-				{'"', 0x8},
+				{'"', 0x12},
+				{'"', 0x18},
 				{'}', 0x6},
 				{'{', 0xe},
-				{'"', 0xa},
-				{'"', 0xc},
+				{'"', 0x1e},
+				{'"', 0x24},
 				{'}', 0xa},
 				{']', 0x5},
+				{'}', 0x1},
+			},
+		},
+		{
+			`{"a":true,"b":false,"c":null}`,
+			[]struct {
+				c byte
+				val uint64
+			}{
+				{'r', 0x0},
+				{'{', 0x9},
+				{'"', 0x0},
+				{'t', 0x0},
+				{'"', 0x6},
+				{'f', 0x0},
+				{'"', 0xc},
+				{'n', 0x0},
 				{'}', 0x1},
 			},
 		},
@@ -90,12 +107,11 @@ func TestStage2BuildTape(t *testing.T) {
 		}
 
 		for ii, tp := range pj.tape {
-			//fmt.Printf("{'%s', 0x%x},\n", string(byte((tp >> 56))), tp&0xffffffffffffff)
+			// fmt.Printf("{'%s', 0x%x},\n", string(byte((tp >> 56))), tp&0xffffffffffffff)
 			expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
 			if tp != expected {
 				t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", ii, tp, expected)
 			}
 		}
-		//fmt.Println(pj.strings[:14])
 	}
 }

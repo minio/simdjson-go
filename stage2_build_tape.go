@@ -10,23 +10,9 @@ func UPDATE_CHAR(buf []byte, pj *ParsedJson, i *uint32, idx *uint32, c *byte) {
 	*c = buf[*idx]
 }
 
-func parse_string_copy(src, dst []byte) {
-	copy(dst[:1], src[:1])
-}
-
 func parse_string(buf []byte, pj *ParsedJson, depth, offset uint32) bool {
-
-	pj.write_tape(pj.current_string_buf_loc - pj.string_buf, '"')
-
-	//const uint8_t *src = &buf[offset + 1];
-	//uint8_t *dst = pj.current_string_buf_loc + sizeof(uint32_t);
-	//const uint8_t *const start_of_string = dst;
-
-	parse_string_copy(buf[offset + 1:], // we know that buf at offset is a "
-					  pj.strings[pj.current_string_buf_loc:])
-
-	pj.current_string_buf_loc += 2 // dst + quote_dist + 1;
-
+	pj.write_tape(uint64(len(pj.strings)), '"')
+	parse_string_simd(buf[offset:], &pj.strings)
 	return true
 }
 
