@@ -6,8 +6,6 @@ type ParsedJson struct {
 	containing_scope_offset []uint64
 	ret_address             []byte
 	isvalid                 bool
-	current_string_buf_loc  uint64
-	string_buf				uint64
 	strings                 []byte
 }
 
