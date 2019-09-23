@@ -80,7 +80,7 @@ func TestStage2BuildTape(t *testing.T) {
 		pj.tape = make([]uint64, 0, 1024)
 		pj.containing_scope_offset = make([]uint64, 128)
 		pj.ret_address = make([]byte, 1024)
-		pj.strings = make([]byte, 1024)
+		pj.strings = make([]byte, 0, 1024)
 
 		find_structural_bits([]byte(tc.input), &pj)
 		unified_machine([]byte(tc.input), &pj)
