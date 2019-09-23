@@ -404,7 +404,7 @@ main_array_switch:
 
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset[depth] = pj.get_current_loc()
+			pj.containing_scope_offset[depth] = pj.get_current_loc()
 		pj.write_tape(0, c); //  here the compilers knows what c is so this gets optimized
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		//   pj.ret_address[depth] = &&array_continue;
