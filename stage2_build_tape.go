@@ -1,6 +1,7 @@
 package simdjson
 
 import (
+	"encoding/binary"
 	"fmt"
 )
 
@@ -22,13 +23,21 @@ func parse_number(buf []byte, pj *ParsedJson, idx uint32, neg bool) bool {
 }
 
 func is_valid_true_atom(buf []byte) bool {
-	fmt.Println("is_valid_true_atom()")
-	return true
+	tv :=  uint64(0x0000000065757274) // "true    "
+	mask4 := uint64(0x00000000ffffffff)
+	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
+	error := (locval & mask4) ^ tv
+	error |= uint64(is_not_structural_or_whitespace(buf[4]))
+	return error == 0
 }
 
 func is_valid_false_atom(buf []byte) bool {
-	fmt.Println("is_valid_false_atom()")
-	return true
+	fv :=  uint64(0x00000065736c6166) // "false   "
+	mask5 := uint64(0x000000ffffffffff)
+	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
+	error := (locval & mask5) ^ fv
+	error |= uint64(is_not_structural_or_whitespace(buf[5]))
+	return error == 0
 }
 
 func is_valid_null_atom(buf []byte) bool {

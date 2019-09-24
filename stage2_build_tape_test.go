@@ -93,11 +93,7 @@ func TestStage2BuildTape(t *testing.T) {
 	for i, tc := range testCases {
 
 		pj := ParsedJson{}
-		pj.structural_indexes = make([]uint32, 0, 1024)
-		pj.tape = make([]uint64, 0, 1024)
-		pj.containing_scope_offset = make([]uint64, 128)
-		pj.ret_address = make([]byte, 1024)
-		pj.strings = make([]byte, 0, 1024)
+		pj.initialize(1024)
 
 		find_structural_bits([]byte(tc.input), &pj)
 		unified_machine([]byte(tc.input), &pj)
@@ -112,6 +108,52 @@ func TestStage2BuildTape(t *testing.T) {
 			if tp != expected {
 				t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", ii, tp, expected)
 			}
+		}
+	}
+}
+
+func TestIsValidTrueAtom(t *testing.T) {
+
+	testCases := []struct {
+		input     string
+		expected bool
+	}{
+		{"true    ", true},
+		{"true,   ", true},
+		{"true}   ", true},
+		{"true]   ", true},
+		{"treu    ", false},
+		{"true1   ", false},
+		{"truea   ", false},
+	}
+
+	for _, tc := range testCases {
+		same := is_valid_true_atom([]byte(tc.input))
+		if same != tc.expected {
+			t.Errorf("TestIsValidTrueAtom: got: %v want: %v", same, tc.expected)
+		}
+	}
+}
+
+func TestIsValidFalseAtom(t *testing.T) {
+
+	testCases := []struct {
+		input     string
+		expected bool
+	}{
+		{"false   ", true},
+		{"false,  ", true},
+		{"false}  ", true},
+		{"false]  ", true},
+		{"flase   ", false},
+		{"false1  ", false},
+		{"falsea  ", false},
+	}
+
+	for _, tc := range testCases {
+		same := is_valid_false_atom([]byte(tc.input))
+		if same != tc.expected {
+			t.Errorf("TestIsValidFalseAtom: got: %v want: %v", same, tc.expected)
 		}
 	}
 }
