@@ -122,7 +122,7 @@ func TestIsValidTrueAtom(t *testing.T) {
 		{"true,   ", true},
 		{"true}   ", true},
 		{"true]   ", true},
-		{"treu    ", false},
+		{"treu    ", false}, // French for true, so perhaps should be true
 		{"true1   ", false},
 		{"truea   ", false},
 	}
@@ -154,6 +154,29 @@ func TestIsValidFalseAtom(t *testing.T) {
 		same := is_valid_false_atom([]byte(tc.input))
 		if same != tc.expected {
 			t.Errorf("TestIsValidFalseAtom: got: %v want: %v", same, tc.expected)
+		}
+	}
+}
+
+func TestIsValidNullAtom(t *testing.T) {
+
+	testCases := []struct {
+		input     string
+		expected bool
+	}{
+		{"null    ", true},
+		{"null,   ", true},
+		{"null}   ", true},
+		{"null]   ", true},
+		{"nul     ", false},
+		{"null1   ", false},
+		{"nulla   ", false},
+	}
+
+	for _, tc := range testCases {
+		same := is_valid_null_atom([]byte(tc.input))
+		if same != tc.expected {
+			t.Errorf("TestIsValidNullAtom: got: %v want: %v", same, tc.expected)
 		}
 	}
 }

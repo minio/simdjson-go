@@ -41,8 +41,12 @@ func is_valid_false_atom(buf []byte) bool {
 }
 
 func is_valid_null_atom(buf []byte) bool {
-	fmt.Println("is_valid_null_atom()")
-	return true
+	nv :=  uint64(0x000000006c6c756e) // "null    "
+	mask4 := uint64(0x00000000ffffffff)
+	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
+	error := (locval & mask4) ^ nv
+	error |= uint64(is_not_structural_or_whitespace(buf[4]))
+	return error == 0
 }
 
 func unified_machine(buf []byte, pj *ParsedJson) bool {
