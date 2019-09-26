@@ -25,38 +25,38 @@ TEXT ·_find_quote_mask_and_bits(SB), $0-56
     MOVQ error_mask+40(FP), R9
     LEAQ LCDATA1<>(SB), BP
 
-    LONG $0x076ffec5             // vmovdqu    ymm0, yword [rdi]
-    LONG $0x0e6ffec5             // vmovdqu    ymm1, yword [rsi]
-    LONG $0x556ffdc5; BYTE $0x00 // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
-    LONG $0xda74fdc5             // vpcmpeqb    ymm3, ymm0, ymm2
-    LONG $0xc3d7fdc5             // vpmovmskb    eax, ymm3
-    LONG $0xd274f5c5             // vpcmpeqb    ymm2, ymm1, ymm2
-    LONG $0xf2d7fdc5             // vpmovmskb    esi, ymm2
-    LONG $0x20e6c148             // shl    rsi, 32
-    WORD $0x0948; BYTE $0xc6     // or    rsi, rax
-    WORD $0xf748; BYTE $0xd2     // not    rdx
-    WORD $0x2148; BYTE $0xf2     // and    rdx, rsi
-    WORD $0x8949; BYTE $0x10     // mov    qword [r8], rdx
-    LONG $0x6ef9e1c4; BYTE $0xd2 // vmovq    xmm2, rdx
-    LONG $0xdb76e1c5             // vpcmpeqd    xmm3, xmm3, xmm3
-    LONG $0x4469e3c4; WORD $0x00d3 // vpclmulqdq    xmm2, xmm2, xmm3, 0
-    LONG $0x7ef9e1c4; BYTE $0xd0 // vmovq    rax, xmm2
-    WORD $0x3348; BYTE $0x01     // xor    rax, qword [rcx]
-    LONG $0x556ffdc5; BYTE $0x20 // vmovdqa    ymm2, yword 32[rbp] /* [rip + LCPI0_1] */
-    LONG $0xc2effdc5             // vpxor    ymm0, ymm0, ymm2
-    LONG $0x5d6ffdc5; BYTE $0x40 // vmovdqa    ymm3, yword 64[rbp] /* [rip + LCPI0_2] */
-    LONG $0xc064e5c5             // vpcmpgtb    ymm0, ymm3, ymm0
-    LONG $0xd0d7fdc5             // vpmovmskb    edx, ymm0
-    LONG $0xc2eff5c5             // vpxor    ymm0, ymm1, ymm2
-    LONG $0xc064e5c5             // vpcmpgtb    ymm0, ymm3, ymm0
-    LONG $0xf0d7fdc5             // vpmovmskb    esi, ymm0
-    LONG $0x20e6c148             // shl    rsi, 32
-    WORD $0x0948; BYTE $0xd6     // or    rsi, rdx
-    WORD $0x2148; BYTE $0xc6     // and    rsi, rax
-    WORD $0x0949; BYTE $0x31     // or    qword [r9], rsi
-    WORD $0x8948; BYTE $0xc2     // mov    rdx, rax
-    LONG $0x3ffac148             // sar    rdx, 63
-    WORD $0x8948; BYTE $0x11     // mov    qword [rcx], rdx
+    VMOVDQU    (DI), Y0          // vmovdqu    ymm0, yword [rdi]
+    VMOVDQU    (SI), Y1          // vmovdqu    ymm1, yword [rsi]
+    VMOVDQA    (BP), Y2          // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
+    VPCMPEQB   Y2, Y0, Y3        // vpcmpeqb    ymm3, ymm0, ymm2
+    VPMOVMSKB  Y3, AX            // vpmovmskb    eax, ymm3
+    VPCMPEQB   Y2, Y1, Y2        // vpcmpeqb    ymm2, ymm1, ymm2
+    VPMOVMSKB  Y2, SI            // vpmovmskb    esi, ymm2
+    SHLQ       $32, SI           // shl    rsi, 32
+    ORQ        AX, SI            // or    rsi, rax
+    NOTQ       DX                // not    rdx
+    ANDQ       SI, DX            // and    rdx, rsi
+    MOVQ       DX, (R8)          // mov    qword [r8], rdx
+    VMOVQ      DX, X2            // vmovq    xmm2, rdx
+    VPCMPEQD   X3, X3, X3        // vpcmpeqd    xmm3, xmm3, xmm3
+    VPCLMULQDQ $0, X3, X2, X2    // vpclmulqdq    xmm2, xmm2, xmm3, 0
+    VMOVQ      X2, AX            // vmovq    rax, xmm2
+    XORQ       (CX), AX          // xor    rax, qword [rcx]
+    VMOVDQA    32(BP), Y2        // vmovdqa    ymm2, yword 32[rbp] /* [rip + LCPI0_1] */
+    VPXOR      Y2, Y0, Y0        // vpxor    ymm0, ymm0, ymm2
+    VMOVDQA    64(BP), Y3        // vmovdqa    ymm3, yword 64[rbp] /* [rip + LCPI0_2] */
+    VPCMPGTB   Y0, Y3, Y0        // vpcmpgtb    ymm0, ymm3, ymm0
+    VPMOVMSKB  Y0, DX            // vpmovmskb    edx, ymm0
+    VPXOR      Y2, Y1, Y0        // vpxor    ymm0, ymm1, ymm2
+    VPCMPGTB   Y0, Y3, Y0        // vpcmpgtb    ymm0, ymm3, ymm0
+    VPMOVMSKB  Y0, SI            // vpmovmskb    esi, ymm0
+    SHLQ       $32, SI           // shl    rsi, 32
+    ORQ        DX, SI            // or    rsi, rdx
+    ANDQ       AX, SI            // and    rsi, rax
+    ORQ        SI, (R9)          // or    qword [r9], rsi
+    MOVQ       AX, DX            // mov    rdx, rax
+    SARQ       $63, DX           // sar    rdx, 63
+    MOVQ       DX, (CX)          // mov    qword [rcx], rdx
     VZEROUPPER
     MOVQ AX, quote_mask+48(FP)
     RET
