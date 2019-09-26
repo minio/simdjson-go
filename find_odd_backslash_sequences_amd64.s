@@ -14,37 +14,37 @@ TEXT ·_find_odd_backslash_sequences(SB), $0-32
     MOVQ p3+16(FP), DX
     LEAQ LCDATA1<>(SB), BP
 
-    LONG $0x456ffdc5; BYTE $0x00 // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
-    LONG $0x0f74fdc5             // vpcmpeqb    ymm1, ymm0, yword [rdi]
-    LONG $0xc9d7fdc5             // vpmovmskb    ecx, ymm1
-    LONG $0x0674fdc5             // vpcmpeqb    ymm0, ymm0, yword [rsi]
-    LONG $0xc0d7fdc5             // vpmovmskb    eax, ymm0
-    LONG $0x20e0c148             // shl    rax, 32
-    WORD $0x0948; BYTE $0xc8     // or    rax, rcx
-    LONG $0x000c8d48             // lea    rcx, [rax + rax]
-    WORD $0xf748; BYTE $0xd1     // not    rcx
-    WORD $0x2148; BYTE $0xc1     // and    rcx, rax
+    VMOVDQA (BP), Y0             // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
+    VPCMPEQB (DI), Y0, Y1        // vpcmpeqb    ymm1, ymm0, yword [rdi]
+    VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
+    VPCMPEQB (SI), Y0, Y0        // vpcmpeqb    ymm0, ymm0, yword [rsi]
+    VPMOVMSKB Y0, AX             // vpmovmskb    eax, ymm0
+    SHLQ $32, AX                 // shl    rax, 32
+    ORQ  CX, AX                  // or    rax, rcx
+    LEAQ (AX)(AX*1), CX          // lea    rcx, [rax + rax]
+    NOTQ CX                      // not    rcx
+    ANDQ AX, CX                  // and    rcx, rax
     WORD $0x8b4c; BYTE $0x0a     // mov    r9, qword [rdx]
-    QUAD $0x555555555555b849; WORD $0x5555 // mov    r8, 6148914691236517205
-    WORD $0x894c; BYTE $0xce     // mov    rsi, r9
-    WORD $0x314c; BYTE $0xc6     // xor    rsi, r8
-    WORD $0x2148; BYTE $0xce     // and    rsi, rcx
-    QUAD $0xaaaaaaaaaaaaba49; WORD $0xaaaa // mov    r10, -6148914691236517206
-    WORD $0x894c; BYTE $0xcf     // mov    rdi, r9
-    WORD $0x314c; BYTE $0xd7     // xor    rdi, r10
-    WORD $0x2148; BYTE $0xcf     // and    rdi, rcx
-    WORD $0x0148; BYTE $0xc6     // add    rsi, rax
-    WORD $0xc931                 // xor    ecx, ecx
-    WORD $0x0148; BYTE $0xc7     // add    rdi, rax
-    WORD $0x920f; BYTE $0xd1     // setb    cl
-    WORD $0x094c; BYTE $0xcf     // or    rdi, r9
-    WORD $0x8948; BYTE $0x0a     // mov    qword [rdx], rcx
-    WORD $0xf748; BYTE $0xd0     // not    rax
-    WORD $0x2149; BYTE $0xc2     // and    r10, rax
-    WORD $0x2149; BYTE $0xf2     // and    r10, rsi
-    WORD $0x214c; BYTE $0xc0     // and    rax, r8
-    WORD $0x2148; BYTE $0xf8     // and    rax, rdi
-    WORD $0x094c; BYTE $0xd0     // or    rax, r10
+    MOVQ $0x5555555555555555, R8 // mov    r8, 6148914691236517205
+    MOVQ R9, SI                  // mov    rsi, r9
+    XORQ R8, SI                  // xor    rsi, r8
+    ANDQ CX, SI                  // and    rsi, rcx
+    MOVQ $0xaaaaaaaaaaaaaaaa, R10 // mov    r10, -6148914691236517206
+    MOVQ R9, DI                  // mov    rdi, r9
+    XORQ R10, DI                 // xor    rdi, r10
+    ANDQ CX, DI                  // and    rdi, rcx
+    ADDQ AX, SI                  // add    rsi, rax
+    XORL CX, CX                  // xor    ecx, ecx
+    ADDQ AX, DI                  // add    rdi, rax
+    SETCS CX                     // setb    cl
+    ORQ  R9, DI                  // or    rdi, r9
+    MOVQ CX, (DX)                // mov    qword [rdx], rcx
+    NOTQ AX                      // not    rax
+    ANDQ AX, R10                 // and    r10, rax
+    ANDQ SI, R10                 // and    r10, rsi
+    ANDQ R8, AX                  // and    rax, r8
+    ANDQ DI, AX                  // and    rax, rdi
+    ORQ  R10, AX                 // or    rax, r10
     VZEROUPPER
     MOVQ AX, result+24(FP)
     RET
