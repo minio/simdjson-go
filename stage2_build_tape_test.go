@@ -2,7 +2,6 @@ package simdjson
 
 import (
 	"testing"
-	_ "fmt"
 )
 
 func TestStage2BuildTape(t *testing.T) {
@@ -85,6 +84,29 @@ func TestStage2BuildTape(t *testing.T) {
 				{'f', 0x0},
 				{'"', 0xc},
 				{'n', 0x0},
+				{'}', 0x1},
+			},
+		},
+		{
+			`{"a":100,"b":200.2,"c":300,"d":400.4}`,
+			[]struct {
+				c byte
+				val uint64
+			}{
+				{'r', 0x0},
+				{'{', 0xf},
+				{'"', 0x0},
+				{'l', 0x0},
+				{'\000', 0x64},          // 100
+				{'"', 0x6},
+				{'d', 0x0},
+				{'@', 0x69066666666667}, // 200.2
+				{'"', 0xc},
+				{'l', 0x0},
+				{'\000', 0x12c},         // 300
+				{'"', 0x12},
+				{'d', 0x0},
+				{'@', 0x79066666666667}, // 400.4
 				{'}', 0x1},
 			},
 		},
@@ -180,3 +202,4 @@ func TestIsValidNullAtom(t *testing.T) {
 		}
 	}
 }
+
