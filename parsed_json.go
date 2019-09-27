@@ -43,9 +43,7 @@ func (pj *ParsedJson) write_tape_s64(val int64) {
 
 func (pj *ParsedJson) write_tape_double(d float64) {
 	pj.write_tape(0, 'd')
-	panic("put memory presentation of float onto tape")
-	//memcpy(& tape[current_loc++], &d, sizeof(double));
-	pj.tape = append(pj.tape, uint64(123 /*d*/))
+	pj.tape = append(pj.tape, float64_2_uint64(d))
 }
 
 func (pj *ParsedJson) annotate_previousloc(saved_loc uint64, val uint64) {
@@ -93,12 +91,11 @@ func (pj *ParsedJson) dump_raw_tape() bool {
 			fmt.Printf("integer %d\n", int64(pj.tape[tapeidx]))
 
 		case 'd': // we have a double
-			fmt.Printf("float ")
 			if tapeidx+1 >= howmany {
 				return false
 			}
 			tapeidx++
-			fmt.Printf("%f\n", Uint64toFloat64(pj.tape[tapeidx]))
+			fmt.Printf("float %f\n", Uint64toFloat64(pj.tape[tapeidx]))
 
 		case 'n': // we have a null
 			fmt.Printf("null\n")

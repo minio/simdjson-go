@@ -2,7 +2,6 @@ package simdjson
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 func UPDATE_CHAR(buf []byte, pj *ParsedJson, i *uint32, idx *uint32, c *byte) {
@@ -18,7 +17,15 @@ func parse_string(buf []byte, pj *ParsedJson, depth, offset uint32) bool {
 }
 
 func parse_number(buf []byte, pj *ParsedJson, idx uint32, neg bool) bool {
-	fmt.Println("parse_number()")
+	succes, is_double, d, i := parse_number_simd(buf[idx:])
+	if !succes {
+		return false
+	}
+	if is_double {
+		pj.write_tape_double(d)
+	} else {
+		pj.write_tape_s64(i)
+	}
 	return true
 }
 
