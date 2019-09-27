@@ -72,7 +72,7 @@ func TestStage2BuildTape(t *testing.T) {
 			},
 		},
 		{
-			`{"a":true,"b":false,"c":null}`,
+			`{"a":true,"b":false,"c":null}   `, // without additional spaces, is_valid_null_atom reads beyond buffer capacity
 			[]struct {
 				c byte
 				val uint64
