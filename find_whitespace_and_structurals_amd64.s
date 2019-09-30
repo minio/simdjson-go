@@ -31,44 +31,44 @@ TEXT ·_find_whitespace_and_structurals(SB), $0-40
     MOVQ structurals+24(FP), CX
     LEAQ LCDATA1<>(SB), BP
 
-    LONG $0x076ffec5             // vmovdqu    ymm0, yword [rdi]
-    LONG $0x0e6ffec5             // vmovdqu    ymm1, yword [rsi]
-    LONG $0x556ffdc5; BYTE $0x00 // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
-    LONG $0x006de2c4; BYTE $0xd8 // vpshufb    ymm3, ymm2, ymm0
-    LONG $0xd072fdc5; BYTE $0x04 // vpsrld    ymm0, ymm0, 4
-    LONG $0x656ffdc5; BYTE $0x20 // vmovdqa    ymm4, yword 32[rbp] /* [rip + LCPI0_1] */
-    LONG $0xc4dbfdc5             // vpand    ymm0, ymm0, ymm4
-    LONG $0x6d6ffdc5; BYTE $0x40 // vmovdqa    ymm5, yword 64[rbp] /* [rip + LCPI0_2] */
-    LONG $0x0055e2c4; BYTE $0xc0 // vpshufb    ymm0, ymm5, ymm0
-    LONG $0xc3dbfdc5             // vpand    ymm0, ymm0, ymm3
-    LONG $0x006de2c4; BYTE $0xd1 // vpshufb    ymm2, ymm2, ymm1
-    LONG $0xd172f5c5; BYTE $0x04 // vpsrld    ymm1, ymm1, 4
-    LONG $0xccdbf5c5             // vpand    ymm1, ymm1, ymm4
-    LONG $0x0055e2c4; BYTE $0xc9 // vpshufb    ymm1, ymm5, ymm1
-    LONG $0xcadbf5c5             // vpand    ymm1, ymm1, ymm2
-    LONG $0x556ffdc5; BYTE $0x60 // vmovdqa    ymm2, yword 96[rbp] /* [rip + LCPI0_3] */
-    LONG $0xdadbfdc5             // vpand    ymm3, ymm0, ymm2
-    LONG $0xe4efddc5             // vpxor    ymm4, ymm4, ymm4
-    LONG $0xdc74e5c5             // vpcmpeqb    ymm3, ymm3, ymm4
-    LONG $0xd2dbf5c5             // vpand    ymm2, ymm1, ymm2
-    LONG $0xd474edc5             // vpcmpeqb    ymm2, ymm2, ymm4
-    LONG $0xc3d7fdc5             // vpmovmskb    eax, ymm3
-    LONG $0xf2d7fdc5             // vpmovmskb    esi, ymm2
-    LONG $0x20e6c148             // shl    rsi, 32
-    WORD $0x0948; BYTE $0xc6     // or    rsi, rax
-    WORD $0xf748; BYTE $0xd6     // not    rsi
-    WORD $0x8948; BYTE $0x31     // mov    qword [rcx], rsi
-    QUAD $0x00000080956ffdc5     // vmovdqa    ymm2, yword 128[rbp] /* [rip + LCPI0_4] */
-    LONG $0xc2dbfdc5             // vpand    ymm0, ymm0, ymm2
-    LONG $0xc474fdc5             // vpcmpeqb    ymm0, ymm0, ymm4
-    LONG $0xcadbf5c5             // vpand    ymm1, ymm1, ymm2
-    LONG $0xcc74f5c5             // vpcmpeqb    ymm1, ymm1, ymm4
-    LONG $0xc0d7fdc5             // vpmovmskb    eax, ymm0
-    LONG $0xc9d7fdc5             // vpmovmskb    ecx, ymm1
-    LONG $0x20e1c148             // shl    rcx, 32
-    WORD $0x0948; BYTE $0xc1     // or    rcx, rax
-    WORD $0xf748; BYTE $0xd1     // not    rcx
-    WORD $0x8948; BYTE $0x0a     // mov    qword [rdx], rcx
+    VMOVDQU   (DI), Y0           // vmovdqu    ymm0, yword [rdi]
+    VMOVDQU   (SI), Y1           // vmovdqu    ymm1, yword [rsi]
+    VMOVDQA   (BP), Y2           // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
+    VPSHUFB   Y0, Y2, Y3         // vpshufb    ymm3, ymm2, ymm0
+    VPSRLD    $4, Y0, Y0         // vpsrld    ymm0, ymm0, 4
+    VMOVDQA   32(BP), Y4         // vmovdqa    ymm4, yword 32[rbp] /* [rip + LCPI0_1] */
+    VPAND     Y4, Y0, Y0         // vpand    ymm0, ymm0, ymm4
+    VMOVDQA   64(BP), Y5         // vmovdqa    ymm5, yword 64[rbp] /* [rip + LCPI0_2] */
+    VPSHUFB   Y0, Y5, Y0         // vpshufb    ymm0, ymm5, ymm0
+    VPAND     Y3, Y0, Y0         // vpand    ymm0, ymm0, ymm3
+    VPSHUFB   Y1, Y2, Y2         // vpshufb    ymm2, ymm2, ymm1
+    VPSRLD    $4, Y1, Y1         // vpsrld    ymm1, ymm1, 4
+    VPAND     Y4, Y1, Y1         // vpand    ymm1, ymm1, ymm4
+    VPSHUFB   Y1, Y5, Y1         // vpshufb    ymm1, ymm5, ymm1
+    VPAND     Y2, Y1, Y1         // vpand    ymm1, ymm1, ymm2
+    VMOVDQA   96(BP), Y2         // vmovdqa    ymm2, yword 96[rbp] /* [rip + LCPI0_3] */
+    VPAND     Y2, Y0, Y3         // vpand    ymm3, ymm0, ymm2
+    VPXOR     Y4, Y4, Y4         // vpxor    ymm4, ymm4, ymm4
+    VPCMPEQB  Y4, Y3, Y3         // vpcmpeqb    ymm3, ymm3, ymm4
+    VPAND     Y2, Y1, Y2         // vpand    ymm2, ymm1, ymm2
+    VPCMPEQB  Y4, Y2, Y2         // vpcmpeqb    ymm2, ymm2, ymm4
+    VPMOVMSKB Y3, AX             // vpmovmskb    eax, ymm3
+    VPMOVMSKB Y2, SI             // vpmovmskb    esi, ymm2
+    SHLQ      $32, SI            // shl    rsi, 32
+    ORQ       AX, SI             // or    rsi, rax
+    NOTQ      SI                 // not    rsi
+    MOVQ      SI, (CX)           // mov    qword [rcx], rsi
+    VMOVDQA   128(BP), Y2        // vmovdqa    ymm2, yword 128[rbp] /* [rip + LCPI0_4] */
+    VPAND     Y2, Y0, Y0         // vpand    ymm0, ymm0, ymm2
+    VPCMPEQB  Y4, Y0, Y0         // vpcmpeqb    ymm0, ymm0, ymm4
+    VPAND     Y2, Y1, Y1         // vpand    ymm1, ymm1, ymm2
+    VPCMPEQB  Y4, Y1, Y1         // vpcmpeqb    ymm1, ymm1, ymm4
+    VPMOVMSKB Y0, AX             // vpmovmskb    eax, ymm0
+    VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
+    SHLQ      $32, CX            // shl    rcx, 32
+    ORQ       AX, CX             // or    rcx, rax
+    NOTQ      CX                 // not    rcx
+    MOVQ      CX, (DX)           // mov    qword [rdx], rcx
     VZEROUPPER
-    MOVQ AX, quote_mask+32(FP)
+    MOVQ      AX, quote_mask+32(FP)
     RET
