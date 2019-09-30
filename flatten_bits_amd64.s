@@ -8,65 +8,65 @@ TEXT ·_flatten_bits(SB), $0-32
     MOVQ idx+16(FP), DX
     MOVQ bits+24(FP), CX
 
-    LONG $0xb80f4cf3; BYTE $0xc1 // popcnt    r8, rcx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0x0141; BYTE $0xc0     // add    r8d, eax
-    WORD $0x8548; BYTE $0xc9     // test    rcx, rcx
-	JE LBB0_3
-    WORD $0xc283; BYTE $0xc0     // add    edx, -64
+    POPCNTQ CX, R8               // popcnt    r8, rcx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   AX, R8                // add    r8d, eax
+    TESTQ  CX, CX                // test    rcx, rcx
+	JE     LBB0_3
+    ADDL   $-64, DX              // add    edx, -64
 LBB0_2:
-    LONG $0xbc0f4cf3; BYTE $0xc9 // tzcnt    r9, rcx
-    WORD $0x0141; BYTE $0xd1     // add    r9d, edx
-    WORD $0xc089                 // mov    eax, eax
-    LONG $0x870c8944             // mov    dword [rdi + 4*rax], r9d
-    LONG $0xf3b0e2c4; BYTE $0xc9 // blsr    r9, rcx
-    LONG $0xbc0f49f3; BYTE $0xc9 // tzcnt    rcx, r9
-    WORD $0xd101                 // add    ecx, edx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc0ff                 // inc    eax
-    WORD $0x0c89; BYTE $0x87     // mov    dword [rdi + 4*rax], ecx
-    LONG $0xf3b0c2c4; BYTE $0xc9 // blsr    r9, r9
-    LONG $0xbc0f49f3; BYTE $0xc9 // tzcnt    rcx, r9
-    WORD $0xd101                 // add    ecx, edx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc083; BYTE $0x02     // add    eax, 2
-    WORD $0x0c89; BYTE $0x87     // mov    dword [rdi + 4*rax], ecx
-    LONG $0xf3b0c2c4; BYTE $0xc9 // blsr    r9, r9
-    LONG $0xbc0f49f3; BYTE $0xc9 // tzcnt    rcx, r9
-    WORD $0xd101                 // add    ecx, edx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc083; BYTE $0x03     // add    eax, 3
-    WORD $0x0c89; BYTE $0x87     // mov    dword [rdi + 4*rax], ecx
-    LONG $0xf3b0c2c4; BYTE $0xc9 // blsr    r9, r9
-    LONG $0xbc0f49f3; BYTE $0xc9 // tzcnt    rcx, r9
-    WORD $0xd101                 // add    ecx, edx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc083; BYTE $0x04     // add    eax, 4
-    WORD $0x0c89; BYTE $0x87     // mov    dword [rdi + 4*rax], ecx
-    LONG $0xf3b0c2c4; BYTE $0xc9 // blsr    r9, r9
-    LONG $0xbc0f49f3; BYTE $0xc9 // tzcnt    rcx, r9
-    WORD $0xd101                 // add    ecx, edx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc083; BYTE $0x05     // add    eax, 5
-    WORD $0x0c89; BYTE $0x87     // mov    dword [rdi + 4*rax], ecx
-    LONG $0xf3b0c2c4; BYTE $0xc9 // blsr    r9, r9
-    LONG $0xbc0f49f3; BYTE $0xc9 // tzcnt    rcx, r9
-    WORD $0xd101                 // add    ecx, edx
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc083; BYTE $0x06     // add    eax, 6
-    WORD $0x0c89; BYTE $0x87     // mov    dword [rdi + 4*rax], ecx
-    LONG $0xf3b0c2c4; BYTE $0xc9 // blsr    r9, r9
-    LONG $0xbc0f49f3; BYTE $0xc1 // tzcnt    rax, r9
-    WORD $0xd001                 // add    eax, edx
-    WORD $0x0e8b                 // mov    ecx, dword [rsi]
-    WORD $0xc183; BYTE $0x07     // add    ecx, 7
-    WORD $0x0489; BYTE $0x8f     // mov    dword [rdi + 4*rcx], eax
-    LONG $0xff498d49             // lea    rcx, [r9 - 1]
-    WORD $0x068b                 // mov    eax, dword [rsi]
-    WORD $0xc083; BYTE $0x08     // add    eax, 8
-    WORD $0x0689                 // mov    dword [rsi], eax
-    WORD $0x214c; BYTE $0xc9     // and    rcx, r9
-	JNE LBB0_2
+    TZCNTQ CX, R9                // tzcnt    r9, rcx
+    ADDL   DX, R9                // add    r9d, edx
+    MOVL   AX, AX                // mov    eax, eax
+    MOVL   R9, (DI)(AX*4)        // mov    dword [rdi + 4*rax], r9d
+    BLSRQ  CX, R9                // blsr    r9, rcx
+    TZCNTQ R9, CX                // tzcnt    rcx, r9
+    ADDL   DX, CX                // add    ecx, edx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    INCL   AX                    // inc    eax
+    MOVL   CX, (DI)(AX*4)        // mov    dword [rdi + 4*rax], ecx
+    BLSRQ  R9, R9                // blsr    r9, r9
+    TZCNTQ R9, CX                // tzcnt    rcx, r9
+    ADDL   DX, CX                // add    ecx, edx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   $2, AX                // add    eax, 2
+    MOVL   CX, (DI)(AX*4)        // mov    dword [rdi + 4*rax], ecx
+    BLSRQ  R9, R9                // blsr    r9, r9
+    TZCNTQ R9, CX                // tzcnt    rcx, r9
+    ADDL   DX, CX                // add    ecx, edx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   $3, AX                // add    eax, 3
+    MOVL   CX, (DI)(AX*4)        // mov    dword [rdi + 4*rax], ecx
+    BLSRQ  R9, R9                // blsr    r9, r9
+    TZCNTQ R9, CX                // tzcnt    rcx, r9
+    ADDL   DX, CX                // add    ecx, edx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   $4, AX                // add    eax, 4
+    MOVL   CX, (DI)(AX*4)        // mov    dword [rdi + 4*rax], ecx
+    BLSRQ  R9, R9                // blsr    r9, r9
+    TZCNTQ R9, CX                // tzcnt    rcx, r9
+    ADDL   DX, CX                // add    ecx, edx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   $5, AX                // add    eax, 5
+    MOVL   CX, (DI)(AX*4)        // mov    dword [rdi + 4*rax], ecx
+    BLSRQ  R9, R9                // blsr    r9, r9
+    TZCNTQ R9, CX                // tzcnt    rcx, r9
+    ADDL   DX, CX                // add    ecx, edx
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   $6, AX                // add    eax, 6
+    MOVL   CX, (DI)(AX*4)        // mov    dword [rdi + 4*rax], ecx
+    BLSRQ  R9, R9                // blsr    r9, r9
+    TZCNTQ R9, AX                // tzcnt    rax, r9
+    ADDL   DX, AX                // add    eax, edx
+    MOVL   (SI), CX              // mov    ecx, dword [rsi]
+    ADDL   $7, CX                // add    ecx, 7
+    MOVL   AX, (DI)(CX*4)        // mov    dword [rdi + 4*rcx], eax
+    LEAQ   -1(R9), CX            // lea    rcx, [r9 - 1]
+    MOVL   (SI), AX              // mov    eax, dword [rsi]
+    ADDL   $8, AX                // add    eax, 8
+    MOVL   AX, (SI)              // mov    dword [rsi], eax
+    ANDQ   R9, CX                // and    rcx, r9
+	JNE    LBB0_2
 LBB0_3:
-    WORD $0x8944; BYTE $0x06     // mov    dword [rsi], r8d
+    MOVL   R8, (SI)              // mov    dword [rsi], r8d
     RET
