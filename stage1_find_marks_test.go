@@ -89,7 +89,7 @@ func TestStage1FindMarks(t *testing.T) {
 	}
 }
 
-func TestFindStructuralBits(t *testing.T) {
+func TestFindStructuralIndices(t *testing.T) {
 
 	parsed := []string{
 		`{"Image":{"Width":800,"Height":600,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`,
@@ -148,7 +148,7 @@ func TestFindStructuralBits(t *testing.T) {
 	pj := ParsedJson{}
 	pj.structural_indexes = make([]uint32, 0, 1024)
 
-	find_structural_bits([]byte(demo_json), &pj)
+	find_structural_indices([]byte(demo_json), &pj)
 
 	for i, pos := range pj.structural_indexes {
 		result := fmt.Sprintf("%s%s", strings.Repeat(" ", int(pos)), demo_json[pos:])

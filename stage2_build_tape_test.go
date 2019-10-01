@@ -117,7 +117,7 @@ func TestStage2BuildTape(t *testing.T) {
 		pj := ParsedJson{}
 		pj.initialize(1024)
 
-		find_structural_bits([]byte(tc.input), &pj)
+		find_structural_indices([]byte(tc.input), &pj)
 		unified_machine([]byte(tc.input), &pj)
 
 		if len(pj.tape) != len(tc.expected) {

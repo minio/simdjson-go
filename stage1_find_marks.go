@@ -2,7 +2,7 @@ package simdjson
 
 const paddingSpaces64 = "                                                                "
 
-func find_structural_bits(buf []byte, pj *ParsedJson) bool {
+func find_structural_indices(buf []byte, pj *ParsedJson) bool {
 
 	//if (len > pj.bytecapacity) {
 	//	cerr << "Your ParsedJson object only supports documents up to "
@@ -58,21 +58,14 @@ func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 		// check_utf8(input_lo, input_hi, has_error, previous);
 		// #endif
 
-		// detect odd sequences of backslashes
-		odd_ends := find_odd_backslash_sequences(buf[idx:], &prev_iter_ends_odd_backslash)
-
-		// detect insides of quote pairs ("quote_mask") and also our quote_bits themselves
-		quote_bits := uint64(0)
-		quote_mask := find_quote_mask_and_bits(buf[idx:], odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
-
 		// take the previous iterations structural bits, not our current iteration, and flatten
 		flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
 
-		whitespace_mask := uint64(0)
-		find_whitespace_and_structurals(buf[idx:], &whitespace_mask, &structurals)
-
-		// fixup structurals to reflect quotes and add pseudo-structural characters
-		structurals = finalize_structurals(structurals, whitespace_mask, quote_mask, quote_bits, &prev_iter_ends_pseudo_pred)
+		// find structural bits
+		structurals = find_structural_bits(buf[idx:], &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred)
 	}
 
 	////////////////
@@ -91,21 +84,14 @@ func find_structural_bits(buf []byte, pj *ParsedJson) bool {
 		// check_utf8(input_lo, input_hi, has_error, previous);
 		// #endif
 
-		// detect odd sequences of backslashes
-		odd_ends := find_odd_backslash_sequences(tmpbuf[:], &prev_iter_ends_odd_backslash)
-
-		// detect insides of quote pairs ("quote_mask") and also our quote_bits themselves
-		quote_bits := uint64(0)
-		quote_mask := find_quote_mask_and_bits(tmpbuf[:], odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
-
 		// take the previous iterations structural bits, not our current iteration, and flatten
 		flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
 
-		whitespace_mask := uint64(0)
-		find_whitespace_and_structurals(tmpbuf[:], &whitespace_mask, &structurals)
-
-		// fixup structurals to reflect quotes and add pseudo-structural characters
-		structurals = finalize_structurals(structurals, whitespace_mask, quote_mask, quote_bits, &prev_iter_ends_pseudo_pred)
+		// find structural bits
+		structurals = find_structural_bits(tmpbuf[:], &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred)
 
 		idx += 64
 	}

@@ -15,6 +15,6 @@ func BenchmarkStage1(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		pj.structural_indexes = pj.structural_indexes[:0]
-		find_structural_bits([]byte(demo_json), &pj)
+		find_structural_indices([]byte(demo_json), &pj)
 	}
 }
