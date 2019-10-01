@@ -9,6 +9,13 @@ TEXT ·_finalize_structurals(SB), $0-48
     MOVQ quote_bits+24(FP), CX
     MOVQ prev_iter_ends_pseudo_pred+32(FP), R8
 
+    CALL ·__finalize_structurals(SB)
+
+    MOVQ AX, structurals+40(FP)
+    RET
+
+TEXT ·__finalize_structurals(SB), $0
+
     ANDNQ DI, DX, DI             // andn    rdi, rdx, rdi
     ORQ  CX, DI                  // or    rdi, rcx
     MOVQ DI, AX                  // mov    rax, rdi
@@ -24,5 +31,4 @@ TEXT ·_finalize_structurals(SB), $0-48
     NOTQ CX                      // not    rcx
     ORQ  DX, CX                  // or    rcx, rdx
     ANDQ CX, AX                  // and    rax, rcx
-    MOVQ AX, structurals+40(FP)
     RET

@@ -23,16 +23,27 @@ DATA LCDATA1<>+0x090(SB)/8, $0x1818181818181818
 DATA LCDATA1<>+0x098(SB)/8, $0x1818181818181818
 GLOBL LCDATA1<>(SB), 8, $160
 
-TEXT ·_find_whitespace_and_structurals(SB), $0-40
+TEXT ·_find_whitespace_and_structurals(SB), $0-32
 
     MOVQ input_lo+0(FP), DI
     MOVQ input_hi+8(FP), SI
     MOVQ whitespace+16(FP), DX
     MOVQ structurals+24(FP), CX
+
+    VMOVDQU    (DI), Y8          // load low 32-bytes
+    VMOVDQU    (SI), Y9          // load high 32-bytes
+
+    CALL ·__find_whitespace_and_structurals(SB)
+
+    VZEROUPPER
+    RET
+
+
+TEXT ·__find_whitespace_and_structurals(SB), $0
     LEAQ LCDATA1<>(SB), BP
 
-    VMOVDQU   (DI), Y0           // vmovdqu    ymm0, yword [rdi]
-    VMOVDQU   (SI), Y1           // vmovdqu    ymm1, yword [rsi]
+    VMOVDQA   Y8, Y0             // vmovdqu    ymm0, yword [rdi]
+    VMOVDQA   Y9, Y1             // vmovdqu    ymm1, yword [rsi]
     VMOVDQA   (BP), Y2           // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
     VPSHUFB   Y0, Y2, Y3         // vpshufb    ymm3, ymm2, ymm0
     VPSRLD    $4, Y0, Y0         // vpsrld    ymm0, ymm0, 4
@@ -69,6 +80,4 @@ TEXT ·_find_whitespace_and_structurals(SB), $0-40
     ORQ       AX, CX             // or    rcx, rax
     NOTQ      CX                 // not    rcx
     MOVQ      CX, (DX)           // mov    qword [rdx], rcx
-    VZEROUPPER
-    MOVQ      AX, quote_mask+32(FP)
     RET
