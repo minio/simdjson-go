@@ -23,10 +23,22 @@ TEXT ·_find_quote_mask_and_bits(SB), $0-56
     MOVQ prev_iter_inside_quote+24(FP), CX
     MOVQ quote_bits+32(FP), R8
     MOVQ error_mask+40(FP), R9
+
+    VMOVDQU    (DI), Y8          // load low 32-bytes
+    VMOVDQU    (SI), Y9          // load high 32-bytes
+
+    CALL ·__find_quote_mask_and_bits(SB)
+
+    VZEROUPPER
+    MOVQ AX, quote_mask+48(FP)
+    RET
+
+
+TEXT ·__find_quote_mask_and_bits(SB), $0
     LEAQ LCDATA1<>(SB), BP
 
-    VMOVDQU    (DI), Y0          // vmovdqu    ymm0, yword [rdi]
-    VMOVDQU    (SI), Y1          // vmovdqu    ymm1, yword [rsi]
+    VMOVDQA    Y8, Y0            // vmovdqu    ymm0, yword [rdi]
+    VMOVDQA    Y9, Y1            // vmovdqu    ymm1, yword [rsi]
     VMOVDQA    (BP), Y2          // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
     VPCMPEQB   Y2, Y0, Y3        // vpcmpeqb    ymm3, ymm0, ymm2
     VPMOVMSKB  Y3, AX            // vpmovmskb    eax, ymm3
@@ -57,6 +69,4 @@ TEXT ·_find_quote_mask_and_bits(SB), $0-56
     MOVQ       AX, DX            // mov    rdx, rax
     SARQ       $63, DX           // sar    rdx, 63
     MOVQ       DX, (CX)          // mov    qword [rcx], rdx
-    VZEROUPPER
-    MOVQ AX, quote_mask+48(FP)
     RET

@@ -12,12 +12,24 @@ TEXT ·_find_odd_backslash_sequences(SB), $0-32
     MOVQ p1+0(FP), DI
     MOVQ p2+8(FP), SI
     MOVQ p3+16(FP), DX
+
+    VMOVDQU    (DI), Y8          // load low 32-bytes
+    VMOVDQU    (SI), Y9          // load high 32-bytes
+
+    CALL ·__find_odd_backslash_sequences(SB)
+
+    VZEROUPPER
+    MOVQ AX, result+24(FP)
+    RET
+
+
+TEXT ·__find_odd_backslash_sequences(SB), $0
     LEAQ LCDATA1<>(SB), BP
 
     VMOVDQA (BP), Y0             // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
-    VPCMPEQB (DI), Y0, Y1        // vpcmpeqb    ymm1, ymm0, yword [rdi]
+    VPCMPEQB Y8/*(DI)*/, Y0, Y1  // vpcmpeqb    ymm1, ymm0, yword [rdi]
     VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
-    VPCMPEQB (SI), Y0, Y0        // vpcmpeqb    ymm0, ymm0, yword [rsi]
+    VPCMPEQB Y9/*(SI)*/, Y0, Y0  // vpcmpeqb    ymm0, ymm0, yword [rsi]
     VPMOVMSKB Y0, AX             // vpmovmskb    eax, ymm0
     SHLQ $32, AX                 // shl    rax, 32
     ORQ  CX, AX                  // or    rax, rcx
@@ -45,6 +57,4 @@ TEXT ·_find_odd_backslash_sequences(SB), $0-32
     ANDQ R8, AX                  // and    rax, r8
     ANDQ DI, AX                  // and    rax, rdi
     ORQ  R10, AX                 // or    rax, r10
-    VZEROUPPER
-    MOVQ AX, result+24(FP)
     RET
