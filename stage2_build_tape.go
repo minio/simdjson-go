@@ -81,7 +81,7 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	// #endif
 	pj.ret_address[depth] = 's'
 
-	pj.containing_scope_offset[depth] = pj.get_current_loc();
+	pj.containing_scope_offset[depth] = pj.get_current_loc()
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
@@ -93,11 +93,11 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	UPDATE_CHAR(buf, pj, &i, &idx, &c)
 	switch c {
 	case '{':
-		pj.containing_scope_offset[depth] = pj.get_current_loc();
+		pj.containing_scope_offset[depth] = pj.get_current_loc()
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		//     pj.ret_address[depth] = &&start_continue;
 		// #endif
-		pj.ret_address[depth] = 's';
+		pj.ret_address[depth] = 's'
 		depth++
 		// if (depth > pj.depthcapacity) {
 		//     goto fail
@@ -105,11 +105,11 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 		pj.write_tape(0, c) // strangely, moving this to object_begin slows things down
 		goto object_begin
 	case '[':
-		pj.containing_scope_offset[depth] = pj.get_current_loc();
+		pj.containing_scope_offset[depth] = pj.get_current_loc()
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		//     pj.ret_address[depth] = &&start_continue;
 		// #endif
-		pj.ret_address[depth] = 's';
+		pj.ret_address[depth] = 's'
 		depth++
 		// if (depth > pj.depthcapacity) {
 		//     goto fail
@@ -293,13 +293,13 @@ object_key_state:
 		}
 
 	case '{':
-		pj.containing_scope_offset[depth] = pj.get_current_loc();
+		pj.containing_scope_offset[depth] = pj.get_current_loc()
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// we have not yet encountered } so we need to come back for it
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		//  pj.ret_address[depth] = &&object_continue;
 		// #endif
-		pj.ret_address[depth] = 'o';
+		pj.ret_address[depth] = 'o'
 		// we found an object inside an object, so we need to increment the depth
 		depth++
 		// if (depth > pj.depthcapacity) {
@@ -308,15 +308,15 @@ object_key_state:
 		goto object_begin
 
 	case '[':
-		pj.containing_scope_offset[depth] = pj.get_current_loc();
+		pj.containing_scope_offset[depth] = pj.get_current_loc()
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// we have not yet encountered } so we need to come back for it
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		// pj.ret_address[depth] = &&object_continue;
 		// #endif
-		pj.ret_address[depth] = 'o';
+		pj.ret_address[depth] = 'o'
 		// we found an array inside an object, so we need to increment the depth
-		depth++;
+		depth++
 		// if (depth > pj.depthcapacity) {
 		//  goto fail
 		// }
@@ -351,7 +351,7 @@ scope_end:
 	// write our tape location to the header scope
 	depth--
 	pj.write_tape(pj.containing_scope_offset[depth], c)
-	pj.annotate_previousloc(pj.containing_scope_offset[depth], pj.get_current_loc());
+	pj.annotate_previousloc(pj.containing_scope_offset[depth], pj.get_current_loc())
 
 	/* goto saved_state*/
 	// #ifdef SIMDJSON_USE_COMPUTED_GOTO
@@ -383,19 +383,19 @@ main_array_switch:
 		if !is_valid_true_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c);
+		pj.write_tape(0, c)
 
 	case 'f':
 		if !is_valid_false_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c);
+		pj.write_tape(0, c)
 
 	case 'n':
 		if !is_valid_null_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c);
+		pj.write_tape(0, c)
 		/* goto array_continue */
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -412,7 +412,7 @@ main_array_switch:
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containing_scope_offset[depth] = pj.get_current_loc()
-		pj.write_tape(0, c); //  here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, c) //  here the compilers knows what c is so this gets optimized
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		//   pj.ret_address[depth] = &&array_continue;
 		// #endif
@@ -426,8 +426,8 @@ main_array_switch:
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset[depth] = pj.get_current_loc();
-		pj.write_tape(0, c); // here the compilers knows what c is so this gets optimized
+		pj.containing_scope_offset[depth] = pj.get_current_loc()
+		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// #ifdef SIMDJSON_USE_COMPUTED_GOTO
 		//   pj.ret_address[depth] = &&array_continue;
 		// #endif
