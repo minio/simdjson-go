@@ -1,20 +1,40 @@
 package simdjson
 
 import (
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 )
 
-func BenchmarkStage1(b *testing.B) {
+func benchmarkFromFile(b *testing.B, filename string) {
 
-	b.SetBytes(int64(len(demo_json)))
+	msg, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".json"))
+	if err != nil {
+		panic("failed to read file")
+	}
+
+	b.SetBytes(int64(len(msg)))
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	pj := ParsedJson{}
-	pj.structural_indexes = make([]uint32, 0, 1024)
+	pj.initialize(len(msg)*2)
 
 	for i := 0; i < b.N; i++ {
 		pj.structural_indexes = pj.structural_indexes[:0]
-		find_structural_indices([]byte(demo_json), &pj)
+		pj.tape = pj.tape[:0]
+		pj.strings = pj.strings[:0]
+		find_structural_indices(msg, &pj)
+		unified_machine(msg, &pj)
 	}
 }
+
+func BenchmarkApache_builds(b *testing.B) { benchmarkFromFile(b, "apache_builds") }
+func BenchmarkCitm_catalog(b *testing.B) { benchmarkFromFile(b, "citm_catalog") }
+func BenchmarkGithub_events(b *testing.B) { benchmarkFromFile(b, "github_events") }
+func BenchmarkGsoc_2018(b *testing.B) { benchmarkFromFile(b, "gsoc-2018") }
+func BenchmarkInstruments(b *testing.B) { benchmarkFromFile(b, "instruments") }
+func BenchmarkNumbers(b *testing.B) { benchmarkFromFile(b, "numbers") }
+func BenchmarkRandom(b *testing.B) { benchmarkFromFile(b, "random") }
+func BenchmarkUpdate_center(b *testing.B) { benchmarkFromFile(b, "update-center") }
+
