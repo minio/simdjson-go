@@ -1,6 +1,6 @@
 # simdjson-go
 
-This is Golang port of [simdjson](https://github.com/lemire/simdjson).
+This is a Golang port of [simdjson](https://github.com/lemire/simdjson).
 
 ## Performance
 
