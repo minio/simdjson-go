@@ -58,6 +58,11 @@ func is_valid_null_atom(buf []byte) bool {
 
 func unified_machine(buf []byte, pj *ParsedJson) bool {
 
+	// TODO: Figure out why we may have a trailing zero as the last structural element
+	if pj.structural_indexes[len(pj.structural_indexes)-1] == 0 {
+		pj.structural_indexes = pj.structural_indexes[:len(pj.structural_indexes)-1]
+	}
+
 	i := uint32(0)     // index of the structural character (0,1,2,3...)
 	idx := uint32(0)   // location of the structural character in the input (buf)
 	c := byte(0)       // used to track the (structural) character we are looking at

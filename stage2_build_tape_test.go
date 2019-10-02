@@ -19,13 +19,14 @@ func TestStage2BuildTape(t *testing.T) {
 				c byte
 				val uint64
 			}{
-				{'r', 0x0},
+				{'r', 0x7},
 				{'{', 0x7},
 				{'"', 0x0},
 				{'"', 0x6},
 				{'"', 0xc},
 				{'"', 0x12},
 				{'}', 0x1},
+				{'r', 0x0},
 			},
 		},
 		{
@@ -34,7 +35,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c byte
 				val uint64
 			}{
-				{'r', 0x0},
+				{'r', 0xa},
 				{'{', 0xa},
 				{'"', 0x0},
 				{'"', 0x6},
@@ -44,6 +45,7 @@ func TestStage2BuildTape(t *testing.T) {
 				{'"', 0x18},
 				{'}', 0x5},
 				{'}', 0x1},
+				{'r', 0x0},
 			},
 		},
 		{
@@ -52,7 +54,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c byte
 				val uint64
 			}{
-				{'r', 0x0},
+				{'r', 0x10},
 				{'{', 0x10},
 				{'"', 0x0},
 				{'"', 0x6},
@@ -68,6 +70,7 @@ func TestStage2BuildTape(t *testing.T) {
 				{'}', 0xa},
 				{']', 0x5},
 				{'}', 0x1},
+				{'r', 0x0},
 			},
 		},
 		{
@@ -76,7 +79,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c byte
 				val uint64
 			}{
-				{'r', 0x0},
+				{'r', 0x9},
 				{'{', 0x9},
 				{'"', 0x0},
 				{'t', 0x0},
@@ -85,6 +88,7 @@ func TestStage2BuildTape(t *testing.T) {
 				{'"', 0xc},
 				{'n', 0x0},
 				{'}', 0x1},
+				{'r', 0x0},
 			},
 		},
 		{
@@ -93,7 +97,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c byte
 				val uint64
 			}{
-				{'r', 0x0},
+				{'r', 0xf},
 				{'{', 0xf},
 				{'"', 0x0},
 				{'l', 0x0},
@@ -108,6 +112,7 @@ func TestStage2BuildTape(t *testing.T) {
 				{'d', 0x0},
 				{'@', 0x79066666666667}, // 400.4
 				{'}', 0x1},
+				{'r', 0x0},
 			},
 		},
 	}
@@ -118,7 +123,10 @@ func TestStage2BuildTape(t *testing.T) {
 		pj.initialize(1024)
 
 		find_structural_indices([]byte(tc.input), &pj)
-		unified_machine([]byte(tc.input), &pj)
+		success := unified_machine([]byte(tc.input), &pj)
+		if !success {
+			t.Errorf("TestStage2BuildTape(%d): got: %v want: true", i, success)
+		}
 
 		if len(pj.tape) != len(tc.expected) {
 			t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", i, len(pj.tape), len(tc.expected))
