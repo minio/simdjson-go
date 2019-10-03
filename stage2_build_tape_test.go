@@ -1,7 +1,12 @@
 package simdjson
 
 import (
+	"fmt"
+	"bytes"
+	"encoding/binary"
+	"io/ioutil"
 	"testing"
+	"path/filepath"
 )
 
 func TestStage2BuildTape(t *testing.T) {
@@ -211,3 +216,41 @@ func TestIsValidNullAtom(t *testing.T) {
 	}
 }
 
+func testStage2VerifyTape(t *testing.T, filename string) {
+
+	msg, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".json"))
+	if err != nil {
+		panic("failed to read file")
+	}
+
+	pj := ParsedJson{}
+	pj.initialize(len(msg)*2)
+
+	find_structural_indices(msg, &pj)
+	success := unified_machine(msg, &pj)
+	if !success {
+		fmt.Errorf("Stage2 failed\n")
+	}
+
+	tape := make([]byte, len(pj.tape)*8)
+	for i, t := range pj.tape {
+		binary.LittleEndian.PutUint64(tape[i*8:], t)
+	}
+	expected, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".tape"))
+	if err != nil {
+		panic("failed to read file")
+	}
+
+	if bytes.Compare(tape, expected) != 0 {
+		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, tape, expected)
+	}
+}
+
+func TestStage2VerifyApache_builds(t *testing.T) { testStage2VerifyTape(t, "apache_builds") }
+func TestStage2VerifyCitm_catalog(t *testing.T) { testStage2VerifyTape(t, "citm_catalog") }
+func TestStage2VerifyGithub_events(t *testing.T) { testStage2VerifyTape(t, "github_events") }
+func TestStage2VerifyGsoc_2018(t *testing.T) { testStage2VerifyTape(t, "gsoc-2018") }
+func TestStage2VerifyInstruments(t *testing.T) { testStage2VerifyTape(t, "instruments") }
+func TestStage2VerifyNumbers(t *testing.T) { testStage2VerifyTape(t, "numbers") }
+func TestStage2VerifyRandom(t *testing.T) { testStage2VerifyTape(t, "random") }
+func TestStage2VerifyUpdate_center(t *testing.T) { testStage2VerifyTape(t, "update-center") }
