@@ -1,9 +1,5 @@
 package simdjson
 
-import (
-    "unsafe"
-)
-
 // structural chars here are
 // they are { 0x7b } 0x7d : 0x3a [ 0x5b ] 0x5d , 0x2c (and NULL)
 // we are also interested in the four whitespace characters
@@ -32,8 +28,4 @@ var structural_or_whitespace_negated = [256]byte{
 // zero otherwise
 func is_not_structural_or_whitespace(c byte) byte {
   return structural_or_whitespace_negated[c]
-}
-
-func float64_2_uint64(f float64) uint64 {
-    return *(*uint64)(unsafe.Pointer(&f))
 }

@@ -2,8 +2,8 @@ package simdjson
 
 import (
 	"encoding/binary"
-	"unsafe"
 	"fmt"
+	"math"
 )
 
 const JSONVALUEMASK = 0xffffffffffffff
@@ -43,7 +43,7 @@ func (pj *ParsedJson) write_tape_s64(val int64) {
 
 func (pj *ParsedJson) write_tape_double(d float64) {
 	pj.write_tape(0, 'd')
-	pj.tape = append(pj.tape, float64_2_uint64(d))
+	pj.tape = append(pj.tape, math.Float64bits(d))
 }
 
 func (pj *ParsedJson) annotate_previousloc(saved_loc uint64, val uint64) {
@@ -95,7 +95,7 @@ func (pj *ParsedJson) dump_raw_tape() bool {
 				return false
 			}
 			tapeidx++
-			fmt.Printf("float %f\n", Uint64toFloat64(pj.tape[tapeidx]))
+			fmt.Printf("float %f\n", math.Float64frombits(pj.tape[tapeidx]))
 
 		case 'n': // we have a null
 			fmt.Printf("null\n")
@@ -133,14 +133,6 @@ func (pj *ParsedJson) dump_raw_tape() bool {
 	fmt.Printf("%d : %s\t// pointing to %d (start root)\n", tapeidx, string(ntype), payload)
 
 	return true
-}
-
-func Uint64toFloat64(i uint64) float64 {
-	return *(*float64)(unsafe.Pointer(&i))
-}
-
-func Float64toUint64(f float64) uint64 {
-	return *(*uint64)(unsafe.Pointer(&f))
 }
 
 func print_with_escapes(src []byte) string {
