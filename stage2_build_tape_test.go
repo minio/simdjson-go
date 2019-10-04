@@ -244,6 +244,16 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 	if bytes.Compare(tape, expected) != 0 {
 		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, tape, expected)
 	}
+
+	expectedStringBuf, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".stringbuf"))
+	if err != nil {
+		panic("failed to read file")
+	}
+
+	if bytes.Compare(pj.strings, expectedStringBuf) != 0 {
+		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, pj.strings, expectedStringBuf)
+	}
+
 }
 
 func TestStage2VerifyApache_builds(t *testing.T) { testStage2VerifyTape(t, "apache_builds") }
