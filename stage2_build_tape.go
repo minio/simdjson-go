@@ -4,10 +4,11 @@ import (
 	"encoding/binary"
 )
 
-func UPDATE_CHAR(buf []byte, pj *ParsedJson, i *uint32, idx *uint32, c *byte) {
-	*idx = pj.structural_indexes[*i]
-	*i++
-	*c = buf[*idx]
+func UPDATE_CHAR(buf []byte, pj *ParsedJson, i_in uint32) (i uint32, idx uint32, c byte) {
+	idx = pj.structural_indexes[i_in]
+	i = i_in + 1
+	c = buf[idx]
+	return
 }
 
 func parse_string(buf []byte, pj *ParsedJson, depth, offset uint32) bool {
@@ -90,7 +91,7 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	//     goto fail;
 	// }
 
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case '{':
 		pj.containing_scope_offset[depth] = pj.get_current_loc()
@@ -239,7 +240,7 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	//////////////////////////////// OBJECT STATES /////////////////////////////
 
 object_begin:
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch (c) {
 	case '"':
 		if (!parse_string(buf, pj, depth, idx)) {
@@ -253,11 +254,11 @@ object_begin:
 	}
 
 object_key_state:
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	if c != ':' {
 		goto fail
 	}
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case '"':
 		if !parse_string(buf, pj, depth, idx) {
@@ -327,10 +328,10 @@ object_key_state:
 	}
 
 object_continue:
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case ',':
-		UPDATE_CHAR(buf, pj, &i, &idx, &c)
+		i, idx, c = UPDATE_CHAR(buf, pj, i)
 		if c != '"' {
 			goto fail
 		}
@@ -366,7 +367,7 @@ scope_end:
 
 	////////////////////////////// ARRAY STATES /////////////////////////////
 array_begin:
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	if c == ']' {
 		goto scope_end // could also go to array_continue
 	}
@@ -444,10 +445,10 @@ main_array_switch:
 	}
 
 array_continue:
-	UPDATE_CHAR(buf, pj, &i, &idx, &c)
+	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case ',':
-		UPDATE_CHAR(buf, pj, &i, &idx, &c)
+		i, idx, c = UPDATE_CHAR(buf, pj, i)
 		goto main_array_switch
 
 	case ']':
