@@ -13,7 +13,6 @@ type ParsedJson struct {
 	structural_indexes      []uint32
 	tape                    []uint64
 	containing_scope_offset []uint64
-	ret_address             []byte
 	isvalid                 bool
 	strings                 []byte
 }
@@ -25,7 +24,6 @@ func (pj *ParsedJson) initialize(size int) {
 
 	// combine into single struct (array)
 	pj.containing_scope_offset = make([]uint64, DEFAULTMAXDEPTH)
-	pj.ret_address = make([]byte, DEFAULTMAXDEPTH)
 }
 
 func (pj *ParsedJson) get_current_loc() uint64 {
