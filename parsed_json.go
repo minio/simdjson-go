@@ -7,7 +7,7 @@ import (
 )
 
 const JSONVALUEMASK = 0xffffffffffffff
-const DEFAULTMAXDEPTH = 1024 // a JSON document with a depth exceeding 1024 is probably defacto invalid
+const DEFAULTMAXDEPTH = 128
 
 type ParsedJson struct {
 	structural_indexes      []uint32
@@ -23,7 +23,7 @@ func (pj *ParsedJson) initialize(size int) {
 	pj.structural_indexes = make([]uint32, 0, size)
 
 	// combine into single struct (array)
-	pj.containing_scope_offset = make([]uint64, DEFAULTMAXDEPTH)
+	pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
 }
 
 func (pj *ParsedJson) get_current_loc() uint64 {

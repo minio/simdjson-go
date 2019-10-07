@@ -17,7 +17,7 @@ func UPDATE_CHAR(buf []byte, pj *ParsedJson, i_in uint32) (i uint32, idx uint32,
 	return
 }
 
-func parse_string(buf []byte, pj *ParsedJson, depth, offset uint32) bool {
+func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint32) bool {
 	pj.write_tape(uint64(len(pj.strings)), '"')
 	parse_string_simd(buf[offset:], &pj.strings)
 	return true
@@ -70,10 +70,10 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 		pj.structural_indexes = pj.structural_indexes[:len(pj.structural_indexes)-1]
 	}
 
-	i := uint32(0)     // index of the structural character (0,1,2,3...)
-	idx := uint32(0)   // location of the structural character in the input (buf)
-	c := byte(0)       // used to track the (structural) character we are looking at
-	depth := uint32(0) // could have an arbitrary starting depth
+	i := uint32(0)      // index of the structural character (0,1,2,3...)
+	idx := uint32(0)    // location of the structural character in the input (buf)
+	c := byte(0)        // used to track the (structural) character we are looking at
+	offset := uint64(0) // used to contain last element of containing_scope_offset
 
 	//pj.init();
 
@@ -82,22 +82,19 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	//}
 
 	////////////////////////////// START STATE /////////////////////////////
-	pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST
+	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
-	depth++ // everything starts at depth = 1, depth = 0 is just for the root, the root may contain an object, an array or something else.
 
 	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case '{':
-		pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST
-		depth++
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST)
 		pj.write_tape(0, c) // strangely, moving this to object_begin slows things down
 		goto object_begin
 	case '[':
-		pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST
-		depth++
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST)
 		pj.write_tape(0, c)
 		goto array_begin
 
@@ -110,7 +107,7 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 
 		// #ifdef SIMDJSON_ALLOWANYTHINGINROOT
 		// case '"': {
-		//     if (!parse_string(buf, len, pj, depth, idx)) {
+		//     if (!parse_string(buf, len, pj, len(pj.containing_scope_offset), idx)) {
 		//         goto fail;
 		//     }
 		// break;
@@ -226,7 +223,7 @@ object_begin:
 	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch (c) {
 	case '"':
-		if (!parse_string(buf, pj, depth, idx)) {
+		if (!parse_string(buf, pj, len(pj.containing_scope_offset), idx)) {
 			goto fail
 		}
 		goto object_key_state
@@ -244,7 +241,7 @@ object_key_state:
 	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case '"':
-		if !parse_string(buf, pj, depth, idx) {
+		if !parse_string(buf, pj, len(pj.containing_scope_offset), idx) {
 			goto fail
 		}
 
@@ -277,19 +274,15 @@ object_key_state:
 		}
 
 	case '{':
-		pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_OBJECT_CONST
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_OBJECT_CONST)
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// we have not yet encountered } so we need to come back for it
-		// we found an object inside an object, so we need to increment the depth
-		depth++
 		goto object_begin
 
 	case '[':
-		pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_OBJECT_CONST
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_OBJECT_CONST)
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// we have not yet encountered } so we need to come back for it
-		// we found an array inside an object, so we need to increment the depth
-		depth++
 		goto array_begin
 
 	default:
@@ -304,7 +297,7 @@ object_continue:
 		if c != '"' {
 			goto fail
 		}
-		if (!parse_string(buf, pj, depth, idx)) {
+		if (!parse_string(buf, pj, len(pj.containing_scope_offset), idx)) {
 			goto fail
 		}
 		goto object_key_state
@@ -319,12 +312,15 @@ object_continue:
 	////////////////////////////// COMMON STATE /////////////////////////////
 scope_end:
 	// write our tape location to the header scope
-	depth--
-	pj.write_tape(pj.containing_scope_offset[depth] >> RET_ADDRESS_SHIFT, c)
-	pj.annotate_previousloc(pj.containing_scope_offset[depth] >> RET_ADDRESS_SHIFT, pj.get_current_loc())
+	offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+	// drop last element
+	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+
+	pj.write_tape(offset >> RET_ADDRESS_SHIFT, c)
+	pj.annotate_previousloc(offset >> RET_ADDRESS_SHIFT, pj.get_current_loc())
 
 	/* goto saved_state*/
-	switch pj.containing_scope_offset[depth] & ((1 << RET_ADDRESS_SHIFT)-1) {
+	switch offset & ((1 << RET_ADDRESS_SHIFT)-1) {
 	case RET_ADDRESS_ARRAY_CONST:
 	    goto array_continue
 	case RET_ADDRESS_OBJECT_CONST:
@@ -345,7 +341,7 @@ main_array_switch:
 	// on paths that can accept a close square brace (post-, and at start)
 	switch c {
 	case '"':
-		if !parse_string(buf, pj, depth, idx) {
+		if !parse_string(buf, pj, len(pj.containing_scope_offset), idx) {
 			goto fail
 		}
 	case 't':
@@ -380,18 +376,14 @@ main_array_switch:
 
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_ARRAY_CONST
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_ARRAY_CONST)
 		pj.write_tape(0, c) //  here the compilers knows what c is so this gets optimized
-		// we found an object inside an array, so we need to increment the depth
-		depth++
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset[depth] = (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_ARRAY_CONST
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_ARRAY_CONST)
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
-		// we found an array inside an array, so we need to increment the depth
-		depth++
 		goto array_begin
 
 	default:
@@ -414,17 +406,20 @@ array_continue:
 
 	////////////////////////////// FINAL STATES /////////////////////////////
 succeed:
-	depth--
-	if depth != 0 {
+	offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+	// drop last element
+	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+	
+	if len(pj.containing_scope_offset) != 0 {
 		panic("internal bug\n")
 	}
 
-	if pj.containing_scope_offset[depth] >> RET_ADDRESS_SHIFT != 0 {
+	if offset >> RET_ADDRESS_SHIFT != 0 {
 		panic("internal bug\n")
 	}
 
-	pj.annotate_previousloc(pj.containing_scope_offset[depth] >> RET_ADDRESS_SHIFT, pj.get_current_loc())
-	pj.write_tape(pj.containing_scope_offset[depth] >> RET_ADDRESS_SHIFT, 'r') // r is root
+	pj.annotate_previousloc(offset >> RET_ADDRESS_SHIFT, pj.get_current_loc())
+	pj.write_tape(offset >> RET_ADDRESS_SHIFT, 'r') // r is root
 
 	pj.isvalid  = true
 	return true // simdjson::SUCCESS
