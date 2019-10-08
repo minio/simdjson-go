@@ -92,6 +92,7 @@ func TestDumpRawDemoJson(t *testing.T) {
 
 	djsb := dump2hex(demo_json_stringbuf)
 	pj.strings = pj.strings[:len(djsb)]
+	pj.isvalid = true
 	copy(pj.strings[:], djsb)
 
 	djt := dump2hex(demo_json_tape)

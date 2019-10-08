@@ -50,9 +50,9 @@ func (pj *ParsedJson) annotate_previousloc(saved_loc uint64, val uint64) {
 
 func (pj *ParsedJson) dump_raw_tape() bool {
 
-	//if !pj.isvalid {
-	//	return false
-	// }
+	if !pj.isvalid {
+		return false
+	}
 
 	tapeidx := uint64(0)
 	howmany := uint64(0)
