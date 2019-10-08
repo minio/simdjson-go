@@ -24,7 +24,7 @@ func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint32) bool {
 }
 
 func parse_number(buf []byte, pj *ParsedJson, idx uint32, neg bool) bool {
-	succes, is_double, d, i := parse_number_simd(buf[idx:])
+	succes, is_double, d, i := parse_number_simd(buf[idx:], neg)
 	if !succes {
 		return false
 	}
