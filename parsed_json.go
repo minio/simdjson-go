@@ -48,6 +48,112 @@ func (pj *ParsedJson) annotate_previousloc(saved_loc uint64, val uint64) {
 	pj.tape[saved_loc] |= val
 }
 
+func (pj *ParsedJson) printjson() bool {
+
+	if !pj.isvalid {
+		return false
+	}
+
+	tapeidx := uint64(0)
+	howmany := uint64(0)
+	tape_val := pj.tape[tapeidx]
+	ntype := tape_val >> 56
+
+	if ntype == 'r' {
+		howmany = tape_val & JSONVALUEMASK
+	} else {
+		fmt.Errorf("Error: no starting root node?\n")
+		return false
+	}
+
+	inobject := make([]bool, 0, DEFAULTMAXDEPTH)
+	inobjectidx := make([]uint, 0, DEFAULTMAXDEPTH)
+
+	inobjectidx = append(inobjectidx, 0)
+	inobject = append(inobject, false)
+
+	tapeidx++
+	for ; tapeidx < howmany; tapeidx++ {
+		tape_val = pj.tape[tapeidx];
+		ntype := tape_val >> 56
+		payload := tape_val & JSONVALUEMASK
+
+		if (!inobject[len(inobject)-1]) {
+			if (inobjectidx[len(inobjectidx)-1] > 0 && ntype != ']') {
+				fmt.Printf(",")
+			}
+			inobjectidx[len(inobjectidx)-1] += 1
+		} else {
+			if (inobjectidx[len(inobjectidx)-1] > 0 && (inobjectidx[len(inobjectidx)-1] & 1) == 0 && ntype != '}') {
+				fmt.Printf(",")
+			}
+			if (((inobjectidx[len(inobjectidx)-1] & 1) == 1)) {
+				fmt.Printf(":")
+			}
+			inobjectidx[len(inobjectidx)-1] += 1
+		}
+
+		switch ntype {
+		case '"': // we have a string
+			string_length := uint64(binary.LittleEndian.Uint32(pj.strings[payload : payload+4]))
+			fmt.Printf("\"%s\"", print_with_escapes(pj.strings[payload+4:payload+4+string_length]))
+
+		case 'l': // we have a long int
+			if tapeidx+1 >= howmany {
+				return false
+			}
+			tapeidx++
+			fmt.Printf("%d", int64(pj.tape[tapeidx]))
+
+		case 'd': // we have a double
+			if tapeidx+1 >= howmany {
+				return false
+			}
+			tapeidx++
+			fmt.Printf("%f", math.Float64frombits(pj.tape[tapeidx]))
+
+		case 'n': // we have a null
+			fmt.Printf("null")
+
+		case 't': // we have a true
+			fmt.Printf("true")
+
+		case 'f': // we have a false
+			fmt.Printf("false")
+
+		case '{': // we have an object
+			fmt.Printf("{")
+			inobject = append(inobject, true)
+			inobjectidx = append(inobjectidx, 0)
+
+		case '}': // we end an object
+			inobject = inobject[:len(inobject)-1]
+			inobjectidx = inobjectidx[:len(inobjectidx)-1]
+			fmt.Printf("}")
+
+		case '[': // we start an array
+			fmt.Printf("[")
+			inobject = append(inobject, false)
+			inobjectidx = append(inobjectidx, 0)
+
+		case ']': // we end an array
+			inobject = inobject[:len(inobject)-1]
+			inobjectidx = inobjectidx[:len(inobjectidx)-1]
+			fmt.Printf("]")
+
+		case 'r': // we start and end with the root node
+			fmt.Errorf("should we be hitting the root node?\n")
+			return false
+
+		default:
+			fmt.Errorf("bug %c\n", ntype)
+			return false
+		}
+	}
+
+	return true
+}
+
 func (pj *ParsedJson) dump_raw_tape() bool {
 
 	if !pj.isvalid {

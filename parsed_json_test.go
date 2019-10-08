@@ -12,6 +12,45 @@ import (
 	"log"
 )
 
+func TestPrintJson(t *testing.T) {
+
+	msg := []byte(demo_json)
+	expected := `{"Image":{"Width":800,"Height":600,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
+
+	pj := ParsedJson{}
+	pj.initialize(len(msg)*2)
+
+	find_structural_indices(msg, &pj)
+	success := unified_machine(msg, &pj)
+	if !success {
+		t.Errorf("Stage2 failed\n")
+	}
+
+	// keep backup of the current stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	outC := make(chan string)
+	// copy the output in a separate goroutine so printing can't block indefinitely
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+
+	pj.printjson()
+
+	// back to normal state
+	w.Close()
+	os.Stdout = old // restoring the previous stdout
+	out := <-outC
+
+	if out != expected {
+		t.Errorf("TestPrintJson: got: %s want: %s", out, expected)
+	}
+}
+
 func TestDumpRawDemoJson(t *testing.T) {
 
 	expected := string(dump2hex(`
