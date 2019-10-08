@@ -263,4 +263,5 @@ func TestStage2VerifyGsoc_2018(t *testing.T) { testStage2VerifyTape(t, "gsoc-201
 func TestStage2VerifyInstruments(t *testing.T) { testStage2VerifyTape(t, "instruments") }
 func TestStage2VerifyNumbers(t *testing.T) { testStage2VerifyTape(t, "numbers") }
 func TestStage2VerifyRandom(t *testing.T) { testStage2VerifyTape(t, "random") }
+func TestStage2VerifyTwitter(t *testing.T) { testStage2VerifyTape(t, "twitter") }
 func TestStage2VerifyUpdate_center(t *testing.T) { testStage2VerifyTape(t, "update-center") }
