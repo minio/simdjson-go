@@ -63,8 +63,7 @@ func TestParseInt64(t *testing.T) {
 		if test.in[0] == '-' {
 			found_minus = true
 		}
-		succes, is_double, d, i := parse_number_simd([]byte(fmt.Sprintf(`%s:`, test.in)), found_minus)
-		fmt.Println(succes, is_double, d, i)
+		succes, is_double, _, i := parse_number_simd([]byte(fmt.Sprintf(`%s:`, test.in)), found_minus)
 		if !succes {
 			// Ignore intentionally bad syntactical errors
 			if !reflect.DeepEqual(test.err, strconv.ErrSyntax) {
