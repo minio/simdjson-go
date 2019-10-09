@@ -257,10 +257,14 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 }
 
 func TestStage2VerifyApache_builds(t *testing.T) { testStage2VerifyTape(t, "apache_builds") }
+func TestStage2VerifyCanada(t *testing.T) { testStage2VerifyTape(t, "canada") }
 func TestStage2VerifyCitm_catalog(t *testing.T) { testStage2VerifyTape(t, "citm_catalog") }
 func TestStage2VerifyGithub_events(t *testing.T) { testStage2VerifyTape(t, "github_events") }
 func TestStage2VerifyGsoc_2018(t *testing.T) { testStage2VerifyTape(t, "gsoc-2018") }
 func TestStage2VerifyInstruments(t *testing.T) { testStage2VerifyTape(t, "instruments") }
+func TestStage2VerifyMarine_ik(t *testing.T) { testStage2VerifyTape(t, "marine_ik") }
+func TestStage2VerifyMesh(t *testing.T) { testStage2VerifyTape(t, "mesh") }
+func TestStage2VerifyMesh_pretty(t *testing.T) { testStage2VerifyTape(t, "mesh.pretty") }
 func TestStage2VerifyNumbers(t *testing.T) { testStage2VerifyTape(t, "numbers") }
 func TestStage2VerifyRandom(t *testing.T) { testStage2VerifyTape(t, "random") }
 func TestStage2VerifyTwitterEscaped(t *testing.T) { testStage2VerifyTape(t, "twitterescaped") }
