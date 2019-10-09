@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"strconv"
+	"reflect"
 )
 
 func closeEnough(d1, d2 float64) (ce bool) {
@@ -51,4 +53,66 @@ func TestParseNumber(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestParseInt64(t *testing.T) {
+	for i := range parseInt64Tests {
+		test := &parseInt64Tests[i]
+
+		found_minus := false
+		if test.in[0] == '-' {
+			found_minus = true
+		}
+		succes, is_double, d, i := parse_number_simd([]byte(fmt.Sprintf(`%s:`, test.in)), found_minus)
+		fmt.Println(succes, is_double, d, i)
+		if !succes {
+			// Ignore intentionally bad syntactical errors
+			if !reflect.DeepEqual(test.err, strconv.ErrSyntax) {
+				t.Errorf("TestParseInt64: got: %v want: %v", succes, true)
+			}
+			continue // skip testing the rest for this test case
+		}
+		if is_double {
+			t.Errorf("TestParseInt64: got: %v want: %v", is_double, false)
+		}
+		if i != test.out {
+			// Ignore intentionally wrong conversions
+			if !reflect.DeepEqual(test.err, strconv.ErrRange) {
+				t.Errorf("TestParseInt64: got: %v want: %v", i, test.out)
+			}
+		}
+	}
+}
+
+// The following code is borrowed from Golang (https://golang.org/src/strconv/atoi_test.go)
+
+type parseInt64Test struct {
+	in  string
+	out int64
+	err error
+}
+
+var parseInt64Tests = []parseInt64Test{
+//	{"", 0, strconv.ErrSyntax}, /* fails for simdjson */
+	{"0", 0, nil},
+	{"-0", 0, nil},
+	{"1", 1, nil},
+	{"-1", -1, nil},
+	{"12345", 12345, nil},
+	{"-12345", -12345, nil},
+//	{"012345", 12345, nil},   /* fails for simdjson */
+//	{"-012345", -12345, nil}, /* fails for simdjson */
+	{"98765432100", 98765432100, nil},
+	{"-98765432100", -98765432100, nil},
+	{"9223372036854775807", 1<<63 - 1, nil},
+	{"-9223372036854775807", -(1<<63 - 1), nil},
+	{"9223372036854775808", 1<<63 - 1, strconv.ErrRange},
+	{"-9223372036854775808", -1 << 63, nil},
+	{"9223372036854775809", 1<<63 - 1, strconv.ErrRange},
+	{"-9223372036854775809", -1 << 63, strconv.ErrRange},
+	{"-1_2_3_4_5", 0, strconv.ErrSyntax}, // base=10 so no underscores allowed
+	{"-_12345", 0, strconv.ErrSyntax},
+	{"_12345", 0, strconv.ErrSyntax},
+	{"1__2345", 0, strconv.ErrSyntax},
+	{"12345_", 0, strconv.ErrSyntax},
 }
