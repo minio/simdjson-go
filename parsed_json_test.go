@@ -21,12 +21,12 @@ type tester interface {
 	Fatal(args ...interface{})
 }
 
-func loadCompressed(t tester, file string) []byte {
+func loadCompressed(t tester, file string) (tape, sb, ref []byte) {
 	dec, err := zstd.NewReader(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tap, err := ioutil.ReadFile(filepath.Join("testdata", file))
+	tap, err := ioutil.ReadFile(filepath.Join("testdata", file+".tape.zst"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,61 +34,78 @@ func loadCompressed(t tester, file string) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return tap
+	sb, err = ioutil.ReadFile(filepath.Join("testdata", file+".stringbuf.zst"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sb, err = dec.DecodeAll(sb, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err = ioutil.ReadFile(filepath.Join("testdata", file+".json.zst"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err = dec.DecodeAll(ref, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return tap, sb, ref
 }
 
 var testCases = []struct {
-	ref, tape, stringbuf string
+	name string
 }{
 	{
-		ref:       "apache_builds.json.zst",
-		tape:      "apache_builds.tape.zst",
-		stringbuf: "apache_builds.stringbuf.zst",
+		name: "apache_builds",
 	},
 	{
-		ref:       "citm_catalog.json.zst",
-		tape:      "citm_catalog.tape.zst",
-		stringbuf: "citm_catalog.stringbuf.zst",
+		name: "canada",
 	},
 	{
-		ref:       "github_events.json.zst",
-		tape:      "github_events.tape.zst",
-		stringbuf: "github_events.stringbuf.zst",
+		name: "citm_catalog",
 	},
 	{
-		ref:       "gsoc-2018.json.zst",
-		tape:      "gsoc-2018.tape.zst",
-		stringbuf: "gsoc-2018.stringbuf.zst",
+		name: "github_events",
 	},
 	{
-		ref:       "instruments.json.zst",
-		tape:      "instruments.tape.zst",
-		stringbuf: "instruments.stringbuf.zst",
+		name: "gsoc-2018",
 	},
 	{
-		ref:       "numbers.json.zst",
-		tape:      "numbers.tape.zst",
-		stringbuf: "numbers.stringbuf.zst",
+		name: "instruments",
 	},
 	{
-		ref:       "random.json.zst",
-		tape:      "random.tape.zst",
-		stringbuf: "random.stringbuf.zst",
+		name: "numbers",
 	},
 	{
-		ref:       "update-center.json.zst",
-		tape:      "update-center.tape.zst",
-		stringbuf: "update-center.stringbuf.zst",
+		name: "marine_ik",
+	},
+	{
+		name: "mesh",
+	},
+	{
+		name: "mesh.pretty",
+	},
+	{
+		name: "twitterescaped",
+	},
+	{
+		name: "twitter",
+	},
+	{
+		name: "random",
+	},
+	{
+		name: "update-center",
 	},
 }
 
 func TestLoadTape(t *testing.T) {
 	for _, tt := range testCases {
 
-		t.Run(tt.ref, func(t *testing.T) {
-			tap := loadCompressed(t, tt.tape)
-			sb := loadCompressed(t, tt.stringbuf)
-			ref := loadCompressed(t, tt.ref)
+		t.Run(tt.name, func(t *testing.T) {
+			tap, sb, ref := loadCompressed(t, tt.name)
 
 			var refMap map[string]interface{}
 			var refJSON []byte
@@ -118,7 +135,7 @@ func TestLoadTape(t *testing.T) {
 			cpy := i
 			b, err := cpy.MarshalJSON()
 			t.Log(string(b), err)
-			//_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".json"), b, os.ModePerm)
+			//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".json"), b, os.ModePerm)
 
 			for {
 				var next Iter
@@ -145,8 +162,8 @@ func TestLoadTape(t *testing.T) {
 						t.Fatal(err)
 					}
 					if !bytes.Equal(b, refJSON) {
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".want"), refJSON, os.ModePerm)
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".got"), b, os.ModePerm)
+						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".want"), refJSON, os.ModePerm)
+						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".got"), b, os.ModePerm)
 						t.Error("Content mismatch. Output dumped to testdata.")
 					}
 
@@ -164,8 +181,8 @@ func TestLoadTape(t *testing.T) {
 						t.Fatal(err)
 					}
 					if !bytes.Equal(b, refJSON) {
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".want"), refJSON, os.ModePerm)
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".got"), b, os.ModePerm)
+						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".want"), refJSON, os.ModePerm)
+						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".got"), b, os.ModePerm)
 						t.Error("Content mismatch. Output dumped to testdata.")
 					}
 				}
@@ -176,9 +193,8 @@ func TestLoadTape(t *testing.T) {
 
 func BenchmarkIter_MarshalJSONBuffer(b *testing.B) {
 	for _, tt := range testCases {
-		b.Run(tt.ref, func(b *testing.B) {
-			tap := loadCompressed(b, tt.tape)
-			sb := loadCompressed(b, tt.stringbuf)
+		b.Run(tt.name, func(b *testing.B) {
+			tap, sb, _ := loadCompressed(b, tt.name)
 
 			pj, err := LoadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
 			if err != nil {
@@ -206,8 +222,8 @@ func BenchmarkIter_MarshalJSONBuffer(b *testing.B) {
 
 func BenchmarkGoMarshalJSON(b *testing.B) {
 	for _, tt := range testCases {
-		b.Run(tt.ref, func(b *testing.B) {
-			ref := loadCompressed(b, tt.ref)
+		b.Run(tt.name, func(b *testing.B) {
+			_, _, ref := loadCompressed(b, tt.name)
 			var m interface{}
 			m = map[string]interface{}{}
 			err := json.Unmarshal(ref, &m)

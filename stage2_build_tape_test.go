@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 )
 
@@ -218,10 +216,7 @@ func TestIsValidNullAtom(t *testing.T) {
 
 func testStage2VerifyTape(t *testing.T, filename string) {
 
-	msg, err := ioutil.ReadFile(filepath.Join("testdata", filename+".json"))
-	if err != nil {
-		panic("failed to read file")
-	}
+	expected, expectedStringBuf, msg := loadCompressed(t, filename)
 
 	pj := internalParsedJson{}
 	pj.initialize(len(msg) * 2)
@@ -236,18 +231,9 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 	for i, t := range pj.Tape {
 		binary.LittleEndian.PutUint64(tape[i*8:], t)
 	}
-	expected, err := ioutil.ReadFile(filepath.Join("testdata", filename+".tape"))
-	if err != nil {
-		panic("failed to read file")
-	}
 
 	if bytes.Compare(tape, expected) != 0 {
 		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, tape, expected)
-	}
-
-	expectedStringBuf, err := ioutil.ReadFile(filepath.Join("testdata", filename+".stringbuf"))
-	if err != nil {
-		panic("failed to read file")
 	}
 
 	if bytes.Compare(pj.Strings, expectedStringBuf) != 0 {
