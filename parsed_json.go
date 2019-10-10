@@ -332,8 +332,8 @@ func (i *Iter) Float() (float64, error) {
 	}
 }
 
-// Float returns the float value of the next element.
-// Integers are automatically converted to float.
+// Int returns the integer value of the next element.
+// Floats are automatically converted to int.
 func (i *Iter) Int() (int64, error) {
 	switch i.t {
 	case TagFloat:
@@ -371,8 +371,8 @@ func (i *Iter) Int() (int64, error) {
 	}
 }
 
-// Float returns the float value of the next element.
-// Integers are automatically converted to float.
+// Uint returns the unsigned int value of the next element.
+// Floats are automatically converted to uints.
 func (i *Iter) Uint() (uint64, error) {
 	switch i.t {
 	case TagFloat:
@@ -419,7 +419,7 @@ func (i *Iter) String() (string, error) {
 	return i.tape.StringAt(i.cur)
 }
 
-// String() returns a string value.
+// StringBytes() returns a byte array.
 func (i *Iter) StringBytes() ([]byte, error) {
 	if i.t != TagString {
 		return nil, errors.New("value is not string")
@@ -533,7 +533,7 @@ func (i *Iter) Object(dst *Object) (*Object, error) {
 	return dst, nil
 }
 
-// Object will return the next element as an object.
+// Array will return the next element as an array.
 // An optional destination can be given.
 func (i *Iter) Array(dst *Array) (*Array, error) {
 	if i.t != TagArrayStart {
@@ -631,7 +631,7 @@ func (e Elements) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 	return dst, nil
 }
 
-// Parse will return all elements and iterators for each.
+// Parse will return all elements and iterators.
 // An optional destination can be given.
 // The Object will be consumed.
 func (o *Object) Parse(dst *Elements) (*Elements, error) {
@@ -780,7 +780,7 @@ func (a *Array) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 	return dst, nil
 }
 
-// Array returns the array as a slice of interfaces.
+// Interface returns the array as a slice of interfaces.
 // See Iter.Interface() for a reference on value types.
 func (a *Array) Interface() ([]interface{}, error) {
 	// Estimate length. Assume one value per element.
@@ -840,7 +840,7 @@ readArray:
 	return dst, nil
 }
 
-// AsFloat returns the array values as float.
+// AsInteger returns the array values as float.
 // Integers are automatically converted to float.
 func (a *Array) AsInteger() ([]int64, error) {
 	// Estimate length
