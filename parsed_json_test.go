@@ -55,7 +55,8 @@ func loadCompressed(t tester, file string) (tape, sb, ref []byte) {
 }
 
 var testCases = []struct {
-	name string
+	name  string
+	array bool
 }{
 	{
 		name: "apache_builds",
@@ -67,7 +68,8 @@ var testCases = []struct {
 		name: "citm_catalog",
 	},
 	{
-		name: "github_events",
+		name:  "github_events",
+		array: true,
 	},
 	{
 		name: "gsoc-2018",
@@ -76,7 +78,8 @@ var testCases = []struct {
 		name: "instruments",
 	},
 	{
-		name: "numbers",
+		name:  "numbers",
+		array: true,
 	},
 	{
 		name: "marine_ik",
@@ -107,25 +110,18 @@ func TestLoadTape(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tap, sb, ref := loadCompressed(t, tt.name)
 
-			var refMap map[string]interface{}
+			var tmp interface{} = map[string]interface{}{}
+			if tt.array {
+				tmp = []interface{}{}
+			}
 			var refJSON []byte
-			err := json.Unmarshal(ref, &refMap)
-			if err == nil {
-				refJSON, err = json.MarshalIndent(refMap, "", "  ")
-				if err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				// Probably an array.
-				var refArray []interface{}
-				err := json.Unmarshal(ref, &refArray)
-				if err != nil {
-					t.Fatal(err)
-				}
-				refJSON, err = json.MarshalIndent(refArray, "", "  ")
-				if err != nil {
-					t.Fatal(err)
-				}
+			err := json.Unmarshal(ref, &tmp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			refJSON, err = json.MarshalIndent(tmp, "", "  ")
+			if err != nil {
+				t.Fatal(err)
 			}
 			pj, err := LoadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
 			if err != nil {
@@ -226,13 +222,12 @@ func BenchmarkGoMarshalJSON(b *testing.B) {
 			_, _, ref := loadCompressed(b, tt.name)
 			var m interface{}
 			m = map[string]interface{}{}
+			if tt.array {
+				m = []interface{}{}
+			}
 			err := json.Unmarshal(ref, &m)
 			if err != nil {
-				m = []interface{}{}
-				err := json.Unmarshal(ref, &m)
-				if err != nil {
-					b.Fatal(err)
-				}
+				b.Fatal(err)
 			}
 			output, err := json.Marshal(m)
 			if err != nil {
