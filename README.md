@@ -34,3 +34,13 @@ BenchmarkParseNumber/Pos/63bit-8     27.4          26.7          -2.55%
 BenchmarkParseNumber/Neg/63bit-8     27.4          27.3          -0.36%
 ```
 
+### Floats
+
+```
+benchmark                              old ns/op     new ns/op     delta
+BenchmarkParseNumberFloat-8            24.5          13.6          -44.49%
+BenchmarkParseNumberFloatExp-8         56.5          5.63          -90.04%
+BenchmarkParseNumberBig-8              83.0          25.5          -69.28%
+BenchmarkParseNumberRandomBits-8       143           27.0          -81.12%
+BenchmarkParseNumberRandomFloats-8     103           24.5          -76.21%
+```

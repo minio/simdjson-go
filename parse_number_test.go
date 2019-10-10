@@ -6,6 +6,9 @@ import (
 	"testing"
 	"strconv"
 	"reflect"
+	"sync"
+	"time"
+	"math/rand"
 )
 
 func closeEnough(d1, d2 float64) (ce bool) {
@@ -408,3 +411,104 @@ func benchmarkAtoiGolang(b *testing.B, neg int) {
 
 var BenchSink int // make sure compiler cannot optimize away benchmarks
 
+// The following benchmarking code is borrowed from Golang (https://golang.org/src/strconv/atof_test.go)
+
+type atofSimpleTest struct {
+	x float64
+	s string
+}
+
+var (
+	atofOnce                   sync.Once
+	benchmarksRandomBits       [1024]string
+	benchmarksRandomNormal     [1024]string
+	benchmarksRandomBitsSimd   [1024]string
+	benchmarksRandomNormalSimd [1024]string
+)
+
+func initAtof() {
+	atofOnce.Do(initAtofOnce)
+}
+
+func initAtofOnce() {
+
+	// Generate random inputs for tests and benchmarks
+	rand.Seed(time.Now().UnixNano())
+
+	for i := range benchmarksRandomBits {
+		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
+		x := math.Float64frombits(bits)
+		benchmarksRandomBits[i] = strconv.FormatFloat(x, 'g', -1, 64)
+		benchmarksRandomBitsSimd[i]= benchmarksRandomBits[i] + ":"
+	}
+
+	for i := range benchmarksRandomNormal {
+		x := rand.NormFloat64()
+		benchmarksRandomNormal[i] = strconv.FormatFloat(x, 'g', -1, 64)
+		benchmarksRandomNormalSimd[i] = benchmarksRandomNormal[i] + ":"
+	}
+}
+
+func BenchmarkParseNumberFloat(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		parse_number_simd([]byte("339.7784:"), false)
+	}
+}
+
+func BenchmarkParseAtof64FloatGolang(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		strconv.ParseFloat("339.7784", 64)
+	}
+}
+
+func BenchmarkParseNumberFloatExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		parse_number_simd([]byte("-5.09e75:"), false)
+	}
+}
+
+func BenchmarkParseAtof64FloatExpGolang(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		strconv.ParseFloat("-5.09e75", 64)
+	}
+}
+
+func BenchmarkParseNumberBig(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		parse_number_simd([]byte("123456789123456789123456789:"), false)
+	}
+}
+
+func BenchmarkParseAtof64BigGolang(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		strconv.ParseFloat("123456789123456789123456789", 64)
+	}
+}
+
+func BenchmarkParseNumberRandomBits(b *testing.B) {
+	initAtof()
+	for i := 0; i < b.N; i++ {
+		parse_number_simd([]byte(benchmarksRandomBitsSimd[i%1024]), false)
+	}
+}
+
+func BenchmarkParseAtof64RandomBitsGolang(b *testing.B) {
+	initAtof()
+	for i := 0; i < b.N; i++ {
+		strconv.ParseFloat(benchmarksRandomBits[i%1024], 64)
+	}
+}
+
+func BenchmarkParseNumberRandomFloats(b *testing.B) {
+	initAtof()
+	for i := 0; i < b.N; i++ {
+		parse_number_simd([]byte(benchmarksRandomNormalSimd[i%1024]), false)
+	}
+}
+
+func BenchmarkParseAtof64RandomFloatsGolang(b *testing.B) {
+	initAtof()
+	for i := 0; i < b.N; i++ {
+		strconv.ParseFloat(benchmarksRandomNormal[i%1024], 64)
+	}
+}
