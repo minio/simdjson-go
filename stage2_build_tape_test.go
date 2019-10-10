@@ -1,12 +1,10 @@
 package simdjson
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/binary"
-	"io/ioutil"
+	"fmt"
 	"testing"
-	"path/filepath"
 )
 
 func TestStage2BuildTape(t *testing.T) {
@@ -14,14 +12,14 @@ func TestStage2BuildTape(t *testing.T) {
 	testCases := []struct {
 		input    string
 		expected []struct {
-			c byte
+			c   byte
 			val uint64
 		}
 	}{
 		{
 			`{"a":"b","c":"d"}`,
 			[]struct {
-				c byte
+				c   byte
 				val uint64
 			}{
 				{'r', 0x7},
@@ -37,7 +35,7 @@ func TestStage2BuildTape(t *testing.T) {
 		{
 			`{"a":"b","c":{"d":"e"}}`,
 			[]struct {
-				c byte
+				c   byte
 				val uint64
 			}{
 				{'r', 0xa},
@@ -56,7 +54,7 @@ func TestStage2BuildTape(t *testing.T) {
 		{
 			`{"a":"b","c":[{"d":"e"},{"f":"g"}]}`,
 			[]struct {
-				c byte
+				c   byte
 				val uint64
 			}{
 				{'r', 0x10},
@@ -81,7 +79,7 @@ func TestStage2BuildTape(t *testing.T) {
 		{
 			`{"a":true,"b":false,"c":null}   `, // without additional spaces, is_valid_null_atom reads beyond buffer capacity
 			[]struct {
-				c byte
+				c   byte
 				val uint64
 			}{
 				{'r', 0x9},
@@ -99,20 +97,20 @@ func TestStage2BuildTape(t *testing.T) {
 		{
 			`{"a":100,"b":200.2,"c":300,"d":400.4}`,
 			[]struct {
-				c byte
+				c   byte
 				val uint64
 			}{
 				{'r', 0xf},
 				{'{', 0xf},
 				{'"', 0x0},
 				{'l', 0x0},
-				{'\000', 0x64},          // 100
+				{'\000', 0x64}, // 100
 				{'"', 0x6},
 				{'d', 0x0},
 				{'@', 0x69066666666667}, // 200.2
 				{'"', 0xc},
 				{'l', 0x0},
-				{'\000', 0x12c},         // 300
+				{'\000', 0x12c}, // 300
 				{'"', 0x12},
 				{'d', 0x0},
 				{'@', 0x79066666666667}, // 400.4
@@ -124,7 +122,7 @@ func TestStage2BuildTape(t *testing.T) {
 
 	for i, tc := range testCases {
 
-		pj := ParsedJson{}
+		pj := internalParsedJson{}
 		pj.initialize(1024)
 
 		find_structural_indices([]byte(tc.input), &pj)
@@ -133,11 +131,11 @@ func TestStage2BuildTape(t *testing.T) {
 			t.Errorf("TestStage2BuildTape(%d): got: %v want: true", i, success)
 		}
 
-		if len(pj.tape) != len(tc.expected) {
-			t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", i, len(pj.tape), len(tc.expected))
+		if len(pj.Tape) != len(tc.expected) {
+			t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", i, len(pj.Tape), len(tc.expected))
 		}
 
-		for ii, tp := range pj.tape {
+		for ii, tp := range pj.Tape {
 			// fmt.Printf("{'%s', 0x%x},\n", string(byte((tp >> 56))), tp&0xffffffffffffff)
 			expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
 			if tp != expected {
@@ -150,7 +148,7 @@ func TestStage2BuildTape(t *testing.T) {
 func TestIsValidTrueAtom(t *testing.T) {
 
 	testCases := []struct {
-		input     string
+		input    string
 		expected bool
 	}{
 		{"true    ", true},
@@ -173,7 +171,7 @@ func TestIsValidTrueAtom(t *testing.T) {
 func TestIsValidFalseAtom(t *testing.T) {
 
 	testCases := []struct {
-		input     string
+		input    string
 		expected bool
 	}{
 		{"false   ", true},
@@ -196,7 +194,7 @@ func TestIsValidFalseAtom(t *testing.T) {
 func TestIsValidNullAtom(t *testing.T) {
 
 	testCases := []struct {
-		input     string
+		input    string
 		expected bool
 	}{
 		{"null    ", true},
@@ -218,13 +216,10 @@ func TestIsValidNullAtom(t *testing.T) {
 
 func testStage2VerifyTape(t *testing.T, filename string) {
 
-	msg, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".json"))
-	if err != nil {
-		panic("failed to read file")
-	}
+	expected, expectedStringBuf, msg := loadCompressed(t, filename)
 
-	pj := ParsedJson{}
-	pj.initialize(len(msg)*2)
+	pj := internalParsedJson{}
+	pj.initialize(len(msg) * 2)
 
 	find_structural_indices(msg, &pj)
 	success := unified_machine(msg, &pj)
@@ -232,41 +227,32 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 		fmt.Errorf("Stage2 failed\n")
 	}
 
-	tape := make([]byte, len(pj.tape)*8)
-	for i, t := range pj.tape {
+	tape := make([]byte, len(pj.Tape)*8)
+	for i, t := range pj.Tape {
 		binary.LittleEndian.PutUint64(tape[i*8:], t)
-	}
-	expected, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".tape"))
-	if err != nil {
-		panic("failed to read file")
 	}
 
 	if bytes.Compare(tape, expected) != 0 {
 		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, tape, expected)
 	}
 
-	expectedStringBuf, err := ioutil.ReadFile(filepath.Join("testdata", filename + ".stringbuf"))
-	if err != nil {
-		panic("failed to read file")
-	}
-
-	if bytes.Compare(pj.strings, expectedStringBuf) != 0 {
-		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, pj.strings, expectedStringBuf)
+	if bytes.Compare(pj.Strings, expectedStringBuf) != 0 {
+		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, pj.Strings, expectedStringBuf)
 	}
 
 }
 
-func TestStage2VerifyApache_builds(t *testing.T) { testStage2VerifyTape(t, "apache_builds") }
-func TestStage2VerifyCanada(t *testing.T) { testStage2VerifyTape(t, "canada") }
-func TestStage2VerifyCitm_catalog(t *testing.T) { testStage2VerifyTape(t, "citm_catalog") }
-func TestStage2VerifyGithub_events(t *testing.T) { testStage2VerifyTape(t, "github_events") }
-func TestStage2VerifyGsoc_2018(t *testing.T) { testStage2VerifyTape(t, "gsoc-2018") }
-func TestStage2VerifyInstruments(t *testing.T) { testStage2VerifyTape(t, "instruments") }
-func TestStage2VerifyMarine_ik(t *testing.T) { testStage2VerifyTape(t, "marine_ik") }
-func TestStage2VerifyMesh(t *testing.T) { testStage2VerifyTape(t, "mesh") }
-func TestStage2VerifyMesh_pretty(t *testing.T) { testStage2VerifyTape(t, "mesh.pretty") }
-func TestStage2VerifyNumbers(t *testing.T) { testStage2VerifyTape(t, "numbers") }
-func TestStage2VerifyRandom(t *testing.T) { testStage2VerifyTape(t, "random") }
+func TestStage2VerifyApache_builds(t *testing.T)  { testStage2VerifyTape(t, "apache_builds") }
+func TestStage2VerifyCanada(t *testing.T)         { testStage2VerifyTape(t, "canada") }
+func TestStage2VerifyCitm_catalog(t *testing.T)   { testStage2VerifyTape(t, "citm_catalog") }
+func TestStage2VerifyGithub_events(t *testing.T)  { testStage2VerifyTape(t, "github_events") }
+func TestStage2VerifyGsoc_2018(t *testing.T)      { testStage2VerifyTape(t, "gsoc-2018") }
+func TestStage2VerifyInstruments(t *testing.T)    { testStage2VerifyTape(t, "instruments") }
+func TestStage2VerifyMarine_ik(t *testing.T)      { testStage2VerifyTape(t, "marine_ik") }
+func TestStage2VerifyMesh(t *testing.T)           { testStage2VerifyTape(t, "mesh") }
+func TestStage2VerifyMesh_pretty(t *testing.T)    { testStage2VerifyTape(t, "mesh.pretty") }
+func TestStage2VerifyNumbers(t *testing.T)        { testStage2VerifyTape(t, "numbers") }
+func TestStage2VerifyRandom(t *testing.T)         { testStage2VerifyTape(t, "random") }
 func TestStage2VerifyTwitterEscaped(t *testing.T) { testStage2VerifyTape(t, "twitterescaped") }
-func TestStage2VerifyTwitter(t *testing.T) { testStage2VerifyTape(t, "twitter") }
-func TestStage2VerifyUpdate_center(t *testing.T) { testStage2VerifyTape(t, "update-center") }
+func TestStage2VerifyTwitter(t *testing.T)        { testStage2VerifyTape(t, "twitter") }
+func TestStage2VerifyUpdate_center(t *testing.T)  { testStage2VerifyTape(t, "update-center") }

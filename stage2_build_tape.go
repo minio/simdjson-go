@@ -10,7 +10,7 @@ const RET_ADDRESS_START_CONST = 1
 const RET_ADDRESS_OBJECT_CONST = 2
 const RET_ADDRESS_ARRAY_CONST = 3
 
-func UPDATE_CHAR(buf []byte, pj *ParsedJson, i_in uint32) (i uint32, idx uint32, c byte) {
+func UPDATE_CHAR(buf []byte, pj *internalParsedJson, i_in uint32) (i uint32, idx uint32, c byte) {
 	idx = pj.structural_indexes[i_in]
 	i = i_in + 1
 	c = buf[idx]
@@ -18,8 +18,8 @@ func UPDATE_CHAR(buf []byte, pj *ParsedJson, i_in uint32) (i uint32, idx uint32,
 }
 
 func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint32) bool {
-	pj.write_tape(uint64(len(pj.strings)), '"')
-	parse_string_simd(buf[offset:], &pj.strings)
+	pj.write_tape(uint64(len(pj.Strings)), '"')
+	parse_string_simd(buf[offset:], &pj.Strings)
 	return true
 }
 
@@ -37,7 +37,7 @@ func parse_number(buf []byte, pj *ParsedJson, idx uint32, neg bool) bool {
 }
 
 func is_valid_true_atom(buf []byte) bool {
-	tv :=  uint64(0x0000000065757274) // "true    "
+	tv := uint64(0x0000000065757274) // "true    "
 	mask4 := uint64(0x00000000ffffffff)
 	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
 	error := (locval & mask4) ^ tv
@@ -46,7 +46,7 @@ func is_valid_true_atom(buf []byte) bool {
 }
 
 func is_valid_false_atom(buf []byte) bool {
-	fv :=  uint64(0x00000065736c6166) // "false   "
+	fv := uint64(0x00000065736c6166) // "false   "
 	mask5 := uint64(0x000000ffffffffff)
 	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
 	error := (locval & mask5) ^ fv
@@ -55,7 +55,7 @@ func is_valid_false_atom(buf []byte) bool {
 }
 
 func is_valid_null_atom(buf []byte) bool {
-	nv :=  uint64(0x000000006c6c756e) // "null    "
+	nv := uint64(0x000000006c6c756e) // "null    "
 	mask4 := uint64(0x00000000ffffffff)
 	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
 	error := (locval & mask4) ^ nv
@@ -63,7 +63,7 @@ func is_valid_null_atom(buf []byte) bool {
 	return error == 0
 }
 
-func unified_machine(buf []byte, pj *ParsedJson) bool {
+func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
 	// TODO: Figure out why we may have a trailing zero as the last structural element
 	if pj.structural_indexes[len(pj.structural_indexes)-1] == 0 {
@@ -82,7 +82,7 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	//}
 
 	////////////////////////////// START STATE /////////////////////////////
-	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST)
+	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
@@ -90,11 +90,11 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case '{':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
 		pj.write_tape(0, c) // strangely, moving this to object_begin slows things down
 		goto object_begin
 	case '[':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_START_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
 		pj.write_tape(0, c)
 		goto array_begin
 
@@ -209,9 +209,9 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 		goto fail
 	}
 
- start_continue:
+start_continue:
 	// the string might not be NULL terminated.
-	if i + 1 == uint32(len(pj.structural_indexes)) {
+	if i+1 == uint32(len(pj.structural_indexes)) {
 		goto succeed
 	} else {
 		goto fail
@@ -221,9 +221,9 @@ func unified_machine(buf []byte, pj *ParsedJson) bool {
 
 object_begin:
 	i, idx, c = UPDATE_CHAR(buf, pj, i)
-	switch (c) {
+	switch c {
 	case '"':
-		if (!parse_string(buf, pj, len(pj.containing_scope_offset), idx)) {
+		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
 			goto fail
 		}
 		goto object_key_state
@@ -241,7 +241,7 @@ object_key_state:
 	i, idx, c = UPDATE_CHAR(buf, pj, i)
 	switch c {
 	case '"':
-		if !parse_string(buf, pj, len(pj.containing_scope_offset), idx) {
+		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
 			goto fail
 		}
 
@@ -264,23 +264,23 @@ object_key_state:
 		pj.write_tape(0, c)
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf, pj, idx, false) {
+		if !parse_number(buf, &pj.ParsedJson, idx, false) {
 			goto fail
 		}
 
 	case '-':
-		if !parse_number(buf, pj, idx, true) {
+		if !parse_number(buf, &pj.ParsedJson, idx, true) {
 			goto fail
 		}
 
 	case '{':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_OBJECT_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_OBJECT_CONST)
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// we have not yet encountered } so we need to come back for it
 		goto object_begin
 
 	case '[':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_OBJECT_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_OBJECT_CONST)
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		// we have not yet encountered } so we need to come back for it
 		goto array_begin
@@ -297,7 +297,7 @@ object_continue:
 		if c != '"' {
 			goto fail
 		}
-		if (!parse_string(buf, pj, len(pj.containing_scope_offset), idx)) {
+		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
 			goto fail
 		}
 		goto object_key_state
@@ -316,15 +316,15 @@ scope_end:
 	// drop last element
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
-	pj.write_tape(offset >> RET_ADDRESS_SHIFT, c)
-	pj.annotate_previousloc(offset >> RET_ADDRESS_SHIFT, pj.get_current_loc())
+	pj.write_tape(offset>>RET_ADDRESS_SHIFT, c)
+	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
 
 	/* goto saved_state*/
-	switch offset & ((1 << RET_ADDRESS_SHIFT)-1) {
+	switch offset & ((1 << RET_ADDRESS_SHIFT) - 1) {
 	case RET_ADDRESS_ARRAY_CONST:
-	    goto array_continue
+		goto array_continue
 	case RET_ADDRESS_OBJECT_CONST:
-	    goto object_continue
+		goto object_continue
 	default:
 		goto start_continue
 	}
@@ -341,7 +341,7 @@ main_array_switch:
 	// on paths that can accept a close square brace (post-, and at start)
 	switch c {
 	case '"':
-		if !parse_string(buf, pj, len(pj.containing_scope_offset), idx) {
+		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
 			goto fail
 		}
 	case 't':
@@ -364,25 +364,25 @@ main_array_switch:
 		/* goto array_continue */
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf, pj, idx, false) {
+		if !parse_number(buf, &pj.ParsedJson, idx, false) {
 			goto fail
 		}
 
 	case '-':
-		if !parse_number(buf, pj, idx, true) {
+		if !parse_number(buf, &pj.ParsedJson, idx, true) {
 			goto fail
 		}
 		/* goto array_continue */
 
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_ARRAY_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_ARRAY_CONST)
 		pj.write_tape(0, c) //  here the compilers knows what c is so this gets optimized
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc() << RET_ADDRESS_SHIFT) | RET_ADDRESS_ARRAY_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_ARRAY_CONST)
 		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
 		goto array_begin
 
@@ -409,22 +409,21 @@ succeed:
 	offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
 	// drop last element
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
-	
+
 	if len(pj.containing_scope_offset) != 0 {
 		panic("internal bug\n")
 	}
 
-	if offset >> RET_ADDRESS_SHIFT != 0 {
+	if offset>>RET_ADDRESS_SHIFT != 0 {
 		panic("internal bug\n")
 	}
 
-	pj.annotate_previousloc(offset >> RET_ADDRESS_SHIFT, pj.get_current_loc())
-	pj.write_tape(offset >> RET_ADDRESS_SHIFT, 'r') // r is root
+	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
+	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
-	pj.isvalid  = true
+	pj.isvalid = true
 	return true // simdjson::SUCCESS
 
 fail:
 	return false // simdjson::TAPE_ERROR
 }
-

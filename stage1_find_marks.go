@@ -2,7 +2,7 @@ package simdjson
 
 const paddingSpaces64 = "                                                                "
 
-func find_structural_indices(buf []byte, pj *ParsedJson) bool {
+func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	//if (len > pj.bytecapacity) {
 	//	cerr << "Your ParsedJson object only supports documents up to "
@@ -76,7 +76,7 @@ func find_structural_indices(buf []byte, pj *ParsedJson) bool {
 	if idx < uint64(len(buf)) {
 		tmpbuf := [64]byte{}
 
-		remain := uint64(len(buf))-idx
+		remain := uint64(len(buf)) - idx
 		copy(tmpbuf[:], buf[idx:])
 		copy(tmpbuf[remain:], []byte(paddingSpaces64)[:64-remain])
 
@@ -104,7 +104,7 @@ func find_structural_indices(buf []byte, pj *ParsedJson) bool {
 		return false
 	}
 
-	if uint32(len(buf)) != pj.structural_indexes[len(pj.structural_indexes) - 1] {
+	if uint32(len(buf)) != pj.structural_indexes[len(pj.structural_indexes)-1] {
 		// the string might not be NULL terminated, but we add a virtual NULL ending character.
 		pj.structural_indexes = append(pj.structural_indexes, uint32(len(buf)))
 	}
@@ -122,4 +122,3 @@ func find_structural_indices(buf []byte, pj *ParsedJson) bool {
 
 	return true
 }
-
