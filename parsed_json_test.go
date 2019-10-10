@@ -118,7 +118,7 @@ func TestLoadTape(t *testing.T) {
 			cpy := i
 			b, err := cpy.MarshalJSON()
 			t.Log(string(b), err)
-			_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".json"), b, os.ModePerm)
+			//_ = ioutil.WriteFile(filepath.Join("testdata", tt.ref+".json"), b, os.ModePerm)
 
 			for {
 				var next Iter
