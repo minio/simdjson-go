@@ -1,7 +1,5 @@
 package simdjson
 
-// COPIED: REMOVE WHEN STUFF IS EXPORTED
-
 import (
 	"encoding/binary"
 	"errors"
