@@ -316,3 +316,95 @@ var atoftests = []atofTest{
 	{"123.5e+1__2", "0", strconv.ErrSyntax},
 	{"123.5e+12_", "0", strconv.ErrSyntax},
 }
+
+// Benchmarking code for integers
+
+func BenchmarkParseNumber(b *testing.B) {
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkParseNumber(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkParseNumber(b, -1)
+	})
+}
+
+func benchmarkParseNumber(b *testing.B, neg int) {
+	cases := []benchCase{
+		{"63bit", 1<<63 - 1},
+	}
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			s = fmt.Sprintf(`%s:`, s) // append delimiter
+			found_minus := false
+			if neg != 0 {
+				found_minus = true
+			}
+			for i := 0; i < b.N; i++ {
+				_, _, _, i := parse_number_simd([]byte(s), found_minus)
+				BenchSink += int(i)
+			}
+		})
+	}
+}
+
+// The following benchmarking code is borrowed from Golang (https://golang.org/src/strconv/atoi_test.go)
+
+func BenchmarkParseIntGolang(b *testing.B) {
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkParseIntGolang(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkParseIntGolang(b, -1)
+	})
+}
+
+type benchCase struct {
+	name string
+	num  int64
+}
+
+func benchmarkParseIntGolang(b *testing.B, neg int) {
+	cases := []benchCase{
+		{"63bit", 1<<63 - 1},
+	}
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			for i := 0; i < b.N; i++ {
+				out, _ := strconv.ParseInt(s, 10, 64)
+				BenchSink += int(out)
+			}
+		})
+	}
+}
+
+func BenchmarkAtoiGolang(b *testing.B) {
+	b.Run("Pos", func(b *testing.B) {
+		benchmarkAtoiGolang(b, 1)
+	})
+	b.Run("Neg", func(b *testing.B) {
+		benchmarkAtoiGolang(b, -1)
+	})
+}
+
+func benchmarkAtoiGolang(b *testing.B, neg int) {
+	cases := []benchCase{}
+	if strconv.IntSize == 64 {
+		cases = append(cases, []benchCase{
+			{"63bit", 1<<63 - 1},
+		}...)
+	}
+	for _, cs := range cases {
+		b.Run(cs.name, func(b *testing.B) {
+			s := fmt.Sprintf("%d", cs.num*int64(neg))
+			for i := 0; i < b.N; i++ {
+				out, _ := strconv.Atoi(s)
+				BenchSink += out
+			}
+		})
+	}
+}
+
+var BenchSink int // make sure compiler cannot optimize away benchmarks
+

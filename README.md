@@ -23,3 +23,14 @@ BenchmarkTwitterescaped-8                   2000            896358 ns/op        
 BenchmarkUpdate_center-8                    2000            754479 ns/op         706.68 MB/s        6939 B/op          0 allocs/op
 BenchmarkFindStructuralBits-8           50000000                23.1 ns/op      2776.45 MB/s           0 B/op          0 allocs/op
 ```
+
+## Number parsing performance
+
+### Integers 
+
+```
+benchmark                            old ns/op     new ns/op     delta
+BenchmarkParseNumber/Pos/63bit-8     27.4          26.7          -2.55%
+BenchmarkParseNumber/Neg/63bit-8     27.4          27.3          -0.36%
+```
+
