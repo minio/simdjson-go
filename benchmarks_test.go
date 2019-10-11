@@ -1,17 +1,12 @@
 package simdjson
 
 import (
-	"io/ioutil"
-	"path/filepath"
 	"testing"
 )
 
 func benchmarkFromFile(b *testing.B, filename string) {
 
-	msg, err := ioutil.ReadFile(filepath.Join("testdata", filename+".json"))
-	if err != nil {
-		panic("failed to read file")
-	}
+	_, _, msg := loadCompressed(b, filename)
 
 	b.SetBytes(int64(len(msg)))
 	b.ReportAllocs()
