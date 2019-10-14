@@ -50,3 +50,24 @@ func TestParseString(t *testing.T) {
 		t.Errorf("TestParseString: got: %d want: %d", size2, 4 + length + 1)
 	}
 }
+
+func benchmarkParseString(b *testing.B, str string) {
+
+	terminated := []byte(fmt.Sprintf("%s:", str))
+
+	stringbuf := make([]byte, 0, 1024*1024)
+
+	for i := 0; i < b.N; i++ {
+		stringbuf = stringbuf[:0]
+		parse_string_simd(terminated, &stringbuf)
+	}
+}
+
+func BenchmarkParseStringShort(b *testing.B) {
+	benchmarkParseString(b, "short")
+}
+
+func BenchmarkParseStringLong(b *testing.B) {
+	benchmarkParseString(b, "longlonglonglonglonglong")
+}
+
