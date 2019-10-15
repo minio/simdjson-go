@@ -122,6 +122,11 @@ func (i *Iter) Next() Type {
 	i.t = Tag(v >> 56)
 	i.off++
 	i.calcNext(false)
+	if i.addNext < 0 {
+		// We can't send error, so move to end.
+		i.moveToEnd()
+		return TypeNone
+	}
 	return TagToType[i.t]
 }
 
@@ -141,7 +146,18 @@ func (i *Iter) NextInto() Tag {
 	i.t = Tag(v >> 56)
 	i.off++
 	i.calcNext(true)
+	if i.addNext < 0 {
+		// We can't send error, so end tape.
+		i.moveToEnd()
+		return TagEnd
+	}
 	return i.t
+}
+
+func (i *Iter) moveToEnd() {
+	i.off = len(i.tape.Tape)
+	i.addNext = 0
+	i.t = TagEnd
 }
 
 // calcNext will populate addNext to the correct value to skip.
@@ -186,6 +202,10 @@ func (i *Iter) NextIter(dst *Iter) (Type, error) {
 	i.t = Tag(v >> 56)
 	i.off++
 	i.calcNext(false)
+	if i.addNext < 0 {
+		i.moveToEnd()
+		return TypeNone, errors.New("element has negative offset")
+	}
 
 	// Calculate end of this object.
 	iEnd := i.off + i.addNext
@@ -197,6 +217,10 @@ func (i *Iter) NextIter(dst *Iter) (Type, error) {
 	}
 	// Move into dst
 	dst.calcNext(true)
+	if dst.addNext < 0 {
+		i.moveToEnd()
+		return TypeNone, errors.New("element has negative offset")
+	}
 
 	if iEnd > len(dst.tape.Tape) {
 		return TypeNone, errors.New("element extends beyond tape")
