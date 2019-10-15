@@ -56,7 +56,7 @@ func benchmarkParseString(b *testing.B, str string) {
 	// Add beginning and closing double-quote
 	terminated := []byte(fmt.Sprintf(`"%s"`, str))
 
-	stringbuf := make([]byte, 0, 1024*1024)
+	stringbuf := make([]byte, 0, 1024)
 
 	for i := 0; i < b.N; i++ {
 		stringbuf = stringbuf[:0]
