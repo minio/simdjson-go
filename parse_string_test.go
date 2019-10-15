@@ -11,7 +11,7 @@ func TestParseString(t *testing.T) {
 	stringbuf := make([]byte, 0, 256)
 
 	const str = "key"
-	size := parse_string_simd([]byte(fmt.Sprintf(`"%s", str)), &stringbuf)
+	size := parse_string_simd([]byte(fmt.Sprintf(`"%s"`, str)), &stringbuf)
 
 	// First four bytes are size
 	length := int(binary.LittleEndian.Uint32(stringbuf[0:4]))
