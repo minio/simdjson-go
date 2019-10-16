@@ -54,7 +54,7 @@ func (pj *ParsedJson) stringByteAt(offset uint64) ([]byte, error) {
 		return nil, errors.New("string offset outside valid area")
 	}
 	length := uint64(binary.LittleEndian.Uint32(pj.Strings[offset : offset+4]))
-	if offset+length > uint64(len(pj.Strings)) {
+	if offset+length+4 > uint64(len(pj.Strings)) {
 		return nil, errors.New("string offset+length outside valid area")
 	}
 	return pj.Strings[offset+4 : offset+4+length], nil
@@ -176,7 +176,7 @@ func (i *Iter) calcNext(into bool) {
 
 // Type returns the queued value type from the previous call to Next.
 func (i *Iter) Type() Type {
-	if i.off >= len(i.tape.Tape) {
+	if i.off+i.addNext > len(i.tape.Tape) {
 		return TypeNone
 	}
 	return TagToType[i.t]
