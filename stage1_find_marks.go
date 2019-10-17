@@ -49,6 +49,10 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
 
+	index := indexChan{}
+	index.indexes = &[INDEX_SIZE]uint32{}
+	indexTotal := 0
+
 	idx := uint64(0)
 	for ; idx < lenminus64; idx += 64 {
 
@@ -59,7 +63,14 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// #endif
 
 		// take the previous iterations structural bits, not our current iteration, and flatten
-		flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
+		flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
+		// If not enough space left for next iteration, send indexes and create new instance
+		if index.length >= INDEX_SIZE-64 {
+			pj.index_chan <- index
+			indexTotal += index.length
+			index = indexChan{}
+			index.indexes = &[INDEX_SIZE]uint32{}
+		}
 
 		// find structural bits
 		structurals = find_structural_bits(buf[idx:], &prev_iter_ends_odd_backslash,
@@ -85,7 +96,14 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// #endif
 
 		// take the previous iterations structural bits, not our current iteration, and flatten
-		flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
+		flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
+		// If not enough space left for next iteration, send indexes and create new instance
+		if index.length >= INDEX_SIZE-64 {
+			pj.index_chan <- index
+			indexTotal += index.length
+			index = indexChan{}
+			index.indexes = &[INDEX_SIZE]uint32{}
+		}
 
 		// find structural bits
 		structurals = find_structural_bits(tmpbuf[:], &prev_iter_ends_odd_backslash,
@@ -97,20 +115,28 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	}
 
 	// finally, flatten out the remaining structurals from the last iteration
-	flatten_bits(&pj.structural_indexes, uint64(idx), structurals)
+	flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
-	if len(pj.structural_indexes) == 0 {
+	if indexTotal == 0 {
 		return false
 	}
 
-	if uint32(len(buf)) != pj.structural_indexes[len(pj.structural_indexes)-1] {
+	// TODO: Check out if we still needs these two checks
+	if uint32(len(buf)) != index.indexes[index.length] {
 		// the string might not be NULL terminated, but we add a virtual NULL ending character.
-		pj.structural_indexes = append(pj.structural_indexes, uint32(len(buf)))
+		index.indexes[index.length] = uint32(len(buf))
+		index.length += 1
 	}
 
 	// make it safe to dereference one beyond this array
-	pj.structural_indexes = append(pj.structural_indexes, 0)
+	index.indexes[index.length] = 0
+	index.length += 1
+
+	if index.length > 0 {
+		pj.index_chan <- index  // Send last message ...
+	}
+	close(pj.index_chan)        // ... and close channel
 
 	if error_mask != 0 {
 		return false

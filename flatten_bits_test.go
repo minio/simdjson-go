@@ -25,12 +25,18 @@ func TestFlattenBits(t *testing.T) {
 
 	for i, tc := range testCases {
 
-		base := make([]uint32, 0, 1024)
+		index := indexChan{}
+		index.indexes = &[INDEX_SIZE]uint32{}
 
-		flatten_bits(&base, uint64(64), tc.bits)
+		flatten_bits(index.indexes, &index.length, uint64(64), tc.bits)
 
-		if !reflect.DeepEqual(base, tc.expected) {
-			t.Errorf("TestFlattenBits(%d): got: %v want: %v", i, base, tc.expected)
+		compare := make([]uint32, 0, 1024)
+		for idx := 0; idx < index.length; idx++ {
+			compare = append(compare, index.indexes[idx])
+		}
+
+		if !reflect.DeepEqual(compare, tc.expected) {
+			t.Errorf("TestFlattenBits(%d): got: %v want: %v", i, compare, tc.expected)
 		}
 	}
 }

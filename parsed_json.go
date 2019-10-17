@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
+	"sync"
 	"strconv"
 )
 
@@ -18,21 +19,47 @@ type ParsedJson struct {
 	Strings []byte
 }
 
+const INDEX_SIZE = 4096 // Seems to be a good size for the index buffering
+
+type indexChan struct {
+	length  int
+	indexes *[INDEX_SIZE]uint32
+}
+
 type internalParsedJson struct {
 	ParsedJson
-	structural_indexes      []uint32
 	containing_scope_offset []uint64
 	isvalid                 bool
+	index_chan				chan indexChan
 }
 
 func (pj *internalParsedJson) initialize(size int) {
 	pj.Tape = make([]uint64, 0, size)
 	// FIXME(fwessel): Why are string size the same as element size?
 	pj.Strings = make([]byte, 0, size)
-	pj.structural_indexes = make([]uint32, 0, size)
-
-	// combine into single struct (array)
 	pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
+}
+
+func (pj *internalParsedJson) parseMessage(msg []byte) error {
+
+	//TODO: Collect errors from both stages and return appropriately
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	pj.index_chan = make(chan indexChan, 16)
+
+	go func() {
+		find_structural_indices(msg, pj)
+		wg.Done()
+	}()
+	go func() {
+		unified_machine(msg, pj)
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	return nil
 }
 
 // Iter returns a new Iter
