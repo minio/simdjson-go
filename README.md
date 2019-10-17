@@ -7,21 +7,21 @@ This is a Golang port of [simdjson](https://github.com/lemire/simdjson).
 NB These are work-in-progress numbers:
 
 ```
-BenchmarkApache_builds-8                   10000            149439 ns/op         851.68 MB/s         332 B/op          0 allocs/op
-BenchmarkCanada-8                            300           4614895 ns/op         487.78 MB/s      195136 B/op          0 allocs/op
-BenchmarkCitm_catalog-8                     1000           1641124 ns/op        1052.45 MB/s       44917 B/op          0 allocs/op
-BenchmarkGithub_events-8                   20000             68402 ns/op         952.18 MB/s          85 B/op          0 allocs/op
-BenchmarkGsoc_2018-8                        1000           2321913 ns/op        1433.23 MB/s       86533 B/op          0 allocs/op
-BenchmarkInstruments-8                      5000            305609 ns/op         721.00 MB/s        1148 B/op          0 allocs/op
-BenchmarkMarine_ik-8                         200           7241483 ns/op         412.00 MB/s      387937 B/op          0 allocs/op
-BenchmarkMesh-8                             1000           1931930 ns/op         374.55 MB/s       18826 B/op          0 allocs/op
-BenchmarkMesh_pretty-8                       500           2490304 ns/op         633.40 MB/s       82053 B/op          0 allocs/op
-BenchmarkNumbers-8                          5000            342380 ns/op         438.47 MB/s         783 B/op          0 allocs/op
-BenchmarkRandom-8                           2000            913360 ns/op         558.90 MB/s        6644 B/op          0 allocs/op
-BenchmarkTwitter-8                          2000            700847 ns/op         901.07 MB/s        8217 B/op          0 allocs/op
-BenchmarkTwitterescaped-8                   2000            896358 ns/op         627.44 MB/s        7320 B/op          0 allocs/op
-BenchmarkUpdate_center-8                    2000            754479 ns/op         706.68 MB/s        6939 B/op          0 allocs/op
-BenchmarkFindStructuralBits-8           50000000                23.1 ns/op      2776.45 MB/s           0 B/op          0 allocs/op
+BenchmarkApache_builds-8                            8727            135900 ns/op         936.54 MB/s       66330 B/op          7 allocs/op
+BenchmarkCanada-8                                    280           3804952 ns/op         591.61 MB/s     1505172 B/op         86 allocs/op
+BenchmarkCitm_catalog-8                             1083            974982 ns/op        1771.52 MB/s      586289 B/op         37 allocs/op
+BenchmarkGithub_events-8                           14911             79354 ns/op         820.78 MB/s       33377 B/op          5 allocs/op
+BenchmarkGsoc_2018-8                                 703           1609971 ns/op        2067.01 MB/s      397038 B/op         22 allocs/op
+BenchmarkInstruments-8                              4618            247145 ns/op         891.56 MB/s      116081 B/op         10 allocs/op
+BenchmarkMarine_ik-8                                 168           6235340 ns/op         478.48 MB/s     2941722 B/op        163 allocs/op
+BenchmarkMesh-8                                      697           1689862 ns/op         428.20 MB/s      641824 B/op         41 allocs/op
+BenchmarkMesh_pretty-8                               670           1767058 ns/op         892.64 MB/s      665503 B/op         41 allocs/op
+BenchmarkNumbers-8                                  3528            325601 ns/op         461.07 MB/s       83217 B/op          8 allocs/op
+BenchmarkRandom-8                                   1705            703734 ns/op         725.38 MB/s      366373 B/op         25 allocs/op
+BenchmarkTwitter-8                                  2486            468589 ns/op        1347.69 MB/s      234483 B/op         17 allocs/op
+BenchmarkTwitterescaped-8                           1646            704315 ns/op         798.52 MB/s      236053 B/op         17 allocs/op
+BenchmarkUpdate_center-8                            2102            550810 ns/op         967.99 MB/s      267240 B/op         19 allocs/op
+BenchmarkFindStructuralBits-8                   55953850                21.4 ns/op      2989.21 MB/s           0 B/op          0 allocs/op
 ```
 
 ## Number parsing performance
