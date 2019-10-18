@@ -3,7 +3,6 @@ package simdjson
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"testing"
 )
 
@@ -219,10 +218,8 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 	pj := internalParsedJson{}
 	pj.initialize(len(msg) * 2)
 
-	find_structural_indices(msg, &pj)
-	success := unified_machine(msg, &pj)
-	if !success {
-		fmt.Errorf("Stage2 failed\n")
+	if err := pj.parseMessage(msg); err != nil {
+		t.Errorf("Stage2 failed: %w", err)
 	}
 
 	tape := make([]byte, len(pj.Tape)*8)
@@ -237,7 +234,6 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 	if bytes.Compare(pj.Strings, expectedStringBuf) != 0 {
 		t.Errorf("TestStage2VerifyTape (%s): got: %v want: %v", filename, pj.Strings, expectedStringBuf)
 	}
-
 }
 
 func TestStage2VerifyApache_builds(t *testing.T)  { testStage2VerifyTape(t, "apache_builds") }
