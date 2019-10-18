@@ -12,7 +12,11 @@ import (
 )
 
 func closeEnough(d1, d2 float64) (ce bool) {
-	return math.Abs(d1 - d2) / (0.5*(d1 + d2)) < 1e-12
+	return math.Abs((d1 - d2) / (0.5*(d1 + d2))) < 1e-20
+}
+
+func closeEnoughLessPrecision(d1, d2 float64) (ce bool) {
+	return math.Abs((d1 - d2) / (0.5*(d1 + d2))) < 1e-15
 }
 
 func TestParseNumber(t *testing.T) {
@@ -31,7 +35,10 @@ func TestParseNumber(t *testing.T) {
 		{ "0.123456789e-12", true, 1.23456789e-13, 0},
 		{ "1.234567890E+34", true, 1.234567890E+34, 0},
 		{ "23456789012E66", true, 23456789012E66, 0},
-		{"-9876.543210", true, -9876.543210, 0}, // fails
+		{"-9876.543210", true, -9876.543210, 0},
+		// The number below parses to -65.61972000000004 for parse_number()
+		// This extra inprecision is tolerated when SLOWGOLANGFLOATPARSING = false
+		{"-65.619720000000029", true, -65.61972000000003, 0},
 	}
 
 	for _, tc := range testCases {
@@ -48,7 +55,13 @@ func TestParseNumber(t *testing.T) {
 		}
 		if is_double {
 			if !closeEnough(d, tc.expectedD) {
-				t.Errorf("TestParseNumber: got: %g want: %g", d, tc.expectedD)
+				if SLOWGOLANGFLOATPARSING {
+					t.Errorf("TestParseNumber: got: %g want: %g", d, tc.expectedD)
+				} else {
+					if !closeEnoughLessPrecision(d, tc.expectedD) {
+						t.Errorf("TestParseNumber: got: %g want: %g", d, tc.expectedD)
+					}
+				}
 			}
 		} else {
 			if i != tc.expectedI {

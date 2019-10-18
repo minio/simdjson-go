@@ -11,6 +11,19 @@ import (
 	"strconv"
 )
 
+//
+// The current parse_number() code has some precision issues
+// (see PR "Exact float parsing", https://github.com/lemire/simdjson/pull/333)
+//
+// An example of this (from canada.json):
+//     "-65.619720000000029" --> -65.61972000000004
+// instead of
+//     "-65.619720000000029" --> -65.61972000000003
+//
+// There is a slow code path that uses Golang's ParseFloat (disabled by default)
+//
+const SLOWGOLANGFLOATPARSING = false
+
 const JSONVALUEMASK = 0xffffffffffffff
 const DEFAULTMAXDEPTH = 128
 
