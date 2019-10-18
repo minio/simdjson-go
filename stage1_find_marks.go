@@ -3,14 +3,7 @@ package simdjson
 const paddingSpaces64 = "                                                                "
 
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
-
-	//if (len > pj.bytecapacity) {
-	//	cerr << "Your ParsedJson object only supports documents up to "
-	//	<< pj.bytecapacity << " bytes but you are trying to process " << len
-	//	<< " bytes\n";
-	//	return false;
-	//}
-
+	
 	//  #ifdef SIMDJSON_UTF8VALIDATE
 	//      __m256i has_error = _mm256_setzero_si256();
 	//      struct avx_processed_utf_bytes previous {};
