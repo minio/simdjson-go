@@ -111,20 +111,10 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
-	if indexTotal == 0 {
+	if indexTotal + index.length == 0 {
+		close(pj.index_chan)
 		return false
 	}
-
-	// TODO: Check out if we still needs these two checks
-	if uint32(len(buf)) != index.indexes[index.length] {
-		// the string might not be NULL terminated, but we add a virtual NULL ending character.
-		index.indexes[index.length] = uint32(len(buf))
-		index.length += 1
-	}
-
-	// make it safe to dereference one beyond this array
-	index.indexes[index.length] = 0
-	index.length += 1
 
 	if index.length > 0 {
 		pj.index_chan <- index  // Send last message ...
