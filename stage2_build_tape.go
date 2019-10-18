@@ -224,12 +224,12 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	}
 
 start_continue:
-	// the string might not be NULL terminated.
-	//	if i+1 == uint32(len(pj.structural_indexes)) {
-	//		goto succeed
-	//	} else {
+	// We are back at the top, read the next char and we should be done
+	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+		goto succeed
+	} else {
 		goto fail
-	//	}
+	}
 
 	//////////////////////////////// OBJECT STATES /////////////////////////////
 

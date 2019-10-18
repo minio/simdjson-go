@@ -125,10 +125,8 @@ func TestStage2BuildTape(t *testing.T) {
 		pj := internalParsedJson{}
 		pj.initialize(1024)
 
-		find_structural_indices([]byte(tc.input), &pj)
-		success := unified_machine([]byte(tc.input), &pj)
-		if !success {
-			t.Errorf("TestStage2BuildTape(%d): got: %v want: true", i, success)
+		if err := pj.parseMessage([]byte(tc.input)); err != nil {
+			t.Errorf("TestStage2BuildTape(%d): got: %v want: nil", i, err)
 		}
 
 		if len(pj.Tape) != len(tc.expected) {
