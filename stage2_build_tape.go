@@ -10,7 +10,7 @@ const RET_ADDRESS_START_CONST = 1
 const RET_ADDRESS_OBJECT_CONST = 2
 const RET_ADDRESS_ARRAY_CONST = 3
 
-func UPDATE_CHAR(buf []byte, pj *internalParsedJson, i_in uint32, indexesChan *indexChan) (done bool, i uint32, idx uint32, c byte) {
+func updateChar(buf []byte, pj *internalParsedJson, i_in uint32, indexesChan *indexChan) (done bool, i uint32, idx uint32, c byte) {
 	if int(i_in) >= (*indexesChan).length {
 		var ok bool
 		*indexesChan, ok = <- pj.index_chan // Get next element from channel
@@ -90,7 +90,7 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
 
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	switch c {
@@ -216,7 +216,7 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
 start_continue:
 	// We are back at the top, read the next char and we should be done
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	} else {
 		goto fail
@@ -225,7 +225,7 @@ start_continue:
 	//////////////////////////////// OBJECT STATES /////////////////////////////
 
 object_begin:
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	switch c {
@@ -241,13 +241,13 @@ object_begin:
 	}
 
 object_key_state:
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	if c != ':' {
 		goto fail
 	}
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	switch c {
@@ -301,12 +301,12 @@ object_key_state:
 	}
 
 object_continue:
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	switch c {
 	case ',':
-		if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+		if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 			goto succeed
 		}
 		if c != '"' {
@@ -346,7 +346,7 @@ scope_end:
 
 	////////////////////////////// ARRAY STATES /////////////////////////////
 array_begin:
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	if c == ']' {
@@ -408,12 +408,12 @@ main_array_switch:
 	}
 
 array_continue:
-	if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 		goto succeed
 	}
 	switch c {
 	case ',':
-		if done, i, idx, c = UPDATE_CHAR(buf, pj, i, &indexCh); done {
+		if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
 			goto succeed
 		}
 		goto main_array_switch
