@@ -433,7 +433,7 @@ succeed:
 
 	// Sanity checks
 	if len(pj.containing_scope_offset) != 0 ||
-		offset>>RET_ADDRESS_SHIFT != 0{
+		offset>>RET_ADDRESS_SHIFT != 0 {
 		return false
 	}
 
