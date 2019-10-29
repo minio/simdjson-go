@@ -49,8 +49,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	idx := uint64(0)
 	for ; idx < lenminus64; idx += 64 {
 
-		// __builtin_prefetch(buf + idx + 128);
-
 		// #ifdef SIMDJSON_UTF8VALIDATE
 		// check_utf8(input_lo, input_hi, has_error, previous);
 		// #endif
