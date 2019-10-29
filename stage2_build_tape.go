@@ -75,11 +75,6 @@ func is_valid_null_atom(buf []byte) bool {
 
 func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
-	// TODO: Figure out why we may have a trailing zero as the last structural element
-	//if pj.structural_indexes[len(pj.structural_indexes)-1] == 0 {
-	//	pj.structural_indexes = pj.structural_indexes[:len(pj.structural_indexes)-1]
-	//}
-
 	done := false
 	i := uint32(0)      // index of the structural character (0,1,2,3...)
 	idx := uint32(0)    // location of the structural character in the input (buf)
@@ -88,10 +83,6 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	var indexCh indexChan
 
 	//pj.init();
-
-	//if(pj.bytecapacity < len) {
-	//return simdjson::CAPACITY;
-	//}
 
 	////////////////////////////// START STATE /////////////////////////////
 	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
@@ -440,14 +431,11 @@ succeed:
 	// drop last element
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
-	// TODO: Check out these two sanity checks
-	//	if len(pj.containing_scope_offset) != 0 {
-	//		panic("internal bug\n")
-	//	}
-
-	//	if offset>>RET_ADDRESS_SHIFT != 0 {
-	//		panic("internal bug\n")
-	//	}
+	// Sanity checks
+	if len(pj.containing_scope_offset) != 0 ||
+		offset>>RET_ADDRESS_SHIFT != 0{
+		return false
+	}
 
 	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
 	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
