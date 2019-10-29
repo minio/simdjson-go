@@ -256,10 +256,8 @@ func TestPrintJson(t *testing.T) {
 	pj := internalParsedJson{}
 	pj.initialize(len(msg) * 2)
 
-	find_structural_indices(msg, &pj)
-	success := unified_machine(msg, &pj)
-	if !success {
-		t.Errorf("Stage2 failed\n")
+	if err := pj.parseMessage(msg); err != nil {
+		t.Errorf("parseMessage failed\n")
 	}
 
 	iter := pj.Iter()
@@ -268,7 +266,6 @@ func TestPrintJson(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// back to normal state
 	if string(out) != expected {
 		t.Errorf("TestPrintJson: got: %s want: %s", out, expected)
 	}
