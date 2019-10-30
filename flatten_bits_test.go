@@ -108,6 +108,10 @@ func TestFlattenBits(t *testing.T) {
 
 		flatten_bits(index.indexes, &index.length, uint64(64), tc.bits)
 
+		if index.length != len(tc.expected) {
+			t.Errorf("TestFlattenBitsIncremental(%d): got: %d want: %d", i, index.length, len(tc.expected))
+		}
+
 		compare := make([]uint32, 0, 1024)
 		for idx := 0; idx < index.length; idx++ {
 			compare = append(compare, index.indexes[idx])
