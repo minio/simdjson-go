@@ -3,26 +3,7 @@ package simdjson
 import (
 	"reflect"
 	"testing"
-	"math/bits"
 )
-
-func flatten_bits_incremental_golang(base *[INDEX_SIZE]uint32, base_index *int, mask uint64, carried *int) {
-
-	shifts := 0
-	for {
-		zeros := bits.TrailingZeros64(mask)
-		if zeros == 64 {
-			*carried += 64 - shifts
-			return
-		}
-		zeros++
-		(*base)[*base_index] = uint32(zeros + *carried)
-		*base_index += 1
-		mask = mask >> zeros
-		shifts += zeros
-		*carried = 0
-	}
-}
 
 func TestFlattenBitsIncremental(t *testing.T) {
 
