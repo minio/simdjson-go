@@ -46,6 +46,9 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	index.indexes = &[INDEX_SIZE]uint32{}
 	indexTotal := 0
 
+	// TODO: Starting with -64 is ugly -- move flatten_bits() after find_structural_bits()
+	carried := -64
+
 	idx := uint64(0)
 	for ; idx < lenminus64; idx += 64 {
 
@@ -54,7 +57,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// #endif
 
 		// take the previous iterations structural bits, not our current iteration, and flatten
-		flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
+		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
 		// If not enough space left for next iteration, send indexes and create new instance
 		if index.length >= INDEX_SIZE-64 {
 			pj.index_chan <- index
@@ -87,7 +90,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// #endif
 
 		// take the previous iterations structural bits, not our current iteration, and flatten
-		flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
+		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
 		// If not enough space left for next iteration, send indexes and create new instance
 		if index.length >= INDEX_SIZE-64 {
 			pj.index_chan <- index
@@ -106,7 +109,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	}
 
 	// finally, flatten out the remaining structurals from the last iteration
-	flatten_bits(index.indexes, &index.length, uint64(idx), structurals)
+	flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
 	if indexTotal + index.length == 0 {
