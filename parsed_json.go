@@ -35,6 +35,7 @@ type ParsedJson struct {
 const INDEX_SIZE = 4096 // Seems to be a good size for the index buffering
 
 type indexChan struct {
+	index   int
 	length  int
 	indexes *[INDEX_SIZE]uint32
 }
