@@ -46,8 +46,8 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	index.indexes = &[INDEX_SIZE]uint32{}
 	indexTotal := 0
 
-	// TODO: Starting with -64 is ugly -- move flatten_bits() after find_structural_bits()
-	carried := -64
+	// empty bits that are carried over to the next call to flatten_bits_incremental
+	carried := 0
 
 	idx := uint64(0)
 	for ; idx < lenminus64; idx += 64 {
@@ -56,8 +56,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// check_utf8(input_lo, input_hi, has_error, previous);
 		// #endif
 
-		// take the previous iterations structural bits, not our current iteration, and flatten
-		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
 		// If not enough space left for next iteration, send indexes and create new instance
 		if index.length >= INDEX_SIZE-64 {
 			pj.index_chan <- index
@@ -71,6 +69,9 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred)
+
+		// take the structural bits and flatten
+		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
 	}
 
 	////////////////
@@ -89,8 +90,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// check_utf8(input_lo, input_hi, has_error, previous);
 		// #endif
 
-		// take the previous iterations structural bits, not our current iteration, and flatten
-		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
 		// If not enough space left for next iteration, send indexes and create new instance
 		if index.length >= INDEX_SIZE-64 {
 			pj.index_chan <- index
@@ -106,10 +105,10 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			&prev_iter_ends_pseudo_pred)
 
 		idx += 64
-	}
 
-	// finally, flatten out the remaining structurals from the last iteration
-	flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
+		// take the structural bits and flatten
+		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
+	}
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
 	if indexTotal + index.length == 0 {
