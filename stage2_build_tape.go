@@ -10,30 +10,28 @@ const RET_ADDRESS_START_CONST = 1
 const RET_ADDRESS_OBJECT_CONST = 2
 const RET_ADDRESS_ARRAY_CONST = 3
 
-func updateChar(buf []byte, pj *internalParsedJson, i_in uint32, indexesChan *indexChan) (done bool, i uint32, idx uint32, c byte) {
-	if int(i_in) >= (*indexesChan).length {
+func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64, c byte) {
+	if (*indexesChan).index >= (*indexesChan).length {
 		var ok bool
 		*indexesChan, ok = <- pj.index_chan // Get next element from channel
 		if !ok {
 			done = true	// return done if channel closed
 			return
 		}
-
-		i_in = 0
 	}
-	idx = (*indexesChan).indexes[i_in]
-	i = i_in + 1
+	idx = idx_in + uint64((*indexesChan).indexes[(*indexesChan).index])
+	(*indexesChan).index++
 	c = buf[idx]
 	return
 }
 
-func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint32) bool {
+func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint64) bool {
 	pj.write_tape(uint64(len(pj.Strings)), '"')
 	parse_string_simd(buf[offset:], &pj.Strings)
 	return true
 }
 
-func parse_number(buf []byte, pj *ParsedJson, idx uint32, neg bool) bool {
+func parse_number(buf []byte, pj *ParsedJson, idx uint64, neg bool) bool {
 	succes, is_double, d, i := parse_number_simd(buf[idx:], neg)
 	if !succes {
 		return false
@@ -76,13 +74,10 @@ func is_valid_null_atom(buf []byte) bool {
 func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
 	done := false
-	i := uint32(0)      // index of the structural character (0,1,2,3...)
-	idx := uint32(0)    // location of the structural character in the input (buf)
+	idx := uint64(0xffffffffffffffff) // location of the structural character in the input (buf)
 	c := byte(0)        // used to track the (structural) character we are looking at
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 	var indexCh indexChan
-
-	//pj.init();
 
 	////////////////////////////// START STATE /////////////////////////////
 	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
@@ -90,7 +85,7 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
 
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	switch c {
@@ -216,7 +211,7 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
 start_continue:
 	// We are back at the top, read the next char and we should be done
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	} else {
 		goto fail
@@ -225,7 +220,7 @@ start_continue:
 	//////////////////////////////// OBJECT STATES /////////////////////////////
 
 object_begin:
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	switch c {
@@ -241,13 +236,13 @@ object_begin:
 	}
 
 object_key_state:
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	if c != ':' {
 		goto fail
 	}
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	switch c {
@@ -301,12 +296,12 @@ object_key_state:
 	}
 
 object_continue:
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	switch c {
 	case ',':
-		if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+		if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 			goto succeed
 		}
 		if c != '"' {
@@ -346,7 +341,7 @@ scope_end:
 
 	////////////////////////////// ARRAY STATES /////////////////////////////
 array_begin:
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	if c == ']' {
@@ -408,12 +403,12 @@ main_array_switch:
 	}
 
 array_continue:
-	if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
 	switch c {
 	case ',':
-		if done, i, idx, c = updateChar(buf, pj, i, &indexCh); done {
+		if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 			goto succeed
 		}
 		goto main_array_switch
