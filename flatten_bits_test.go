@@ -69,3 +69,42 @@ func TestFlattenBitsIncremental(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkFlattenBits(b *testing.B) {
+
+	_, _, msg := loadCompressed(b, "twitter")
+
+
+	prev_iter_ends_odd_backslash := uint64(0)
+	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
+	prev_iter_ends_pseudo_pred := uint64(1)
+	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
+	structurals := uint64(0)
+
+	structuralsArray := make([]uint64, 0, len(msg) >> 6)
+
+	// Collect all structurals into array
+	for i := 0; i < len(msg)-64; i += 64 {
+		find_structural_bits([]byte(msg)[i:], &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred)
+
+		structuralsArray = append(structuralsArray, structurals)
+	}
+
+	b.SetBytes(int64(len(structuralsArray)*8))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	index := indexChan{}
+	index.indexes = &[INDEX_SIZE]uint32{}
+	carried := 0
+
+	for i := 0; i < b.N; i++ {
+		for _, structurals := range structuralsArray {
+			index.length = 0 // reset length to prevent overflow
+			flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
+		}
+	}
+}
