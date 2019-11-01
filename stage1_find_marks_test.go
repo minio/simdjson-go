@@ -158,3 +158,20 @@ func TestFindStructuralIndices(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkStage1(b *testing.B) {
+
+	_, _, msg := loadCompressed(b, "twitter")
+
+	b.SetBytes(int64(len(msg)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	pj := internalParsedJson{}
+
+	for i := 0; i < b.N; i++ {
+		// Create new channel (large enough so we won't block)
+		pj.index_chan = make(chan indexChan, 32)
+		find_structural_indices([]byte(msg), &pj)
+	}
+}
