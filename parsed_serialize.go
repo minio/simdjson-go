@@ -1,13 +1,21 @@
 package simdjson
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"unsafe"
 
 	"github.com/klauspost/compress/fse"
 	"github.com/klauspost/compress/huff0"
 	"github.com/klauspost/compress/s2"
 	"github.com/klauspost/compress/zstd"
+)
+
+const (
+	stringBits = 14
+	stringSize = 1 << stringBits
+	stringmask = stringSize - 1
 )
 
 type serializer struct {
@@ -25,6 +33,7 @@ type serializer struct {
 	// Values
 	valuesBuf     []byte
 	valuesCompBuf []byte
+	strings2      [stringSize]uint32
 }
 
 func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
@@ -60,12 +69,17 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	//   - TagFloat: 64 bits
 	// 	 - TagString: Varuint offset
 
+	const reIndexStrings = true
 	// Index strings
-	err := s.indexStrings(pj.Strings)
-	if err != nil {
-		return nil, err
+	if reIndexStrings {
+		err := s.indexStringsLazy(pj.Strings)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		s.stringBuf = pj.Strings
 	}
-	err = s.compressStringsS2()
+	err := s.compressStringsS2()
 	if err != nil {
 		return nil, err
 	}
@@ -90,9 +104,15 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 		off++
 		switch ntype {
 		case TagString:
-			sOffset, ok := s.stringsMap[uint32(payload)]
-			if !ok {
-				return nil, fmt.Errorf("unable to find string at offset %d", payload)
+			var sOffset uint32
+			if reIndexStrings {
+				var ok bool
+				sOffset, ok = s.stringsMap[uint32(payload)]
+				if !ok {
+					return nil, fmt.Errorf("unable to find string at offset %d", payload)
+				}
+			} else {
+				sOffset = uint32(payload)
 			}
 			s.tagsBuf[tagsOff] = symbolString
 			n := binary.PutUvarint(tmp[:], uint64(sOffset))
@@ -170,6 +190,11 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	}
 
 	// S2 compress values
+	mel := s2.MaxEncodedLen(len(s.valuesBuf))
+	if cap(s.valuesCompBuf) < mel {
+		s.valuesCompBuf = make([]byte, mel)
+	}
+	s.valuesCompBuf = s.valuesCompBuf[:mel]
 	s.valuesCompBuf = s2.Encode(s.valuesCompBuf, s.valuesBuf)
 
 	// Version
@@ -194,7 +219,9 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	n = binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf)))
 	dst = append(dst, tmp[:n]...)
 	dst = append(dst, s.valuesCompBuf...)
-	fmt.Println("strings:", len(pj.Strings), "->", len(s.sBuf), "tags:", len(s.tagsBuf), "->", len(comp), "values:", len(s.valuesBuf), "->", len(s.valuesCompBuf), "Total:", len(pj.Strings)+len(pj.Tape)*8, "->", len(dst))
+	if false {
+		fmt.Println("strings:", len(pj.Strings), "->", len(s.sBuf), "tags:", len(s.tagsBuf), "->", len(comp), "values:", len(s.valuesBuf), "->", len(s.valuesCompBuf), "Total:", len(pj.Strings)+len(pj.Tape)*8, "->", len(dst))
+	}
 
 	return dst, nil
 }
@@ -248,10 +275,57 @@ func (s *serializer) indexStrings(sb []byte) error {
 		}
 		// New value, add to dst
 		s.stringsMap[srcOff] = dstOff
-		s.stringBuf = append(s.stringBuf, byte(dstOff), byte(dstOff>>8), byte(dstOff>>16), byte(dstOff>>24))
+		s.stringBuf = append(s.stringBuf, byte(length), byte(length>>8), byte(length>>16), byte(length>>24))
 		s.stringBuf = append(s.stringBuf, value...)
 		s.stringBuf = append(s.stringBuf, 0)
 		s.strings[string(value)] = dstOff
+		srcOff += 5 + length
+		dstOff += 5 + length
+	}
+	return nil
+}
+
+// indexStrings will deduplicate strings and populate
+// strings, stringsMap and stringBuf.
+func (s *serializer) indexStringsLazy(sb []byte) error {
+	for i := range s.strings2[:] {
+		s.strings2[i] = 0
+	}
+	if s.stringsMap == nil {
+		s.stringsMap = make(map[uint32]uint32, 1000)
+	} else {
+		for k := range s.stringsMap {
+			delete(s.stringsMap, k)
+		}
+	}
+	if cap(s.stringBuf) == 0 {
+		s.stringBuf = make([]byte, 0, len(sb))
+	}
+	s.stringBuf = s.stringBuf[:0]
+	var srcOff, dstOff uint32
+	//var key [32]byte
+	for int(srcOff) < len(sb) {
+		length := binary.LittleEndian.Uint32(sb[srcOff : srcOff+4])
+		value := sb[srcOff+4 : srcOff+4+length]
+		//h := highwayhash.Sum64(value, key[:]) & stringmask
+		h := memHash(value) & stringmask
+		off := s.strings2[h]
+		if off > 0 {
+			off--
+			// Does length match?
+			if length == binary.LittleEndian.Uint32(s.stringBuf[off:off+4]) {
+				bytes.Equal(value[:], s.stringBuf[off+4:off+4+length])
+				s.stringsMap[srcOff] = off
+				srcOff += 5 + length
+				continue
+			}
+		}
+		// New value, add to dst
+		s.stringsMap[srcOff] = dstOff
+		s.stringBuf = append(s.stringBuf, byte(length), byte(length>>8), byte(length>>16), byte(length>>24))
+		s.stringBuf = append(s.stringBuf, value...)
+		s.stringBuf = append(s.stringBuf, 0)
+		s.strings2[h] = dstOff + 1
 		srcOff += 5 + length
 		dstOff += 5 + length
 	}
@@ -315,8 +389,9 @@ func (s *serializer) compressStringsS2() error {
 	if cap(s.sBuf) < mel {
 		s.sBuf = make([]byte, mel)
 	}
+	s.sBuf = s.sBuf[:mel]
 	s.sBuf[0] = blockTypeS2
-	s.sBuf = s2.Encode(s.sBuf[1:mel], s.stringBuf)
+	_ = s2.Encode(s.sBuf[1:], s.stringBuf)
 
 	return nil
 }
@@ -331,4 +406,21 @@ func (s *serializer) compressStringsZstd() error {
 	s.sBuf = zEnc.EncodeAll(s.stringBuf, s.sBuf[:0])
 
 	return nil
+}
+
+//go:noescape
+//go:linkname memhash runtime.memhash
+func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+
+// memHash is the hash function used by go map, it utilizes available hardware instructions(behaves
+// as aeshash if aes instruction is available).
+// NOTE: The hash seed changes for every process. So, this cannot be used as a persistent hash.
+func memHash(data []byte) uint64 {
+	ss := (*stringStruct)(unsafe.Pointer(&data))
+	return uint64(memhash(ss.str, 0, uintptr(ss.len)))
+}
+
+type stringStruct struct {
+	str unsafe.Pointer
+	len int
 }
