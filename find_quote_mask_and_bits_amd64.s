@@ -15,22 +15,21 @@ DATA LCDATA1<>+0x050(SB)/8, $0xa0a0a0a0a0a0a0a0
 DATA LCDATA1<>+0x058(SB)/8, $0xa0a0a0a0a0a0a0a0
 GLOBL LCDATA1<>(SB), 8, $96
 
-TEXT ·_find_quote_mask_and_bits(SB), $0-56
+TEXT ·_find_quote_mask_and_bits(SB), $0-48
 
-    MOVQ input_lo+0(FP), DI
-    MOVQ input_hi+8(FP), SI
-    MOVQ odd_ends+16(FP), DX
-    MOVQ prev_iter_inside_quote+24(FP), CX
-    MOVQ quote_bits+32(FP), R8
-    MOVQ error_mask+40(FP), R9
+    MOVQ input+0(FP), DI
+    MOVQ odd_ends+8(FP), DX
+    MOVQ prev_iter_inside_quote+16(FP), CX
+    MOVQ quote_bits+24(FP), R8
+    MOVQ error_mask+32(FP), R9
 
     VMOVDQU    (DI), Y8          // load low 32-bytes
-    VMOVDQU    (SI), Y9          // load high 32-bytes
+    VMOVDQU    0x20(DI), Y9      // load high 32-bytes
 
     CALL ·__find_quote_mask_and_bits(SB)
 
     VZEROUPPER
-    MOVQ AX, quote_mask+48(FP)
+    MOVQ AX, quote_mask+40(FP)
     RET
 
 
