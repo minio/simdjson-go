@@ -7,8 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
-	"sync"
 	"strconv"
+	"sync"
 )
 
 //
@@ -44,7 +44,7 @@ type internalParsedJson struct {
 	ParsedJson
 	containing_scope_offset []uint64
 	isvalid                 bool
-	index_chan				chan indexChan
+	index_chan              chan indexChan
 }
 
 func (pj *internalParsedJson) initialize(size int) {
