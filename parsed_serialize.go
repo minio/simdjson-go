@@ -391,7 +391,8 @@ func (s *serializer) compressStringsS2() error {
 	}
 	s.sBuf = s.sBuf[:mel]
 	s.sBuf[0] = blockTypeS2
-	_ = s2.Encode(s.sBuf[1:], s.stringBuf)
+	sbCopy := s2.Encode(s.sBuf[1:], s.stringBuf)
+	s.sBuf = s.sBuf[:len(sbCopy)+1]
 
 	return nil
 }

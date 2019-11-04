@@ -19,7 +19,7 @@ func BenchmarkSerialize(b *testing.B) {
 				b.Fatal(err)
 			}
 			if false {
-				b.Log(len(org), "Full dedupe (JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
+				b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
 			}
 			//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 			b.SetBytes(int64(len(org)))
