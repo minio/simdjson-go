@@ -7,19 +7,18 @@ DATA LCDATA1<>+0x010(SB)/8, $0x5c5c5c5c5c5c5c5c
 DATA LCDATA1<>+0x018(SB)/8, $0x5c5c5c5c5c5c5c5c
 GLOBL LCDATA1<>(SB), 8, $32
 
-TEXT ·_find_odd_backslash_sequences(SB), $0-32
+TEXT ·_find_odd_backslash_sequences(SB), $0-24
 
     MOVQ p1+0(FP), DI
-    MOVQ p2+8(FP), SI
-    MOVQ p3+16(FP), DX
+    MOVQ p3+8(FP), DX
 
     VMOVDQU    (DI), Y8          // load low 32-bytes
-    VMOVDQU    (SI), Y9          // load high 32-bytes
+    VMOVDQU    0x20(DI), Y9      // load high 32-bytes
 
     CALL ·__find_odd_backslash_sequences(SB)
 
     VZEROUPPER
-    MOVQ AX, result+24(FP)
+    MOVQ AX, result+16(FP)
     RET
 
 
