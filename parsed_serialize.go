@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"reflect"
+	"sync"
 	"unsafe"
 
 	"github.com/klauspost/compress/fse"
@@ -34,6 +36,62 @@ type serializer struct {
 	valuesBuf     []byte
 	valuesCompBuf []byte
 	strings2      [stringSize]uint32
+}
+
+func (s *serializer) Serialize2(dst []byte, pj ParsedJson) ([]byte, error) {
+	dst = zEnc.EncodeAll(pj.Strings, dst)
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&pj.Tape))
+	header.Len *= 8
+	header.Cap *= 8
+
+	data := *(*[]byte)(unsafe.Pointer(&header))
+	dst = zEnc.EncodeAll(data, dst)
+	return dst, nil
+}
+
+func (s *serializer) Serialize3(dst []byte, pj ParsedJson) ([]byte, error) {
+	dst = append(dst, pj.Strings...)
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&pj.Tape))
+	header.Len *= 8
+	header.Cap *= 8
+
+	data := *(*[]byte)(unsafe.Pointer(&header))
+	dst = append(dst, data...)
+	return dst, nil
+}
+
+var s2Enc = s2.NewWriter(nil)
+
+func (s *serializer) Serialize4(dst []byte, pj ParsedJson) ([]byte, error) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		mel := s2.MaxEncodedLen(len(pj.Strings))
+		if cap(s.valuesBuf) < mel {
+			s.valuesBuf = make([]byte, 0, mel)
+		}
+		s.valuesBuf = s.valuesBuf[:mel]
+		s.valuesBuf = s2.Encode(s.valuesBuf, pj.Strings)
+	}()
+	go func() {
+		defer wg.Done()
+		header := *(*reflect.SliceHeader)(unsafe.Pointer(&pj.Tape))
+		header.Len *= 8
+		header.Cap *= 8
+
+		data := *(*[]byte)(unsafe.Pointer(&header))
+		mel := s2.MaxEncodedLen(len(data))
+		if cap(s.sBuf) < mel {
+			s.sBuf = make([]byte, 0, mel)
+		}
+		s.sBuf = s.sBuf[:mel]
+		s.sBuf = s2.Encode(s.sBuf, data)
+	}()
+	wg.Wait()
+	dst = append(dst, s.valuesBuf...)
+	dst = append(dst, s.sBuf...)
+	return dst, nil
 }
 
 func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
@@ -79,10 +137,13 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	} else {
 		s.stringBuf = pj.Strings
 	}
-	err := s.compressStringsS2()
-	if err != nil {
-		return nil, err
-	}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var compErr error
+	go func() {
+		defer wg.Done()
+		compErr = s.compressStringsS2()
+	}()
 	//fmt.Println("strings dedupe:", len(pj.Strings), "->", len(s.stringBuf))
 
 	// Pessimistically allocate for maximum possible size.
@@ -156,10 +217,22 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
 
 		default:
+			wg.Wait()
 			return nil, fmt.Errorf("unknown tag: %v", ntype)
 		}
 		tagsOff++
 	}
+	wg.Add(1)
+	// S2 compress values
+	go func() {
+		defer wg.Done()
+		mel := s2.MaxEncodedLen(len(s.valuesBuf))
+		if cap(s.valuesCompBuf) < mel {
+			s.valuesCompBuf = make([]byte, mel)
+		}
+		s.valuesCompBuf = s.valuesCompBuf[:mel]
+		s.valuesCompBuf = s2.Encode(s.valuesCompBuf, s.valuesBuf)
+	}()
 
 	s.tagsBuf[tagsOff] = symbolEnd
 	s.tagsBuf = s.tagsBuf[:tagsOff]
@@ -182,17 +255,15 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 		compHeader[0] = 2
 		compHeaderLen = 1 + binary.PutUvarint(compHeader[1:], uint64(len(comp)))
 	default:
+		wg.Wait()
 		return nil, err
 	}
 
-	// S2 compress values
-	mel := s2.MaxEncodedLen(len(s.valuesBuf))
-	if cap(s.valuesCompBuf) < mel {
-		s.valuesCompBuf = make([]byte, mel)
+	// Wait for other compressors
+	wg.Wait()
+	if compErr != nil {
+		return nil, err
 	}
-	s.valuesCompBuf = s.valuesCompBuf[:mel]
-	s.valuesCompBuf = s2.Encode(s.valuesCompBuf, s.valuesBuf)
-
 	// Version
 	dst = append(dst, 1)
 	// Size
