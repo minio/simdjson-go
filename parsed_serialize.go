@@ -23,8 +23,8 @@ type serializer struct {
 	sComp   huff0.Scratch
 	strings map[string]uint32
 	// Old -> new offset
-	stringsMap map[uint32]uint32
-	stringBuf  []byte
+	stringIdxLUT []uint32
+	stringBuf    []byte
 
 	// Compressed strings
 	sBuf []byte
@@ -106,11 +106,7 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 		case TagString:
 			var sOffset uint32
 			if reIndexStrings {
-				var ok bool
-				sOffset, ok = s.stringsMap[uint32(payload)]
-				if !ok {
-					return nil, fmt.Errorf("unable to find string at offset %d", payload)
-				}
+				sOffset = s.stringIdxLUT[uint32(payload)/4]
 			} else {
 				sOffset = uint32(payload)
 			}
@@ -252,13 +248,13 @@ func (s *serializer) indexStrings(sb []byte) error {
 			delete(s.strings, k)
 		}
 	}
-	if s.stringsMap == nil {
-		s.stringsMap = make(map[uint32]uint32, 100)
-	} else {
-		for k := range s.stringsMap {
-			delete(s.stringsMap, k)
-		}
+	// There should be at least 5 bytes between each source,
+	// so it should not be possible to alias lookups.
+	if cap(s.stringIdxLUT) < len(sb)/4 {
+		s.stringIdxLUT = make([]uint32, len(sb)/4)
 	}
+	s.stringIdxLUT = s.stringIdxLUT[:len(sb)/4]
+
 	if cap(s.stringBuf) == 0 {
 		s.stringBuf = make([]byte, 0, len(sb))
 	}
@@ -269,12 +265,12 @@ func (s *serializer) indexStrings(sb []byte) error {
 		value := sb[srcOff+4 : srcOff+4+length]
 		off, ok := s.strings[string(value)]
 		if ok {
-			s.stringsMap[srcOff] = off
+			s.stringIdxLUT[srcOff/4] = off
 			srcOff += 5 + length
 			continue
 		}
 		// New value, add to dst
-		s.stringsMap[srcOff] = dstOff
+		s.stringIdxLUT[srcOff/4] = dstOff
 		s.stringBuf = append(s.stringBuf, byte(length), byte(length>>8), byte(length>>16), byte(length>>24))
 		s.stringBuf = append(s.stringBuf, value...)
 		s.stringBuf = append(s.stringBuf, 0)
@@ -291,23 +287,21 @@ func (s *serializer) indexStringsLazy(sb []byte) error {
 	for i := range s.strings2[:] {
 		s.strings2[i] = 0
 	}
-	if s.stringsMap == nil {
-		s.stringsMap = make(map[uint32]uint32, 1000)
-	} else {
-		for k := range s.stringsMap {
-			delete(s.stringsMap, k)
-		}
+	// There should be at least 5 bytes between each source,
+	// so it should not be possible to alias lookups.
+	if cap(s.stringIdxLUT) < len(sb)/4 {
+		s.stringIdxLUT = make([]uint32, len(sb)/4)
 	}
+	s.stringIdxLUT = s.stringIdxLUT[:len(sb)/4]
 	if cap(s.stringBuf) == 0 {
 		s.stringBuf = make([]byte, 0, len(sb))
 	}
+
 	s.stringBuf = s.stringBuf[:0]
 	var srcOff, dstOff uint32
-	//var key [32]byte
 	for int(srcOff) < len(sb) {
 		length := binary.LittleEndian.Uint32(sb[srcOff : srcOff+4])
 		value := sb[srcOff+4 : srcOff+4+length]
-		//h := highwayhash.Sum64(value, key[:]) & stringmask
 		h := memHash(value) & stringmask
 		off := s.strings2[h]
 		if off > 0 {
@@ -315,13 +309,13 @@ func (s *serializer) indexStringsLazy(sb []byte) error {
 			// Does length match?
 			if length == binary.LittleEndian.Uint32(s.stringBuf[off:off+4]) {
 				bytes.Equal(value[:], s.stringBuf[off+4:off+4+length])
-				s.stringsMap[srcOff] = off
+				s.stringIdxLUT[srcOff/4] = off
 				srcOff += 5 + length
 				continue
 			}
 		}
 		// New value, add to dst
-		s.stringsMap[srcOff] = dstOff
+		s.stringIdxLUT[srcOff/4] = dstOff
 		s.stringBuf = append(s.stringBuf, byte(length), byte(length>>8), byte(length>>16), byte(length>>24))
 		s.stringBuf = append(s.stringBuf, value...)
 		s.stringBuf = append(s.stringBuf, 0)
