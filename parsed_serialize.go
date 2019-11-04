@@ -7,6 +7,7 @@ import (
 	"github.com/klauspost/compress/fse"
 	"github.com/klauspost/compress/huff0"
 	"github.com/klauspost/compress/s2"
+	"github.com/klauspost/compress/zstd"
 )
 
 type serializer struct {
@@ -36,6 +37,7 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	//     		0: uncompressed, rest is data.
 	//     		1: RLE, data: 1 value, varuint: length
 	//     		2: huff0 with table.
+	// 			3: S2 block.
 	// 	   - block data.
 	// 	   Ends when total is reached.
 	// Varuint: Tape length, Unique Elements
@@ -47,7 +49,8 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	// - Varuint compressed size.
 	// - Table + data.
 	// Values:
-	// - Varint total size.
+	// - Varint total compressed size.
+	//  S2 block.
 	// 	 - Null, BoolTrue/BoolFalse: Nothing added.
 	//   - TagRoot:Absolute Varuint offset.
 	//   - TagObjectStart, TagArrayStart: varuint: Offset - Current offset
@@ -62,7 +65,7 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = s.compressStrings()
+	err = s.compressStringsS2()
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +262,11 @@ const (
 	blockTypeUncompressed = 0
 	blockTypeRLE          = 1
 	blockTypeHuff0Table   = 2
+	blockTypeS2           = 3
 )
 
+// compressStrings huff0 compresses strings.
+// worse than s2, should probably be removed.
 func (s *serializer) compressStrings() error {
 	if cap(s.sBuf) < len(s.stringBuf) {
 		s.sBuf = make([]byte, len(s.stringBuf))
@@ -300,5 +306,29 @@ func (s *serializer) compressStrings() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// compressStringsS2 compresses strings as an s2 block.
+func (s *serializer) compressStringsS2() error {
+	mel := s2.MaxEncodedLen(len(s.stringBuf)) + 1
+	if cap(s.sBuf) < mel {
+		s.sBuf = make([]byte, mel)
+	}
+	s.sBuf[0] = blockTypeS2
+	s.sBuf = s2.Encode(s.sBuf[1:mel], s.stringBuf)
+
+	return nil
+}
+
+var zEnc, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest))
+
+func (s *serializer) compressStringsZstd() error {
+	mel := len(s.stringBuf)
+	if cap(s.sBuf) < mel {
+		s.sBuf = make([]byte, mel)
+	}
+	s.sBuf = zEnc.EncodeAll(s.stringBuf, s.sBuf[:0])
+
 	return nil
 }
