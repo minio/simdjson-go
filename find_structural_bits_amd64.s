@@ -26,7 +26,7 @@ TEXT ·_find_structural_bits(SB), $0-80
     MOVQ structurals_in+48(FP), DI; MOVQ (DI), DI // DI = structurals
     MOVQ whitespace+40(FP), SI; MOVQ (SI), SI     // SI = whitespace
     POPQ DX                                       // DX = quote_mask
-    MOVQ quote_bits+24(FP), CX;MOVQ (CX), CX      // CX = quote_bits
+    MOVQ quote_bits+24(FP), CX; MOVQ (CX), CX     // CX = quote_bits
     MOVQ prev_iter_ends_pseudo_pred+56(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals(SB)
