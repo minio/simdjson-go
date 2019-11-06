@@ -1,6 +1,7 @@
 package simdjson
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -45,6 +46,35 @@ func TestFindStructuralBits(t *testing.T) {
 		if structurals != structurals_MC {
 			t.Errorf("TestFindStructuralBits(%d): got: 0x%x want: 0x%x", i, structurals, structurals_MC)
 		}
+	}
+}
+
+func TestFindStructuralBitsMultiple(t *testing.T) {
+	_, _, msg := loadCompressed(t, "twitter")
+
+	prev_iter_ends_odd_backslash := uint64(0)
+	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
+	prev_iter_ends_pseudo_pred := uint64(1)
+	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
+	structurals := uint64(0)
+	carried := 0
+
+	// TODO: Deal with last batch of 64 bytes
+	msg = msg[:len(msg) &^0x3f]
+
+	for len(msg) > 0 {
+
+		index := indexChan{}
+		index.indexes = &[INDEX_SIZE]uint32{}
+
+		processed := find_structural_bits_loop(msg, &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred,
+			index.indexes, &index.length, &carried)
+
+		fmt.Println(index.length, "out of max =", INDEX_SIZE)
+		msg = msg[processed:]
 	}
 }
 
