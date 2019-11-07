@@ -38,15 +38,22 @@ TEXT ·_find_structural_bits(SB), $0-80
 
 TEXT ·_find_structural_bits_loop(SB), $0-112
     XORQ AX, AX
+    MOVQ len+8(FP), CX
+    ANDQ $0xffffffffffffffc0, CX
+    CMPQ  AX, CX
+    JEQ   partial_load
 
 loop:
     MOVQ    buf+0(FP), DI
-    MOVQ    p3+16(FP), DX
     VMOVDQU (DI)(AX*1), Y8          // load low 32-bytes
     VMOVDQU 0x20(DI)(AX*1), Y9      // load high 32-bytes
     ADDQ    $0x40, AX
-    PUSHQ   AX
 
+loop_after_load:
+    PUSHQ CX
+    PUSHQ AX
+
+    MOVQ    p3+16(FP), DX
     CALL ·__find_odd_backslash_sequences(SB)
 
     MOVQ AX, DX                  // odd_ends + 16
@@ -78,12 +85,82 @@ loop:
     MOVQ DX, (R11)                            // *carried = DX
 
     POPQ AX
+    POPQ CX
+
     CMPQ BX, indexes_len+88(FP)
     JGE  done
-    CMPQ AX, len+8(FP)
+
+    CMPQ AX, CX
     JLT  loop
+
+    // Check if AX is not aligned on a 64-byte boundary, this signals the last (partial) iteration
+    MOVQ AX, BX
+    ANDQ $0x3f, BX
+    CMPQ BX, $0
+    JNE  done
+
+partial_load:
+    MOVQ len+8(FP), CX
+    ANDQ $0x3f, CX
+    CMPQ CX, $0
+    JEQ  done // message nicely aligned on 64-byte boundary, so we are done
+
+    //
+    // Do a partial load and mask out bytes after the end of the message with whitespace
+    //
+    VPBROADCASTQ WHITESPACE<>(SB), Y13 // Load padding whitespace constant
+    VMOVDQU Y13, Y9
+
+    MOVQ    buf+0(FP), DI
+    VMOVDQU (DI)(AX*1), Y8  // Always load low 32-bytes
+    CMPQ CX, $0x20
+    JGE  mask_high
+
+    // Perform masking on low 32-bytes
+    LEAQ MASKTABLE<>(SB), DX
+    MOVQ $0x1f, BX
+    SUBQ CX, BX
+    VMOVDQU (DX)(BX*1), Y10 // Load mask
+    VPCMPEQB Y11, Y11, Y11  // Set all bits
+    VPXOR    Y11, Y10, Y12  // Invert mask
+    VPAND    Y12, Y13, Y13  // Mask whitespace
+    VPAND    Y10, Y8, Y8    // Mask message
+    VPOR     Y13, Y8, Y8    // Combine together
+
+    ADDQ  CX, AX
+    JMP   loop_after_load // Rejoin loop after regular loading
+
+mask_high:
+    // Perform masking on high 32-bytes
+    VMOVDQU 0x20(DI)(AX*1), Y9 // Load high 32-bytes
+
+    LEAQ MASKTABLE<>(SB), DX
+    MOVQ $0x3f, BX
+    SUBQ CX, BX
+    VMOVDQU (DX)(BX*1), Y10 // Load mask
+    VPCMPEQB Y11, Y11, Y11  // Set all bits
+    VPXOR    Y11, Y10, Y12  // Invert mask
+    VPAND    Y12, Y13, Y13  // Mask whitespace
+    VPAND    Y10, Y9, Y9    // Mask message
+    VPOR     Y13, Y9, Y9    // Combine together
+
+    ADDQ  CX, AX
+    JMP   loop_after_load // Rejoin loop after regular loading
 
 done:
     MOVQ AX, processed+104(FP)
     VZEROUPPER
     RET
+
+DATA MASKTABLE<>+0x000(SB)/8, $0xffffffffffffffff
+DATA MASKTABLE<>+0x008(SB)/8, $0xffffffffffffffff
+DATA MASKTABLE<>+0x010(SB)/8, $0xffffffffffffffff
+DATA MASKTABLE<>+0x018(SB)/8, $0x00ffffffffffffff
+DATA MASKTABLE<>+0x020(SB)/8, $0x0000000000000000
+DATA MASKTABLE<>+0x028(SB)/8, $0x0000000000000000
+DATA MASKTABLE<>+0x030(SB)/8, $0x0000000000000000
+DATA MASKTABLE<>+0x038(SB)/8, $0x0000000000000000
+GLOBL MASKTABLE<>(SB), 8, $64
+
+DATA WHITESPACE<>+0x000(SB)/8, $0x2020202020202020
+GLOBL WHITESPACE<>(SB), 8, $8
