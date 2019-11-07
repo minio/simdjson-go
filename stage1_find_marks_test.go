@@ -171,7 +171,7 @@ func BenchmarkStage1(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
-		pj.index_chan = make(chan indexChan, 32)
+		pj.index_chan = make(chan indexChan, 128)
 		find_structural_indices([]byte(msg), &pj)
 	}
 }
