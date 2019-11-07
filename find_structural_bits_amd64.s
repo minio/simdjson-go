@@ -42,9 +42,9 @@ TEXT ·_find_structural_bits(SB), $0-80
     VMOVDQU  (DX)(BX*1), Y10    \ // Load mask
     VPCMPEQB Y11, Y11, Y11      \ // Set all bits
     VPXOR    Y11, Y10, Y12      \ // Invert mask
-    VPAND    Y12, Y13, Y13      \ // Mask whitespace
+    VPAND    Y13, Y12, Y12      \ // Mask whitespace
     VPAND    Y10, Y,   Y        \ // Mask message
-    VPOR     Y13, Y,   Y          // Combine together
+    VPOR     Y12, Y,   Y          // Combine together
 
 
 TEXT ·_find_structural_bits_loop(SB), $0-112

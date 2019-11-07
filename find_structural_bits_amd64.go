@@ -39,7 +39,7 @@ func find_structural_bits_loop(buf []byte, prev_iter_ends_odd_backslash *uint64,
 	prev_iter_inside_quote, error_mask *uint64,
 	structurals uint64,
 	prev_iter_ends_pseudo_pred *uint64,
-	indexes *[INDEX_SIZE]uint32, index *int, carried *int) (processed uint64) {
+	indexes *[INDEX_SIZE]uint32, index *int, carried *uint64) (processed uint64) {
 
 	if len(buf) == 0 {
 		return 0
