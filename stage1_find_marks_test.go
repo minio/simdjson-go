@@ -145,7 +145,7 @@ func TestFindStructuralIndices(t *testing.T) {
 	// No need to spawn go-routine since the channel is large enough
 	find_structural_indices([]byte(demo_json), &pj)
 
-	ipos, pos := 0, uint64(0xffffffffffffffff)
+	ipos, pos := 0, uint64(0)
 	for ic := range pj.index_chan {
 		for j := 0; j < ic.length; j++ {
 			pos += uint64((*ic.indexes)[j])

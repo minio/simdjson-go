@@ -74,7 +74,7 @@ func is_valid_null_atom(buf []byte) bool {
 func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
 	done := false
-	idx := uint64(0xffffffffffffffff) // location of the structural character in the input (buf)
+	idx := uint64(0)    // location of the structural character in the input (buf)
 	c := byte(0)        // used to track the (structural) character we are looking at
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 	var indexCh indexChan
