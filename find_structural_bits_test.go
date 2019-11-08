@@ -1,7 +1,6 @@
 package simdjson
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -97,7 +96,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 	}
 }
 
-func TestFindStructuralBitsMultiple(t *testing.T) {
+func TestFindStructuralBitsLoop(t *testing.T) {
 	_, _, msg := loadCompressed(t, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
@@ -105,24 +104,40 @@ func TestFindStructuralBitsMultiple(t *testing.T) {
 	prev_iter_ends_pseudo_pred := uint64(1)
 	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
 	structurals := uint64(0)
-	carried := 0
+	carried := uint64(0xffffffffffffffff)
 
-	// TODO: Deal with last batch of 64 bytes
-	msg = msg[:len(msg) &^0x3f]
+	indexes := make([]uint32, 0)
 
-	for len(msg) > 0 {
-
+	for processed := uint64(0); processed < uint64(len(msg)); {
 		index := indexChan{}
 		index.indexes = &[INDEX_SIZE]uint32{}
 
-		processed := find_structural_bits_loop(msg, &prev_iter_ends_odd_backslash,
+		processed += find_structural_bits_loop(msg[processed:], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
 			index.indexes, &index.length, &carried)
 
-		fmt.Println(index.length, "out of max =", INDEX_SIZE)
-		msg = msg[processed:]
+		indexes = append(indexes, (*index.indexes)[:index.length]...)
+	}
+
+	// Last 5 expected structural (in reverse order)
+	const expectedStructuralsReversed = `}}":"`
+	const expectedLength = 55263
+
+	if len(indexes) != expectedLength {
+		t.Errorf("TestFindStructuralBitsLoop: got: %d want: %d", len(indexes), expectedLength)
+	}
+
+	pos, j := len(msg)-1, 0
+	for i := len(indexes)-1; i >= len(indexes)-len(expectedStructuralsReversed); i-- {
+
+		if msg[pos] != expectedStructuralsReversed[j] {
+			t.Errorf("TestFindStructuralBitsLoop: got: %c want: %c", msg[pos], expectedStructuralsReversed[j])
+		}
+
+		pos -= int(indexes[i])
+		j++
 	}
 }
 
