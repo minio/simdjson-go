@@ -32,7 +32,7 @@ type ParsedJson struct {
 	Strings []byte
 }
 
-const INDEX_SIZE = 4096 // Seems to be a good size for the index buffering
+const INDEX_SIZE = 1024 // Seems to be a good size for the index buffering
 
 type indexChan struct {
 	index   int
