@@ -41,10 +41,8 @@ loop:
     TZCNTQ MASK, ZEROS
     JCS    done        // carry is set if ZEROS == 64
 
-    // Two shifts required because maximum combined shift (63+1) exceeds 6-bits
-    SHRQ   $1, MASK
-    SHRQ   ZEROS, MASK
     INCQ   ZEROS
+    SHRQ   ZEROS, MASK
     ADDQ   ZEROS, SHIFTS
     MOVQ   ZEROS, (DI)(INDEX*4)
     ADDQ   $1, INDEX
