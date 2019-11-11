@@ -247,6 +247,6 @@ func TestStage2VerifyMesh(t *testing.T)           { testStage2VerifyTape(t, "mes
 func TestStage2VerifyMesh_pretty(t *testing.T)    { testStage2VerifyTape(t, "mesh.pretty") }
 func TestStage2VerifyNumbers(t *testing.T)        { testStage2VerifyTape(t, "numbers") }
 func TestStage2VerifyRandom(t *testing.T)         { testStage2VerifyTape(t, "random") }
-func TestStage2VerifyTwitterEscaped(t *testing.T) { testStage2VerifyTape(t, "twitterescaped") }
 func TestStage2VerifyTwitter(t *testing.T)        { testStage2VerifyTape(t, "twitter") }
+func TestStage2VerifyTwitterEscaped(t *testing.T) { testStage2VerifyTape(t, "twitterescaped") }
 func TestStage2VerifyUpdate_center(t *testing.T)  { testStage2VerifyTape(t, "update-center") }
