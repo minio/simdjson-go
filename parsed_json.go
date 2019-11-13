@@ -794,11 +794,11 @@ func (t Tag) Type() Type {
 	return TagToType[t]
 }
 
-func (pj *ParsedJson) dump_raw_tape() bool {
+func (pj *internalParsedJson) dump_raw_tape() bool {
 
-	//if !pj.isvalid {
-	//	return false
-	// }
+	if !pj.isvalid {
+		return false
+	}
 
 	tapeidx := uint64(0)
 	howmany := uint64(0)
