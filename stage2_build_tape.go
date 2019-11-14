@@ -427,12 +427,12 @@ succeed:
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
 	// Sanity checks
-	if len(pj.containing_scope_offset) != 0 ||
-		offset>>RET_ADDRESS_SHIFT != 0 {
+	if len(pj.containing_scope_offset) != 0 {
 		return false
 	}
 
-	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
+	const addOneForRoot = 1
+	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc() + addOneForRoot)
 	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
 	pj.isvalid = true
