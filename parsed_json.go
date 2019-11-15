@@ -800,81 +800,85 @@ func (pj *internalParsedJson) dump_raw_tape() bool {
 		return false
 	}
 
-	tapeidx := uint64(0)
-	howmany := uint64(0)
-	tape_val := pj.Tape[tapeidx]
-	ntype := tape_val >> 56
-	fmt.Printf("%d : %s", tapeidx, string(ntype))
+	for tapeidx := uint64(0); tapeidx < uint64(len(pj.Tape)); tapeidx++ {
+		howmany := uint64(0)
+		tape_val := pj.Tape[tapeidx]
+		ntype := tape_val >> 56
+		fmt.Printf("%d : %s", tapeidx, string(ntype))
 
-	if ntype == 'r' {
-		howmany = tape_val & JSONVALUEMASK
-	} else {
-		fmt.Errorf("Error: no starting root node?\n")
-		return false
-	}
-	fmt.Printf("\t// pointing to %d (right after last node)\n", howmany)
-
-	tapeidx++
-	for ; tapeidx < howmany; tapeidx++ {
-		tape_val = pj.Tape[tapeidx]
-		fmt.Printf("%d : ", tapeidx)
-		ntype := Tag(tape_val >> 56)
-		payload := tape_val & JSONVALUEMASK
-		switch ntype {
-		case TagString: // we have a string
-			fmt.Printf("string \"")
-			string_length := uint64(binary.LittleEndian.Uint32(pj.Strings[payload : payload+4]))
-			fmt.Printf("%s", print_with_escapes(pj.Strings[payload+4:payload+4+string_length]))
-			fmt.Println("\"")
-
-		case TagInteger: // we have a long int
-			if tapeidx+1 >= howmany {
-				return false
-			}
-			tapeidx++
-			fmt.Printf("integer %d\n", int64(pj.Tape[tapeidx]))
-
-		case TagFloat: // we have a double
-			if tapeidx+1 >= howmany {
-				return false
-			}
-			tapeidx++
-			fmt.Printf("float %f\n", math.Float64frombits(pj.Tape[tapeidx]))
-
-		case TagNull: // we have a null
-			fmt.Printf("null\n")
-
-		case TagBoolTrue: // we have a true
-			fmt.Printf("true\n")
-
-		case TagBoolFalse: // we have a false
-			fmt.Printf("false\n")
-
-		case TagObjectStart: // we have an object
-			fmt.Printf("{\t// pointing to next Tape location %d (first node after the scope) \n", payload)
-
-		case TagObjectEnd: // we end an object
-			fmt.Printf("}\t// pointing to previous Tape location %d (start of the scope) \n", payload)
-
-		case TagArrayStart: // we start an array
-			fmt.Printf("\t// pointing to next Tape location %d (first node after the scope) \n", payload)
-
-		case TagArrayEnd: // we end an array
-			fmt.Printf("]\t// pointing to previous Tape location %d (start of the scope) \n", payload)
-
-		case TagRoot: // we start and end with the root node
-			fmt.Printf("end of root\n")
-			return false
-
-		default:
+		if ntype == 'r' {
+			howmany = tape_val & JSONVALUEMASK
+		} else {
+			fmt.Errorf("Error: no starting root node?\n")
 			return false
 		}
-	}
+		fmt.Printf("\t// pointing to %d (right after last node)\n", howmany)
 
-	tape_val = pj.Tape[tapeidx]
-	payload := tape_val & JSONVALUEMASK
-	ntype = tape_val >> 56
-	fmt.Printf("%d : %s\t// pointing to %d (start root)\n", tapeidx, string(ntype), payload)
+		// Decrement howmany (since we're adding one now for the ndjson support)
+		howmany -= 1
+
+		tapeidx++
+		for ; tapeidx < howmany; tapeidx++ {
+			tape_val = pj.Tape[tapeidx]
+			fmt.Printf("%d : ", tapeidx)
+			ntype := Tag(tape_val >> 56)
+			payload := tape_val & JSONVALUEMASK
+			switch ntype {
+			case TagString: // we have a string
+				fmt.Printf("string \"")
+				string_length := uint64(binary.LittleEndian.Uint32(pj.Strings[payload : payload+4]))
+				fmt.Printf("%s", print_with_escapes(pj.Strings[payload+4:payload+4+string_length]))
+				fmt.Println("\"")
+
+			case TagInteger: // we have a long int
+				if tapeidx+1 >= howmany {
+					return false
+				}
+				tapeidx++
+				fmt.Printf("integer %d\n", int64(pj.Tape[tapeidx]))
+
+			case TagFloat: // we have a double
+				if tapeidx+1 >= howmany {
+					return false
+				}
+				tapeidx++
+				fmt.Printf("float %f\n", math.Float64frombits(pj.Tape[tapeidx]))
+
+			case TagNull: // we have a null
+				fmt.Printf("null\n")
+
+			case TagBoolTrue: // we have a true
+				fmt.Printf("true\n")
+
+			case TagBoolFalse: // we have a false
+				fmt.Printf("false\n")
+
+			case TagObjectStart: // we have an object
+				fmt.Printf("{\t// pointing to next Tape location %d (first node after the scope) \n", payload)
+
+			case TagObjectEnd: // we end an object
+				fmt.Printf("}\t// pointing to previous Tape location %d (start of the scope) \n", payload)
+
+			case TagArrayStart: // we start an array
+				fmt.Printf("\t// pointing to next Tape location %d (first node after the scope) \n", payload)
+
+			case TagArrayEnd: // we end an array
+				fmt.Printf("]\t// pointing to previous Tape location %d (start of the scope) \n", payload)
+
+			case TagRoot: // we start and end with the root node
+				fmt.Printf("end of root\n")
+				return false
+
+			default:
+				return false
+			}
+		}
+
+		tape_val = pj.Tape[tapeidx]
+		payload := tape_val & JSONVALUEMASK
+		ntype = tape_val >> 56
+		fmt.Printf("%d : %s\t// pointing to %d (start root)\n", tapeidx, string(ntype), payload)
+	}
 
 	return true
 }
