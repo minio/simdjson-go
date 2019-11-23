@@ -73,13 +73,16 @@ func is_valid_null_atom(buf []byte) bool {
 
 func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
+	const addOneForRoot = 1
+
 	done := false
-	idx := uint64(0)    // location of the structural character in the input (buf)
+	idx := uint64(0xffffffffffffffff)    // location of the structural character in the input (buf)
 	c := byte(0)        // used to track the (structural) character we are looking at
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 	var indexCh indexChan
 
 	////////////////////////////// START STATE /////////////////////////////
+new_root:
 	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
@@ -214,7 +217,20 @@ start_continue:
 	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	} else {
-		goto fail
+		// For an ndjson object, wrap up current object and start new root
+		if c == '\n' {
+			offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+
+			// drop last element
+			pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+
+			pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc() + addOneForRoot)
+			pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
+
+			goto new_root
+		} else {
+			goto fail
+		}
 	}
 
 	//////////////////////////////// OBJECT STATES /////////////////////////////
@@ -431,7 +447,6 @@ succeed:
 		return false
 	}
 
-	const addOneForRoot = 1
 	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc() + addOneForRoot)
 	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
