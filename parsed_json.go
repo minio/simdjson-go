@@ -74,7 +74,9 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 
 	wg.Wait()
 
-	return nil
+	return err
+}
+
 func  (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
 
 	// TODO: Fix hack. Instead properly detect newline as structural character
