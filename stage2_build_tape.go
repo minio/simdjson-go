@@ -218,7 +218,9 @@ start_continue:
 		goto succeed
 	} else {
 		// For an ndjson object, wrap up current object and start new root
-		if c == '\n' {
+		if c == '\n' ||
+			// TODO: Remove line below (only test for newline once it is properly detected as structural char)
+			c == '{' {
 			offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
 
 			// drop last element

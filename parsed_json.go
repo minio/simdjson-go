@@ -2,6 +2,7 @@ package simdjson
 
 import (
 	"encoding/binary"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -74,6 +75,12 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 	wg.Wait()
 
 	return nil
+func  (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
+
+	// TODO: Fix hack. Instead properly detect newline as structural character
+	return pj.parseMessage(bytes.ReplaceAll([]byte(msg), []byte("\n"), []byte("{")))
+}
+
 }
 
 // Iter returns a new Iter
