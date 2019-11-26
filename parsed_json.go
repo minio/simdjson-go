@@ -83,8 +83,6 @@ func  (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
 	return pj.parseMessage(bytes.ReplaceAll([]byte(msg), []byte("\n"), []byte("{")))
 }
 
-}
-
 // Iter returns a new Iter
 func (pj *ParsedJson) Iter() Iter {
 	return Iter{tape: *pj}
