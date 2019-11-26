@@ -40,7 +40,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	indexTotal := 0
 
 	// empty bits that are carried over to the next call to flatten_bits_incremental
-	carried := uint64(0xffffffffffffffff)
+	carried := uint64(0)
 
 	for len(buf) > 0 {
 
