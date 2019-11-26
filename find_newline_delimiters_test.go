@@ -12,27 +12,19 @@ func TestFindNewlineDelimiters(t *testing.T) {
 {"Image":{"Width":801,"Height":601,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}
 {"Image":{"Width":802,"Height":602,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
 
-	indices := make([]uint32, 1024)
+	indices := make([]uint32, 16)
 
 	rows := find_newline_delimiters([]byte(demo_ndjson), indices, 0x0a)
 
-	//fmt.Println(indices[:10])
-	//fmt.Println(rows)
-
-	pj := internalParsedJson{}
-	pj.initialize(1024)
-
-	startIndex := uint32(0)
-	for index := uint64(0); index < rows - 1; index++ {
-		if err := pj.parseMessage([]byte(demo_ndjson)[startIndex:indices[index]]); err != nil {
-			t.Errorf("TestNdjson: got: %v want: nil", err)
-		}
-		startIndex = indices[index]
+	if rows != 3 {
+		t.Errorf("TestFindNewlineDelimiters: got: %d want: 3", rows)
 	}
 
-	if err := pj.parseMessage([]byte(demo_ndjson)[startIndex:len(demo_ndjson)]); err != nil {
-		t.Errorf("TestNdjson: got: %v want: nil", err)
+	if indices[0] != 196 {
+		t.Errorf("TestFindNewlineDelimiters: got: %d want: 196", indices[0])
 	}
 
-	pj.dump_raw_tape()
+	if indices[1] != 393 {
+		t.Errorf("TestFindNewlineDelimiters: got: %d want: 393", indices[1])
+	}
 }
