@@ -2,6 +2,8 @@ package simdjson
 
 import (
 	"testing"
+	"bytes"
+	"io/ioutil"
 )
 
 func TestNdjson(t *testing.T) {
@@ -18,4 +20,44 @@ func TestNdjson(t *testing.T) {
 	}
 
 	pj.dump_raw_tape()
+}
+
+func getPatchedNdjson(filename string) []byte {
+	ndjson, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic("Failed to load file")
+	}
+	return bytes.ReplaceAll([]byte(ndjson), []byte("\n"), []byte("{"))
+}
+
+func BenchmarkNdjsonStage1(b *testing.B) {
+
+	ndjson := getPatchedNdjson("parking-citations-1M.json")
+
+	pj := internalParsedJson{}
+
+	b.SetBytes(int64(len(ndjson)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		// Create new channel (large enough so we won't block)
+		pj.index_chan = make(chan indexChan, 128*10240)
+		find_structural_indices([]byte(ndjson), &pj)
+	}
+}
+
+func BenchmarkNdjsonStage2(b *testing.B) {
+
+	ndjson := getPatchedNdjson("parking-citations-1M.json")
+
+	b.SetBytes(int64(len(ndjson)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		pj := internalParsedJson{}
+		pj.initialize(len(ndjson)*3/2)
+		pj.parseMessage(ndjson)
+	}
 }

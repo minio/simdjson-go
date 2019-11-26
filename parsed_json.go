@@ -63,12 +63,15 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 
 	pj.index_chan = make(chan indexChan, 16)
 
+	var err error
 	go func() {
 		find_structural_indices(msg, pj)
 		wg.Done()
 	}()
 	go func() {
-		unified_machine(msg, pj)
+		if !unified_machine(msg, pj) {
+			err = errors.New("Bad parsing")
+		}
 		wg.Done()
 	}()
 
