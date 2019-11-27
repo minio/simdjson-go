@@ -57,7 +57,7 @@ func (o *Object) Parse(dst *Elements) (*Elements, error) {
 	for {
 		name, t, err := o.NextElement(&tmp)
 		if err != nil {
-			return nil, err
+			return dst, err
 		}
 		if t == TypeNone {
 			// Done
@@ -73,26 +73,68 @@ func (o *Object) Parse(dst *Elements) (*Elements, error) {
 	return dst, nil
 }
 
+// FindKey will return a single named element.
+// An optional destination can be given.
+// The method will return nil if the element cannot be found.
+// This should only be used to locate a single key where the object is no longer needed.
+// The object will not be advanced.
+func (o *Object) FindKey(key string, dst *Element) *Element {
+	var tmp Iter
+	obj := *o
+	for {
+		name, t, err := obj.NextElementBytes(&tmp)
+		if err != nil {
+			return nil
+		}
+		if t == TypeNone {
+			// Done
+			break
+		}
+		if string(name) == key {
+			if dst == nil {
+				return &Element{
+					Name: key,
+					Type: t,
+					Iter: tmp,
+				}
+			}
+			dst.Name = key
+			dst.Iter = tmp
+			dst.Type = t
+			return dst
+		}
+	}
+	return nil
+}
+
 // NextElement sets dst to the next element and returns the name.
 // TypeNone with nil error will be returned if there are no more elements.
 func (o *Object) NextElement(dst *Iter) (name string, t Type, err error) {
+	n, t, err := o.NextElementBytes(dst)
+	return string(n), t, err
+}
+
+// NextElementBytes sets dst to the next element and returns the name.
+// TypeNone with nil error will be returned if there are no more elements.
+// Contrary to NextElement this will not cause allocations.
+func (o *Object) NextElementBytes(dst *Iter) (name []byte, t Type, err error) {
 	if o.off >= len(o.tape.Tape) {
-		return "", TypeNone, nil
+		return nil, TypeNone, nil
 	}
-	// Next must be string or end of object
+	// Advance must be string or end of object
 	v := o.tape.Tape[o.off]
 	switch Tag(v >> 56) {
 	case TagString:
 		// Read name:
-		name, err = o.tape.stringAt(v)
+		name, err = o.tape.stringByteAt(v)
 		if err != nil {
-			return "", TypeNone, fmt.Errorf("parsing object element name: %w", err)
+			return nil, TypeNone, fmt.Errorf("parsing object element name: %w", err)
 		}
 		o.off++
 	case TagObjectEnd:
-		return "", TypeNone, nil
+		return nil, TypeNone, nil
 	default:
-		return "", TypeNone, fmt.Errorf("object: unexpected tag %v", string(v>>56))
+		return nil, TypeNone, fmt.Errorf("object: unexpected tag %v", string(v>>56))
 	}
 
 	// Read element type
@@ -109,7 +151,7 @@ func (o *Object) NextElement(dst *Iter) (name string, t Type, err error) {
 	elemSize := dst.addNext
 	dst.calcNext(true)
 	if dst.off+elemSize > len(dst.tape.Tape) {
-		return "", TypeNone, errors.New("element extends beyond tape")
+		return nil, TypeNone, errors.New("element extends beyond tape")
 	}
 	dst.tape.Tape = dst.tape.Tape[:dst.off+elemSize]
 

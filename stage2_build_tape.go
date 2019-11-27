@@ -12,10 +12,14 @@ const RET_ADDRESS_ARRAY_CONST = 3
 
 func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64, c byte) {
 	if (*indexesChan).index >= (*indexesChan).length {
+		if indexesChan.indexes != nil {
+			indexPool.Put(indexesChan.indexes)
+			indexesChan.indexes = nil
+		}
 		var ok bool
-		*indexesChan, ok = <- pj.index_chan // Get next element from channel
+		*indexesChan, ok = <-pj.index_chan // Get next element from channel
 		if !ok {
-			done = true	// return done if channel closed
+			done = true // return done if channel closed
 			return
 		}
 	}
@@ -76,9 +80,9 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	const addOneForRoot = 1
 
 	done := false
-	idx := uint64(0xffffffffffffffff)    // location of the structural character in the input (buf)
-	c := byte(0)        // used to track the (structural) character we are looking at
-	offset := uint64(0) // used to contain last element of containing_scope_offset
+	idx := uint64(0xffffffffffffffff) // location of the structural character in the input (buf)
+	c := byte(0)                      // used to track the (structural) character we are looking at
+	offset := uint64(0)               // used to contain last element of containing_scope_offset
 	var indexCh indexChan
 
 	////////////////////////////// START STATE /////////////////////////////
@@ -226,7 +230,7 @@ start_continue:
 			// drop last element
 			pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
-			pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc() + addOneForRoot)
+			pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
 			pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
 			goto new_root
@@ -449,7 +453,7 @@ succeed:
 		return false
 	}
 
-	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc() + addOneForRoot)
+	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
 	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
 	pj.isvalid = true

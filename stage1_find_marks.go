@@ -1,9 +1,17 @@
 package simdjson
 
+import "sync"
+
 const paddingSpaces64 = "                                                                "
 
+var indexPool = sync.Pool{
+	New: func() interface{} {
+		return &[INDEX_SIZE]uint32{}
+	},
+}
+
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
-	
+
 	//  #ifdef SIMDJSON_UTF8VALIDATE
 	//      __m256i has_error = _mm256_setzero_si256();
 	//      struct avx_processed_utf_bytes previous {};
@@ -49,7 +57,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// #endif
 
 		index := indexChan{}
-		index.indexes = &[INDEX_SIZE]uint32{}
+		index.indexes = indexPool.Get().(*[INDEX_SIZE]uint32)
 
 		processed := find_structural_bits_loop(buf, &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,

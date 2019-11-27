@@ -2,8 +2,8 @@ package simdjson
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/binary"
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,7 +28,7 @@ func loadCompressed(t tester, file string) (tape, sb, ref []byte) {
 	tap, err = dec.DecodeAll(tap, nil)
 	// Our end-of-root has been incremented by one (past last element) for quick skipping of ndjson
 	// So correct the initial root element to point to one position higher
-	binary.LittleEndian.PutUint64(tap, binary.LittleEndian.Uint64(tap) + 1)
+	binary.LittleEndian.PutUint64(tap, binary.LittleEndian.Uint64(tap)+1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +141,7 @@ func TestLoadTape(t *testing.T) {
 
 			for {
 				var next Iter
-				typ, err := i.NextIter(&next)
+				typ, err := i.AdvanceIter(&next)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -274,4 +274,3 @@ func TestPrintJson(t *testing.T) {
 		t.Errorf("TestPrintJson: got: %s want: %s", out, expected)
 	}
 }
-
