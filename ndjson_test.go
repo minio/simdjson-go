@@ -185,6 +185,17 @@ func TestDemoNdjson(t *testing.T) {
 	verifyDemoNdjson(pj, t)
 }
 
+func TestNdjsonCountWhere(t *testing.T) {
+	const carmake = "HOND"
+	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+
+	pj := internalParsedJson{}
+	pj.initialize(len(ndjson) * 3 / 2)
+	pj.parseMessage(ndjson)
+
+	t.Log(countWhere("Make", carmake, pj.ParsedJson))
+}
+
 func getPatchedNdjson(filename string) []byte {
 	if !strings.HasSuffix(filename, ".zst") {
 		ndjson, err := ioutil.ReadFile(filename)
@@ -270,7 +281,7 @@ func count_raw_tape(tape []uint64) (count int) {
 	return
 }
 
-func BenchmarkNdjsonStage2CountStar(b *testing.B) {
+func BenchmarkNdjsonColdCountStar(b *testing.B) {
 
 	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
 
@@ -412,28 +423,13 @@ func countObjects(data ParsedJson) (count int) {
 	}
 }
 
-func BenchmarkNdjsonStage2CountStarWithWhere(b *testing.B) {
+func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
 	const want = 110349
 	runtime.GC()
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
 
-	b.Run("iter", func(b *testing.B) {
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			pj.initialize(len(ndjson) * 3 / 2)
-			err := pj.parseMessage(ndjson)
-			if err != nil {
-				b.Fatal(err)
-			}
-			got := countWhere("Make", "HOND", pj.ParsedJson)
-			if got != want {
-				b.Fatal(got, "!=", want)
-			}
-		}
-	})
 	b.Run("raw", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
@@ -449,9 +445,24 @@ func BenchmarkNdjsonStage2CountStarWithWhere(b *testing.B) {
 			}
 		}
 	})
+	b.Run("iter", func(b *testing.B) {
+		b.SetBytes(int64(len(ndjson)))
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			pj.initialize(len(ndjson) * 3 / 2)
+			err := pj.parseMessage(ndjson)
+			if err != nil {
+				b.Fatal(err)
+			}
+			got := countWhere("Make", "HOND", pj.ParsedJson)
+			if got != want {
+				b.Fatal(got, "!=", want)
+			}
+		}
+	})
 }
 
-func BenchmarkNdjsonCountStarWarm(b *testing.B) {
+func BenchmarkNdjsonWarmCountStar(b *testing.B) {
 	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
@@ -467,20 +478,13 @@ func BenchmarkNdjsonCountStarWarm(b *testing.B) {
 	}
 }
 
-func BenchmarkNdjsonCountStarWithWhereWarm(b *testing.B) {
+func BenchmarkNdjsonWarmCountStarWithWhere(b *testing.B) {
 	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
 	pj.parseMessage(ndjson)
 
-	b.Run("iter", func(b *testing.B) {
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			countWhere("Make", "HOND", pj.ParsedJson)
-		}
-	})
 	b.Run("raw", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
@@ -488,101 +492,12 @@ func BenchmarkNdjsonCountStarWithWhereWarm(b *testing.B) {
 			countRawTapeWhere("Make", "HOND", pj.ParsedJson)
 		}
 	})
-
-}
-
-func BenchmarkNdjsonIterWarm(b *testing.B) {
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
-	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
-	pj.parseMessage(ndjson)
-
-	b.SetBytes(int64(len(ndjson)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		it := pj.Iter()
-		count := 0
-		for it.Advance() != TypeNone {
-			count++
+	b.Run("iter", func(b *testing.B) {
+		b.SetBytes(int64(len(ndjson)))
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			countWhere("Make", "HOND", pj.ParsedJson)
 		}
-	}
-}
+	})
 
-func TestNdjsonIterWhere(t *testing.T) {
-	const carmake = "HOND"
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
-
-	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
-	pj.parseMessage(ndjson)
-
-	t.Log(countWhere("Make", carmake, pj.ParsedJson))
-}
-
-func BenchmarkNdjsonIterWhereWarm(b *testing.B) {
-
-	const carmake = "HOND"
-
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
-
-	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
-	pj.parseMessage(ndjson)
-
-	b.SetBytes(int64(len(ndjson)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	count := 0
-	for i := 0; i < b.N; i++ {
-		it := pj.Iter()
-		count = 0
-		var obj *Iter
-		var object *Object
-		for it.Advance() != TypeNone {
-			if it.Type() != TypeRoot {
-				panic("not root:" + it.Type().String())
-			}
-			var err error
-			obj, err = it.Root(obj)
-			if err != nil {
-				b.Fatal(err)
-			}
-			if obj.Advance() != TypeObject {
-				if obj.Type() == TypeNone {
-					// Last record is an empty root element.
-					break
-				}
-				panic("not object:" + obj.Type().String())
-			}
-			object, err = obj.Object(object)
-			if err != nil {
-				b.Fatal(err)
-			}
-			var tmp Iter
-			for {
-				name, t, err := object.NextElementBytes(&tmp)
-				if err != nil {
-					return
-				}
-				if t == TypeNone {
-					// Done
-					break
-				}
-				if string(name) == "Make" {
-					val, err := tmp.StringBytes()
-					if err != nil {
-						return
-					}
-					if string(val) == carmake {
-						count++
-					}
-					break
-				}
-			}
-		}
-	}
-	b.Log(count)
 }
