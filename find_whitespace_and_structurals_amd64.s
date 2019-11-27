@@ -23,15 +23,14 @@ DATA LCDATA1<>+0x090(SB)/8, $0x1818181818181818
 DATA LCDATA1<>+0x098(SB)/8, $0x1818181818181818
 GLOBL LCDATA1<>(SB), 8, $160
 
-TEXT ·_find_whitespace_and_structurals(SB), $0-32
+TEXT ·_find_whitespace_and_structurals(SB), $0-24
 
-    MOVQ input_lo+0(FP), DI
-    MOVQ input_hi+8(FP), SI
-    MOVQ whitespace+16(FP), DX
-    MOVQ structurals+24(FP), CX
+    MOVQ input+0(FP), DI
+    MOVQ whitespace+8(FP), DX
+    MOVQ structurals+16(FP), CX
 
     VMOVDQU    (DI), Y8          // load low 32-bytes
-    VMOVDQU    (SI), Y9          // load high 32-bytes
+    VMOVDQU    0x20(DI), Y9      // load high 32-bytes
 
     CALL ·__find_whitespace_and_structurals(SB)
 

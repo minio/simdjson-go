@@ -21,7 +21,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0x7},
+				{'r', 0x8},
 				{'{', 0x7},
 				{'"', 0x0},
 				{'"', 0x6},
@@ -37,7 +37,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0xa},
+				{'r', 0xb},
 				{'{', 0xa},
 				{'"', 0x0},
 				{'"', 0x6},
@@ -56,7 +56,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0x10},
+				{'r', 0x11},
 				{'{', 0x10},
 				{'"', 0x0},
 				{'"', 0x6},
@@ -81,7 +81,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0x9},
+				{'r', 0xa},
 				{'{', 0x9},
 				{'"', 0x0},
 				{'t', 0x0},
@@ -99,7 +99,7 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0xf},
+				{'r', 0x10},
 				{'{', 0xf},
 				{'"', 0x0},
 				{'l', 0x0},
@@ -247,6 +247,6 @@ func TestStage2VerifyMesh(t *testing.T)           { testStage2VerifyTape(t, "mes
 func TestStage2VerifyMesh_pretty(t *testing.T)    { testStage2VerifyTape(t, "mesh.pretty") }
 func TestStage2VerifyNumbers(t *testing.T)        { testStage2VerifyTape(t, "numbers") }
 func TestStage2VerifyRandom(t *testing.T)         { testStage2VerifyTape(t, "random") }
-func TestStage2VerifyTwitterEscaped(t *testing.T) { testStage2VerifyTape(t, "twitterescaped") }
 func TestStage2VerifyTwitter(t *testing.T)        { testStage2VerifyTape(t, "twitter") }
+func TestStage2VerifyTwitterEscaped(t *testing.T) { testStage2VerifyTape(t, "twitterescaped") }
 func TestStage2VerifyUpdate_center(t *testing.T)  { testStage2VerifyTape(t, "update-center") }

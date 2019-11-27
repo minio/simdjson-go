@@ -48,6 +48,99 @@ func TestFindStructuralBits(t *testing.T) {
 	}
 }
 
+func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
+
+	// Test whitespace padding (for partial load of last 64 bytes) with
+	// string full of structural characters
+	msg := `::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::`
+
+	for l := len(msg); l >= 0; l-- {
+
+		prev_iter_ends_odd_backslash := uint64(0)
+		prev_iter_inside_quote := uint64(0) // either all zeros or all ones
+		prev_iter_ends_pseudo_pred := uint64(1)
+		error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
+		structurals := uint64(0)
+		carried := uint64(0xffffffffffffffff)
+
+		index := indexChan{}
+		index.indexes = &[INDEX_SIZE]uint32{}
+
+		processed := find_structural_bits_loop([]byte(msg[:l]), &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred,
+			index.indexes, &index.length, &carried)
+
+		if processed != uint64(l) {
+			t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, processed, l)
+		}
+		if index.length != l {
+			t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, index.length, l)
+		}
+		
+		// Compute offset of last (structural) character and verify it points to the end of the message
+		lastChar := uint64(0)
+		for i := 0; i < index.length; i++ {
+			lastChar += uint64(index.indexes[i])
+		}
+		if l > 0 {
+			if lastChar != uint64(l-1) {
+				t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, lastChar, uint64(l-1))
+			}
+		} else {
+			if lastChar != uint64(l-1)-carried {
+				t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, lastChar, uint64(l-1)-carried)
+			}
+		}
+	}
+}
+
+func TestFindStructuralBitsLoop(t *testing.T) {
+	_, _, msg := loadCompressed(t, "twitter")
+
+	prev_iter_ends_odd_backslash := uint64(0)
+	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
+	prev_iter_ends_pseudo_pred := uint64(1)
+	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
+	structurals := uint64(0)
+	carried := uint64(0xffffffffffffffff)
+
+	indexes := make([]uint32, 0)
+
+	for processed := uint64(0); processed < uint64(len(msg)); {
+		index := indexChan{}
+		index.indexes = &[INDEX_SIZE]uint32{}
+
+		processed += find_structural_bits_loop(msg[processed:], &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred,
+			index.indexes, &index.length, &carried)
+
+		indexes = append(indexes, (*index.indexes)[:index.length]...)
+	}
+
+	// Last 5 expected structural (in reverse order)
+	const expectedStructuralsReversed = `}}":"`
+	const expectedLength = 55263
+
+	if len(indexes) != expectedLength {
+		t.Errorf("TestFindStructuralBitsLoop: got: %d want: %d", len(indexes), expectedLength)
+	}
+
+	pos, j := len(msg)-1, 0
+	for i := len(indexes)-1; i >= len(indexes)-len(expectedStructuralsReversed); i-- {
+
+		if msg[pos] != expectedStructuralsReversed[j] {
+			t.Errorf("TestFindStructuralBitsLoop: got: %c want: %c", msg[pos], expectedStructuralsReversed[j])
+		}
+
+		pos -= int(indexes[i])
+		j++
+	}
+}
+
 func BenchmarkFindStructuralBits(b *testing.B) {
 
 	const msg = "                                                                "

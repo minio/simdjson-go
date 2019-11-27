@@ -1,6 +1,7 @@
 package simdjson
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -32,7 +33,7 @@ type ParsedJson struct {
 	Strings []byte
 }
 
-const INDEX_SIZE = 4096 // Seems to be a good size for the index buffering
+const INDEX_SIZE = 1024 // Seems to be a good size for the index buffering
 
 type indexChan struct {
 	index   int
@@ -48,10 +49,18 @@ type internalParsedJson struct {
 }
 
 func (pj *internalParsedJson) initialize(size int) {
-	pj.Tape = make([]uint64, 0, size)
-	// FIXME(fwessel): Why are string size the same as element size?
-	pj.Strings = make([]byte, 0, size)
-	pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
+	if cap(pj.Tape) < size {
+		pj.Tape = make([]uint64, 0, size)
+	}
+	pj.Tape = pj.Tape[:0]
+	if cap(pj.Strings) < size {
+		pj.Strings = make([]byte, 0, size)
+	}
+	pj.Strings = pj.Strings[:0]
+	if cap(pj.containing_scope_offset) < DEFAULTMAXDEPTH {
+		pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
+	}
+	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
 
 func (pj *internalParsedJson) parseMessage(msg []byte) error {
@@ -62,18 +71,27 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 
 	pj.index_chan = make(chan indexChan, 16)
 
+	var err error
 	go func() {
 		find_structural_indices(msg, pj)
 		wg.Done()
 	}()
 	go func() {
-		unified_machine(msg, pj)
+		if !unified_machine(msg, pj) {
+			err = errors.New("Bad parsing")
+		}
 		wg.Done()
 	}()
 
 	wg.Wait()
 
-	return nil
+	return err
+}
+
+func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
+
+	// TODO: Fix hack. Instead properly detect newline as structural character
+	return pj.parseMessage(bytes.ReplaceAll([]byte(msg), []byte("\n"), []byte("{")))
 }
 
 // Iter returns a new Iter
@@ -102,7 +120,7 @@ func (pj *ParsedJson) stringByteAt(offset uint64) ([]byte, error) {
 }
 
 // Iter represents a section of JSON.
-// To start iterating it, use Next() or NextIter() methods
+// To start iterating it, use Advance() or AdvanceIter() methods
 // which will queue the first element.
 // If an Iter is copied, the copy will be independent.
 type Iter struct {
@@ -148,9 +166,9 @@ func LoadTape(tape, strings io.Reader) (*ParsedJson, error) {
 	return &dst, nil
 }
 
-// Next will read the type of the next element
+// Advance will read the type of the next element
 // and queues up the value on the same level.
-func (i *Iter) Next() Type {
+func (i *Iter) Advance() Type {
 	i.off += i.addNext
 	if i.off >= len(i.tape.Tape) {
 		i.addNext = 0
@@ -171,10 +189,10 @@ func (i *Iter) Next() Type {
 	return TagToType[i.t]
 }
 
-// NextInto will read the tag of the next element
+// AdvanceInto will read the tag of the next element
 // and move into and out of arrays , objects and root elements.
 // This should only be used for strictly manual parsing.
-func (i *Iter) NextInto() Tag {
+func (i *Iter) AdvanceInto() Tag {
 	i.off += i.addNext
 	if i.off >= len(i.tape.Tape) {
 		i.addNext = 0
@@ -215,7 +233,7 @@ func (i *Iter) calcNext(into bool) {
 	}
 }
 
-// Type returns the queued value type from the previous call to Next.
+// Type returns the queued value type from the previous call to Advance.
 func (i *Iter) Type() Type {
 	if i.off+i.addNext > len(i.tape.Tape) {
 		return TypeNone
@@ -223,10 +241,10 @@ func (i *Iter) Type() Type {
 	return TagToType[i.t]
 }
 
-// NextIter will read the type of the next element
+// AdvanceIter will read the type of the next element
 // and return an iterator only containing the object.
 // If dst and i are the same, both will contain the value inside.
-func (i *Iter) NextIter(dst *Iter) (Type, error) {
+func (i *Iter) AdvanceIter(dst *Iter) (Type, error) {
 	i.off += i.addNext
 	if i.off == len(i.tape.Tape) {
 		i.addNext = 0
@@ -325,14 +343,14 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 			if i.PeekNextTag() == TagEnd {
 				return nil, fmt.Errorf("unexpected end of tape within object")
 			}
-			i.NextInto()
+			i.AdvanceInto()
 		}
 
 		switch i.t {
 		case TagRoot:
 			// Move into root.
 			var err error
-			i, err = i.Root()
+			i, err = i.Root(i)
 			if err != nil {
 				return nil, err
 			}
@@ -376,7 +394,7 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 			dst = append(dst, '{')
 			stack = append(stack, stackObject)
 			// We should not emit commas.
-			i.NextInto()
+			i.AdvanceInto()
 			continue
 		case TagObjectEnd:
 			dst = append(dst, '}')
@@ -387,7 +405,7 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		case TagArrayStart:
 			dst = append(dst, '[')
 			stack = append(stack, stackArray)
-			i.NextInto()
+			i.AdvanceInto()
 			continue
 		case TagArrayEnd:
 			dst = append(dst, ']')
@@ -400,7 +418,7 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		if i.PeekNextTag() == TagEnd {
 			break
 		}
-		i.NextInto()
+		i.AdvanceInto()
 
 		// Output object separators, etc.
 		switch stack[len(stack)-1] {
@@ -569,18 +587,25 @@ func (i *Iter) StringCvt() (string, error) {
 }
 
 // Root() returns the object embedded in root as an iterator.
-func (i *Iter) Root() (*Iter, error) {
+// An optional destination can be supplied to avoid allocations.
+func (i *Iter) Root(dst *Iter) (*Iter, error) {
 	if i.t != TagRoot {
-		return nil, errors.New("value is not string")
+		return dst, errors.New("value is not root")
 	}
 	if i.cur > uint64(len(i.tape.Tape)) {
-		return nil, errors.New("root element extends beyond tape")
+		return dst, errors.New("root element extends beyond tape")
 	}
-	dst := Iter{}
-	dst = *i
+	if dst == nil {
+		c := *i
+		dst = &c
+	} else {
+		dst.cur = i.cur
+		dst.off = i.off
+		dst.t = i.t
+	}
 	dst.addNext = 0
-	dst.tape.Tape = dst.tape.Tape[:i.cur]
-	return &dst, nil
+	dst.tape.Tape = i.tape.Tape[:i.cur]
+	return dst, nil
 }
 
 // Bool() returns the bool value.
@@ -630,7 +655,7 @@ func (i *Iter) Interface() (interface{}, error) {
 		return i.t == TagBoolTrue, nil
 	case TypeRoot:
 		// Skip root
-		obj, err := i.Root()
+		obj, err := i.Root(nil)
 		if err != nil {
 			return nil, err
 		}
@@ -681,381 +706,6 @@ func (i *Iter) Array(dst *Array) (*Array, error) {
 	dst.off = i.off
 
 	return dst, nil
-}
-
-// Object represents a JSON object.
-type Object struct {
-	// Complete tape
-	tape ParsedJson
-
-	// offset of the next entry to be decoded
-	off int
-}
-
-// Map will unmarshal into a map[string]interface{}
-// See Iter.Interface() for a reference on value types.
-func (o *Object) Map(dst map[string]interface{}) (map[string]interface{}, error) {
-	if dst == nil {
-		dst = make(map[string]interface{})
-	}
-	var tmp Iter
-	for {
-		name, t, err := o.NextElement(&tmp)
-		if err != nil {
-			return nil, err
-		}
-		if t == TypeNone {
-			// Done
-			break
-		}
-		dst[name], err = tmp.Interface()
-		if err != nil {
-			return nil, fmt.Errorf("parsing element %q: %w", name, err)
-		}
-	}
-	return dst, nil
-}
-
-// Element represents an element in an object.
-type Element struct {
-	// Name of the element
-	Name string
-	// Type of the element
-	Type Type
-	// Iter containing the element
-	Iter Iter
-}
-
-// Elements contains all elements in an object
-// kept in original order.
-// And index contains lookup for object keys.
-type Elements struct {
-	Elements []Element
-	Index    map[string]int
-}
-
-// Lookup a key in elements and return the element.
-// Returns nil if key doesn't exist.
-// Keys are case sensitive.
-func (e Elements) Lookup(key string) *Element {
-	idx, ok := e.Index[key]
-	if !ok {
-		return nil
-	}
-	return &e.Elements[idx]
-}
-
-// MarshalJSON will marshal the entire remaining scope of the iterator.
-func (e Elements) MarshalJSON() ([]byte, error) {
-	return e.MarshalJSONBuffer(nil)
-}
-
-// MarshalJSONBuffer will marshal all elements.
-// An optional buffer can be provided for fewer allocations.
-// Output will be appended to the destination.
-func (e Elements) MarshalJSONBuffer(dst []byte) ([]byte, error) {
-	dst = append(dst, '{')
-	for i, elem := range e.Elements {
-		dst = append(dst, '"')
-		dst = escapeBytes(dst, []byte(elem.Name))
-		dst = append(dst, '"', ':')
-		var err error
-		dst, err = elem.Iter.MarshalJSONBuffer(dst)
-		if err != nil {
-			return nil, err
-		}
-		if i < len(e.Elements)-1 {
-			dst = append(dst, ',')
-		}
-	}
-	dst = append(dst, '}')
-	return dst, nil
-}
-
-// Parse will return all elements and iterators.
-// An optional destination can be given.
-// The Object will be consumed.
-func (o *Object) Parse(dst *Elements) (*Elements, error) {
-	if dst == nil {
-		dst = &Elements{
-			Elements: make([]Element, 0, 5),
-			Index:    make(map[string]int, 5),
-		}
-	} else {
-		dst.Elements = dst.Elements[:0]
-		for k := range dst.Index {
-			delete(dst.Index, k)
-		}
-	}
-	var tmp Iter
-	for {
-		name, t, err := o.NextElement(&tmp)
-		if err != nil {
-			return nil, err
-		}
-		if t == TypeNone {
-			// Done
-			break
-		}
-		dst.Index[name] = len(dst.Elements)
-		dst.Elements = append(dst.Elements, Element{
-			Name: name,
-			Type: t,
-			Iter: tmp,
-		})
-	}
-	return dst, nil
-}
-
-// NextElement sets dst to the next element and returns the name.
-// TypeNone with nil error will be returned if there are no more elements.
-func (o *Object) NextElement(dst *Iter) (name string, t Type, err error) {
-	if o.off >= len(o.tape.Tape) {
-		return "", TypeNone, nil
-	}
-	// Next must be string or end of object
-	v := o.tape.Tape[o.off]
-	switch Tag(v >> 56) {
-	case TagString:
-		// Read name:
-		name, err = o.tape.stringAt(v)
-		if err != nil {
-			return "", TypeNone, fmt.Errorf("parsing object element name: %w", err)
-		}
-		o.off++
-	case TagObjectEnd:
-		return "", TypeNone, nil
-	default:
-		return "", TypeNone, fmt.Errorf("object: unexpected tag %v", string(v>>56))
-	}
-
-	// Read element type
-	v = o.tape.Tape[o.off]
-	// Move to value (if any)
-	o.off++
-
-	// Set dst
-	dst.cur = v & JSONVALUEMASK
-	dst.t = Tag(v >> 56)
-	dst.off = o.off
-	dst.tape = o.tape
-	dst.calcNext(false)
-	elemSize := dst.addNext
-	dst.calcNext(true)
-	if dst.off+elemSize > len(dst.tape.Tape) {
-		return "", TypeNone, errors.New("element extends beyond tape")
-	}
-	dst.tape.Tape = dst.tape.Tape[:dst.off+elemSize]
-
-	// Skip to next element
-	o.off += elemSize
-	return name, TagToType[dst.t], nil
-}
-
-// Array represents a JSON array.
-// There are methods that allows to get full arrays if the value type is the same.
-// Otherwise an iterator can be retrieved.
-type Array struct {
-	tape ParsedJson
-	off  int
-}
-
-// Iter returns the array as an iterator.
-// This can be used for parsing mixed content arrays.
-// The first value is ready with a call to Next.
-// Calling after last element should have TypeNone.
-func (a *Array) Iter() Iter {
-	i := Iter{
-		tape: a.tape,
-		off:  a.off,
-	}
-	return i
-}
-
-// FirstType will return the type of the first element.
-// If there are no elements, TypeNone is returned.
-func (a *Array) FirstType() Type {
-	iter := a.Iter()
-	return iter.PeekNext()
-}
-
-// MarshalJSON will marshal the entire remaining scope of the iterator.
-func (a *Array) MarshalJSON() ([]byte, error) {
-	return a.MarshalJSONBuffer(nil)
-}
-
-// MarshalJSONBuffer will marshal all elements.
-// An optional buffer can be provided for fewer allocations.
-// Output will be appended to the destination.
-func (a *Array) MarshalJSONBuffer(dst []byte) ([]byte, error) {
-	dst = append(dst, '[')
-	i := a.Iter()
-	var elem Iter
-	for {
-		t, err := i.NextIter(&elem)
-		if err != nil {
-			return nil, err
-		}
-		if t == TypeNone {
-			break
-		}
-		dst, err = elem.MarshalJSONBuffer(dst)
-		if err != nil {
-			return nil, err
-		}
-		if i.PeekNextTag() == TagArrayEnd {
-			break
-		}
-		dst = append(dst, ',')
-	}
-	if i.PeekNextTag() != TagArrayEnd {
-		return nil, errors.New("expected TagArrayEnd as final tag in array")
-	}
-	dst = append(dst, ']')
-	return dst, nil
-}
-
-// Interface returns the array as a slice of interfaces.
-// See Iter.Interface() for a reference on value types.
-func (a *Array) Interface() ([]interface{}, error) {
-	// Estimate length. Assume one value per element.
-	lenEst := (len(a.tape.Tape) - a.off - 1) / 2
-	if lenEst < 0 {
-		lenEst = 0
-	}
-	dst := make([]interface{}, 0, lenEst)
-	i := a.Iter()
-	for i.Next() != TypeNone {
-		elem, err := i.Interface()
-		if err != nil {
-			return nil, err
-		}
-		dst = append(dst, elem)
-	}
-	return dst, nil
-}
-
-// AsFloat returns the array values as float.
-// Integers are automatically converted to float.
-func (a *Array) AsFloat() ([]float64, error) {
-	// Estimate length
-	lenEst := (len(a.tape.Tape) - a.off - 1) / 2
-	if lenEst < 0 {
-		lenEst = 0
-	}
-	dst := make([]float64, 0, lenEst)
-
-readArray:
-	for {
-		tag := Tag(a.tape.Tape[a.off] >> 56)
-		a.off++
-		switch tag {
-		case TagFloat:
-			if len(a.tape.Tape) <= a.off {
-				return nil, errors.New("corrupt input: expected float, but no more values")
-			}
-			dst = append(dst, math.Float64frombits(a.tape.Tape[a.off]))
-		case TagInteger:
-			if len(a.tape.Tape) <= a.off {
-				return nil, errors.New("corrupt input: expected integer, but no more values")
-			}
-			dst = append(dst, float64(int64(a.tape.Tape[a.off])))
-		case TagUint:
-			if len(a.tape.Tape) <= a.off {
-				return nil, errors.New("corrupt input: expected integer, but no more values")
-			}
-			dst = append(dst, float64(a.tape.Tape[a.off]))
-		case TagArrayEnd:
-			break readArray
-		default:
-			return nil, fmt.Errorf("unable to convert type %v to float", tag)
-		}
-		a.off++
-	}
-	return dst, nil
-}
-
-// AsInteger returns the array values as float.
-// Integers are automatically converted to float.
-func (a *Array) AsInteger() ([]int64, error) {
-	// Estimate length
-	lenEst := (len(a.tape.Tape) - a.off - 1) / 2
-	if lenEst < 0 {
-		lenEst = 0
-	}
-	dst := make([]int64, 0, lenEst)
-readArray:
-	for {
-		tag := Tag(a.tape.Tape[a.off] >> 56)
-		a.off++
-		switch tag {
-		case TagFloat:
-			if len(a.tape.Tape) <= a.off {
-				return nil, errors.New("corrupt input: expected float, but no more values")
-			}
-			val := math.Float64frombits(a.tape.Tape[a.off])
-			if val > math.MaxInt64 {
-				return nil, errors.New("float value overflows int64")
-			}
-			if val < math.MinInt64 {
-				return nil, errors.New("float value underflows int64")
-			}
-			dst = append(dst, int64(val))
-		case TagInteger:
-			if len(a.tape.Tape) <= a.off {
-				return nil, errors.New("corrupt input: expected integer, but no more values")
-			}
-			dst = append(dst, int64(a.tape.Tape[a.off]))
-		case TagUint:
-			if len(a.tape.Tape) <= a.off {
-				return nil, errors.New("corrupt input: expected integer, but no more values")
-			}
-
-			val := a.tape.Tape[a.off]
-			if val > math.MaxInt64 {
-				return nil, errors.New("unsigned integer value overflows int64")
-			}
-
-			dst = append(dst)
-		case TagArrayEnd:
-			break readArray
-		default:
-			return nil, fmt.Errorf("unable to convert type %v to integer", tag)
-		}
-		a.off++
-	}
-	return dst, nil
-}
-
-// AsString returns the array values as a slice of strings.
-// No conversion is done.
-func (a *Array) AsString() ([]string, error) {
-	// Estimate length
-	lenEst := len(a.tape.Tape) - a.off - 1
-	if lenEst < 0 {
-		lenEst = 0
-	}
-	dst := make([]string, 0, lenEst)
-	i := a.Iter()
-	var elem Iter
-	for {
-		t, err := i.NextIter(&elem)
-		if err != nil {
-			return nil, err
-		}
-		switch t {
-		case TypeNone:
-			return dst, nil
-		case TypeString:
-			s, err := elem.String()
-			if err != nil {
-
-			}
-			dst = append(dst, s)
-		default:
-			return nil, fmt.Errorf("element in array is not string, but %v", t)
-		}
-	}
 }
 
 func (pj *ParsedJson) Reset() {
@@ -1169,87 +819,91 @@ func (t Tag) Type() Type {
 	return TagToType[t]
 }
 
-func (pj *ParsedJson) dump_raw_tape() bool {
+func (pj *internalParsedJson) dump_raw_tape() bool {
 
-	//if !pj.isvalid {
-	//	return false
-	// }
-
-	tapeidx := uint64(0)
-	howmany := uint64(0)
-	tape_val := pj.Tape[tapeidx]
-	ntype := tape_val >> 56
-	fmt.Printf("%d : %s", tapeidx, string(ntype))
-
-	if ntype == 'r' {
-		howmany = tape_val & JSONVALUEMASK
-	} else {
-		fmt.Errorf("Error: no starting root node?\n")
+	if !pj.isvalid {
 		return false
 	}
-	fmt.Printf("\t// pointing to %d (right after last node)\n", howmany)
 
-	tapeidx++
-	for ; tapeidx < howmany; tapeidx++ {
-		tape_val = pj.Tape[tapeidx]
-		fmt.Printf("%d : ", tapeidx)
-		ntype := Tag(tape_val >> 56)
-		payload := tape_val & JSONVALUEMASK
-		switch ntype {
-		case TagString: // we have a string
-			fmt.Printf("string \"")
-			string_length := uint64(binary.LittleEndian.Uint32(pj.Strings[payload : payload+4]))
-			fmt.Printf("%s", print_with_escapes(pj.Strings[payload+4:payload+4+string_length]))
-			fmt.Println("\"")
+	for tapeidx := uint64(0); tapeidx < uint64(len(pj.Tape)); tapeidx++ {
+		howmany := uint64(0)
+		tape_val := pj.Tape[tapeidx]
+		ntype := tape_val >> 56
+		fmt.Printf("%d : %s", tapeidx, string(ntype))
 
-		case TagInteger: // we have a long int
-			if tapeidx+1 >= howmany {
-				return false
-			}
-			tapeidx++
-			fmt.Printf("integer %d\n", int64(pj.Tape[tapeidx]))
-
-		case TagFloat: // we have a double
-			if tapeidx+1 >= howmany {
-				return false
-			}
-			tapeidx++
-			fmt.Printf("float %f\n", math.Float64frombits(pj.Tape[tapeidx]))
-
-		case TagNull: // we have a null
-			fmt.Printf("null\n")
-
-		case TagBoolTrue: // we have a true
-			fmt.Printf("true\n")
-
-		case TagBoolFalse: // we have a false
-			fmt.Printf("false\n")
-
-		case TagObjectStart: // we have an object
-			fmt.Printf("{\t// pointing to next Tape location %d (first node after the scope) \n", payload)
-
-		case TagObjectEnd: // we end an object
-			fmt.Printf("}\t// pointing to previous Tape location %d (start of the scope) \n", payload)
-
-		case TagArrayStart: // we start an array
-			fmt.Printf("\t// pointing to next Tape location %d (first node after the scope) \n", payload)
-
-		case TagArrayEnd: // we end an array
-			fmt.Printf("]\t// pointing to previous Tape location %d (start of the scope) \n", payload)
-
-		case TagRoot: // we start and end with the root node
-			fmt.Printf("end of root\n")
-			return false
-
-		default:
+		if ntype == 'r' {
+			howmany = tape_val & JSONVALUEMASK
+		} else {
+			fmt.Errorf("Error: no starting root node?\n")
 			return false
 		}
-	}
+		fmt.Printf("\t// pointing to %d (right after last node)\n", howmany)
 
-	tape_val = pj.Tape[tapeidx]
-	payload := tape_val & JSONVALUEMASK
-	ntype = tape_val >> 56
-	fmt.Printf("%d : %s\t// pointing to %d (start root)\n", tapeidx, string(ntype), payload)
+		// Decrement howmany (since we're adding one now for the ndjson support)
+		howmany -= 1
+
+		tapeidx++
+		for ; tapeidx < howmany; tapeidx++ {
+			tape_val = pj.Tape[tapeidx]
+			fmt.Printf("%d : ", tapeidx)
+			ntype := Tag(tape_val >> 56)
+			payload := tape_val & JSONVALUEMASK
+			switch ntype {
+			case TagString: // we have a string
+				fmt.Printf("string \"")
+				string_length := uint64(binary.LittleEndian.Uint32(pj.Strings[payload : payload+4]))
+				fmt.Printf("%s", print_with_escapes(pj.Strings[payload+4:payload+4+string_length]))
+				fmt.Println("\"")
+
+			case TagInteger: // we have a long int
+				if tapeidx+1 >= howmany {
+					return false
+				}
+				tapeidx++
+				fmt.Printf("integer %d\n", int64(pj.Tape[tapeidx]))
+
+			case TagFloat: // we have a double
+				if tapeidx+1 >= howmany {
+					return false
+				}
+				tapeidx++
+				fmt.Printf("float %f\n", math.Float64frombits(pj.Tape[tapeidx]))
+
+			case TagNull: // we have a null
+				fmt.Printf("null\n")
+
+			case TagBoolTrue: // we have a true
+				fmt.Printf("true\n")
+
+			case TagBoolFalse: // we have a false
+				fmt.Printf("false\n")
+
+			case TagObjectStart: // we have an object
+				fmt.Printf("{\t// pointing to next Tape location %d (first node after the scope) \n", payload)
+
+			case TagObjectEnd: // we end an object
+				fmt.Printf("}\t// pointing to previous Tape location %d (start of the scope) \n", payload)
+
+			case TagArrayStart: // we start an array
+				fmt.Printf("\t// pointing to next Tape location %d (first node after the scope) \n", payload)
+
+			case TagArrayEnd: // we end an array
+				fmt.Printf("]\t// pointing to previous Tape location %d (start of the scope) \n", payload)
+
+			case TagRoot: // we start and end with the root node
+				fmt.Printf("end of root\n")
+				return false
+
+			default:
+				return false
+			}
+		}
+
+		tape_val = pj.Tape[tapeidx]
+		payload := tape_val & JSONVALUEMASK
+		ntype = tape_val >> 56
+		fmt.Printf("%d : %s\t// pointing to %d (start root)\n", tapeidx, string(ntype), payload)
+	}
 
 	return true
 }

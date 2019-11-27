@@ -1,9 +1,17 @@
 package simdjson
 
+import "sync"
+
 const paddingSpaces64 = "                                                                "
 
+var indexPool = sync.Pool{
+	New: func() interface{} {
+		return &[INDEX_SIZE]uint32{}
+	},
+}
+
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
-	
+
 	//  #ifdef SIMDJSON_UTF8VALIDATE
 	//      __m256i has_error = _mm256_setzero_si256();
 	//      struct avx_processed_utf_bytes previous {};
@@ -35,91 +43,39 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	// expensive carryless multiply in the previous step with this work
 	structurals := uint64(0)
 
-	lenminus64 := uint64(0)
-	if len(buf) >= 64 {
-		lenminus64 = uint64(len(buf)) - 64
-	}
-
 	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
 
-	index := indexChan{}
-	index.indexes = &[INDEX_SIZE]uint32{}
 	indexTotal := 0
 
 	// empty bits that are carried over to the next call to flatten_bits_incremental
-	carried := 0
+	carried := uint64(0)
 
-	idx := uint64(0)
-	for ; idx < lenminus64; idx += 64 {
-
-		// #ifdef SIMDJSON_UTF8VALIDATE
-		// check_utf8(input_lo, input_hi, has_error, previous);
-		// #endif
-
-		// If not enough space left for next iteration, send indexes and create new instance
-		if index.length >= INDEX_SIZE-64 {
-			pj.index_chan <- index
-			indexTotal += index.length
-			index = indexChan{}
-			index.indexes = &[INDEX_SIZE]uint32{}
-		}
-
-		// find structural bits
-		structurals = find_structural_bits(buf[idx:], &prev_iter_ends_odd_backslash,
-			&prev_iter_inside_quote, &error_mask,
-			structurals,
-			&prev_iter_ends_pseudo_pred)
-
-		// take the structural bits and flatten
-		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
-	}
-
-	////////////////
-	/// we use a giant copy-paste which is ugly.
-	/// but otherwise the string needs to be properly padded or else we
-	/// risk invalidating the UTF-8 checks.
-	////////////
-	if idx < uint64(len(buf)) {
-		tmpbuf := [64]byte{}
-
-		remain := uint64(len(buf)) - idx
-		copy(tmpbuf[:], buf[idx:])
-		copy(tmpbuf[remain:], []byte(paddingSpaces64)[:64-remain])
+	for len(buf) > 0 {
 
 		// #ifdef SIMDJSON_UTF8VALIDATE
 		// check_utf8(input_lo, input_hi, has_error, previous);
 		// #endif
 
-		// If not enough space left for next iteration, send indexes and create new instance
-		if index.length >= INDEX_SIZE-64 {
-			pj.index_chan <- index
-			indexTotal += index.length
-			index = indexChan{}
-			index.indexes = &[INDEX_SIZE]uint32{}
-		}
+		index := indexChan{}
+		index.indexes = indexPool.Get().(*[INDEX_SIZE]uint32)
 
-		// find structural bits
-		structurals = find_structural_bits(tmpbuf[:], &prev_iter_ends_odd_backslash,
+		processed := find_structural_bits_loop(buf, &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
-			&prev_iter_ends_pseudo_pred)
+			&prev_iter_ends_pseudo_pred,
+			index.indexes, &index.length, &carried)
 
-		idx += 64
+		pj.index_chan <- index
+		indexTotal += index.length
 
-		// take the structural bits and flatten
-		flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
+		buf = buf[processed:]
 	}
+	close(pj.index_chan)
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
-	if indexTotal + index.length == 0 {
-		close(pj.index_chan)
+	if indexTotal == 0 {
 		return false
 	}
-
-	if index.length > 0 {
-		pj.index_chan <- index  // Send last message ...
-	}
-	close(pj.index_chan)        // ... and close channel
 
 	if error_mask != 0 {
 		return false

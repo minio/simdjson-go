@@ -12,10 +12,14 @@ const RET_ADDRESS_ARRAY_CONST = 3
 
 func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64, c byte) {
 	if (*indexesChan).index >= (*indexesChan).length {
+		if indexesChan.indexes != nil {
+			indexPool.Put(indexesChan.indexes)
+			indexesChan.indexes = nil
+		}
 		var ok bool
-		*indexesChan, ok = <- pj.index_chan // Get next element from channel
+		*indexesChan, ok = <-pj.index_chan // Get next element from channel
 		if !ok {
-			done = true	// return done if channel closed
+			done = true // return done if channel closed
 			return
 		}
 	}
@@ -73,13 +77,16 @@ func is_valid_null_atom(buf []byte) bool {
 
 func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
+	const addOneForRoot = 1
+
 	done := false
 	idx := uint64(0xffffffffffffffff) // location of the structural character in the input (buf)
-	c := byte(0)        // used to track the (structural) character we are looking at
-	offset := uint64(0) // used to contain last element of containing_scope_offset
+	c := byte(0)                      // used to track the (structural) character we are looking at
+	offset := uint64(0)               // used to contain last element of containing_scope_offset
 	var indexCh indexChan
 
 	////////////////////////////// START STATE /////////////////////////////
+new_root:
 	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
@@ -214,7 +221,22 @@ start_continue:
 	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	} else {
-		goto fail
+		// For an ndjson object, wrap up current object and start new root
+		if c == '\n' ||
+			// TODO: Remove line below (only test for newline once it is properly detected as structural char)
+			c == '{' {
+			offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+
+			// drop last element
+			pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+
+			pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
+			pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
+
+			goto new_root
+		} else {
+			goto fail
+		}
 	}
 
 	//////////////////////////////// OBJECT STATES /////////////////////////////
@@ -427,12 +449,11 @@ succeed:
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
 	// Sanity checks
-	if len(pj.containing_scope_offset) != 0 ||
-		offset>>RET_ADDRESS_SHIFT != 0 {
+	if len(pj.containing_scope_offset) != 0 {
 		return false
 	}
 
-	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
+	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
 	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
 	pj.isvalid = true
