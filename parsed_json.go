@@ -1,8 +1,8 @@
 package simdjson
 
 import (
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -49,10 +49,18 @@ type internalParsedJson struct {
 }
 
 func (pj *internalParsedJson) initialize(size int) {
-	pj.Tape = make([]uint64, 0, size)
-	// FIXME(fwessel): Why are string size the same as element size?
-	pj.Strings = make([]byte, 0, size)
-	pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
+	if cap(pj.Tape) < size {
+		pj.Tape = make([]uint64, 0, size)
+	}
+	pj.Tape = pj.Tape[:0]
+	if cap(pj.Strings) < size {
+		pj.Strings = make([]byte, 0, size)
+	}
+	pj.Strings = pj.Strings[:0]
+	if cap(pj.containing_scope_offset) < DEFAULTMAXDEPTH {
+		pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
+	}
+	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
 
 func (pj *internalParsedJson) parseMessage(msg []byte) error {
@@ -80,7 +88,7 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 	return err
 }
 
-func  (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
+func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
 
 	// TODO: Fix hack. Instead properly detect newline as structural character
 	return pj.parseMessage(bytes.ReplaceAll([]byte(msg), []byte("\n"), []byte("{")))
@@ -112,7 +120,7 @@ func (pj *ParsedJson) stringByteAt(offset uint64) ([]byte, error) {
 }
 
 // Iter represents a section of JSON.
-// To start iterating it, use Next() or NextIter() methods
+// To start iterating it, use Advance() or AdvanceIter() methods
 // which will queue the first element.
 // If an Iter is copied, the copy will be independent.
 type Iter struct {
@@ -158,9 +166,9 @@ func LoadTape(tape, strings io.Reader) (*ParsedJson, error) {
 	return &dst, nil
 }
 
-// Next will read the type of the next element
+// Advance will read the type of the next element
 // and queues up the value on the same level.
-func (i *Iter) Next() Type {
+func (i *Iter) Advance() Type {
 	i.off += i.addNext
 	if i.off >= len(i.tape.Tape) {
 		i.addNext = 0
@@ -181,10 +189,10 @@ func (i *Iter) Next() Type {
 	return TagToType[i.t]
 }
 
-// NextInto will read the tag of the next element
+// AdvanceInto will read the tag of the next element
 // and move into and out of arrays , objects and root elements.
 // This should only be used for strictly manual parsing.
-func (i *Iter) NextInto() Tag {
+func (i *Iter) AdvanceInto() Tag {
 	i.off += i.addNext
 	if i.off >= len(i.tape.Tape) {
 		i.addNext = 0
@@ -225,7 +233,7 @@ func (i *Iter) calcNext(into bool) {
 	}
 }
 
-// Type returns the queued value type from the previous call to Next.
+// Type returns the queued value type from the previous call to Advance.
 func (i *Iter) Type() Type {
 	if i.off+i.addNext > len(i.tape.Tape) {
 		return TypeNone
@@ -233,10 +241,10 @@ func (i *Iter) Type() Type {
 	return TagToType[i.t]
 }
 
-// NextIter will read the type of the next element
+// AdvanceIter will read the type of the next element
 // and return an iterator only containing the object.
 // If dst and i are the same, both will contain the value inside.
-func (i *Iter) NextIter(dst *Iter) (Type, error) {
+func (i *Iter) AdvanceIter(dst *Iter) (Type, error) {
 	i.off += i.addNext
 	if i.off == len(i.tape.Tape) {
 		i.addNext = 0
@@ -335,14 +343,14 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 			if i.PeekNextTag() == TagEnd {
 				return nil, fmt.Errorf("unexpected end of tape within object")
 			}
-			i.NextInto()
+			i.AdvanceInto()
 		}
 
 		switch i.t {
 		case TagRoot:
 			// Move into root.
 			var err error
-			i, err = i.Root()
+			i, err = i.Root(i)
 			if err != nil {
 				return nil, err
 			}
@@ -386,7 +394,7 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 			dst = append(dst, '{')
 			stack = append(stack, stackObject)
 			// We should not emit commas.
-			i.NextInto()
+			i.AdvanceInto()
 			continue
 		case TagObjectEnd:
 			dst = append(dst, '}')
@@ -397,7 +405,7 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		case TagArrayStart:
 			dst = append(dst, '[')
 			stack = append(stack, stackArray)
-			i.NextInto()
+			i.AdvanceInto()
 			continue
 		case TagArrayEnd:
 			dst = append(dst, ']')
@@ -410,7 +418,7 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		if i.PeekNextTag() == TagEnd {
 			break
 		}
-		i.NextInto()
+		i.AdvanceInto()
 
 		// Output object separators, etc.
 		switch stack[len(stack)-1] {
@@ -579,18 +587,25 @@ func (i *Iter) StringCvt() (string, error) {
 }
 
 // Root() returns the object embedded in root as an iterator.
-func (i *Iter) Root() (*Iter, error) {
+// An optional destination can be supplied to avoid allocations.
+func (i *Iter) Root(dst *Iter) (*Iter, error) {
 	if i.t != TagRoot {
-		return nil, errors.New("value is not string")
+		return dst, errors.New("value is not root")
 	}
 	if i.cur > uint64(len(i.tape.Tape)) {
-		return nil, errors.New("root element extends beyond tape")
+		return dst, errors.New("root element extends beyond tape")
 	}
-	dst := Iter{}
-	dst = *i
+	if dst == nil {
+		c := *i
+		dst = &c
+	} else {
+		dst.cur = i.cur
+		dst.off = i.off
+		dst.t = i.t
+	}
 	dst.addNext = 0
-	dst.tape.Tape = dst.tape.Tape[:i.cur]
-	return &dst, nil
+	dst.tape.Tape = i.tape.Tape[:i.cur]
+	return dst, nil
 }
 
 // Bool() returns the bool value.
@@ -640,7 +655,7 @@ func (i *Iter) Interface() (interface{}, error) {
 		return i.t == TagBoolTrue, nil
 	case TypeRoot:
 		// Skip root
-		obj, err := i.Root()
+		obj, err := i.Root(nil)
 		if err != nil {
 			return nil, err
 		}

@@ -16,7 +16,7 @@ type Array struct {
 
 // Iter returns the array as an iterator.
 // This can be used for parsing mixed content arrays.
-// The first value is ready with a call to Next.
+// The first value is ready with a call to Advance.
 // Calling after last element should have TypeNone.
 func (a *Array) Iter() Iter {
 	i := Iter{
@@ -46,7 +46,7 @@ func (a *Array) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 	i := a.Iter()
 	var elem Iter
 	for {
-		t, err := i.NextIter(&elem)
+		t, err := i.AdvanceIter(&elem)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,7 @@ func (a *Array) Interface() ([]interface{}, error) {
 	}
 	dst := make([]interface{}, 0, lenEst)
 	i := a.Iter()
-	for i.Next() != TypeNone {
+	for i.Advance() != TypeNone {
 		elem, err := i.Interface()
 		if err != nil {
 			return nil, err
@@ -193,7 +193,7 @@ func (a *Array) AsString() ([]string, error) {
 	i := a.Iter()
 	var elem Iter
 	for {
-		t, err := i.NextIter(&elem)
+		t, err := i.AdvanceIter(&elem)
 		if err != nil {
 			return nil, err
 		}
