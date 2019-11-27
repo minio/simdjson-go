@@ -27,7 +27,7 @@ func TestFindNewlineDelimiters(t *testing.T) {
 	startIndex := uint32(0)
 	for index := uint64(0); index < rows; index++ {
 		end := len(demo_ndjson)
-		if index < rows - 1 {
+		if index < rows-1 {
 			end = int(indices[index])
 		}
 		if err := pj.parseMessage([]byte(demo_ndjson)[startIndex:end]); err != nil {

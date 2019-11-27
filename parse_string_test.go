@@ -1,9 +1,9 @@
 package simdjson
 
 import (
+	"encoding/binary"
 	"fmt"
 	"testing"
-	"encoding/binary"
 )
 
 func TestParseString(t *testing.T) {
@@ -26,15 +26,15 @@ func TestParseString(t *testing.T) {
 	if stringbuf[4+length] != 0 {
 		t.Errorf("TestParseString: got: 0x%x want: 0x0", stringbuf[4+length])
 	}
-	if size != 4 + length + 1 {
-		t.Errorf("TestParseString: got: %d want: %d", size, 4 + length + 1)
+	if size != 4+length+1 {
+		t.Errorf("TestParseString: got: %d want: %d", size, 4+length+1)
 	}
 
 	const str2 = "value"
 	size2 := parse_string_simd([]byte(fmt.Sprintf(`"%s"`, str2)), &stringbuf)
 
 	// First four bytes are size
-	length = int(binary.LittleEndian.Uint32(stringbuf[size:size+4]))
+	length = int(binary.LittleEndian.Uint32(stringbuf[size : size+4]))
 	if length != len(str2) {
 		t.Errorf("TestParseString: got: %d want: %d", length, len(str2))
 	}
@@ -46,8 +46,8 @@ func TestParseString(t *testing.T) {
 	if stringbuf[size+4+length] != 0 {
 		t.Errorf("TestParseString: got: 0x%x want: 0x0", stringbuf[size+4+length])
 	}
-	if size2 != 4 + length + 1 {
-		t.Errorf("TestParseString: got: %d want: %d", size2, 4 + length + 1)
+	if size2 != 4+length+1 {
+		t.Errorf("TestParseString: got: %d want: %d", size2, 4+length+1)
 	}
 }
 
@@ -71,4 +71,3 @@ func BenchmarkParseStringShort(b *testing.B) {
 func BenchmarkParseStringLong(b *testing.B) {
 	benchmarkParseString(b, "longlonglonglonglonglong")
 }
-
