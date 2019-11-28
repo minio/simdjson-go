@@ -18,7 +18,7 @@ func BenchmarkSerialize(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			if false {
+			if true {
 				b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
 			}
 			//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
@@ -33,4 +33,33 @@ func BenchmarkSerialize(b *testing.B) {
 			}
 		})
 	}
+}
+
+func BenchmarkSerializeNDJSON(b *testing.B) {
+	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+
+	pj := internalParsedJson{}
+	pj.initialize(len(ndjson) * 3 / 2)
+	pj.parseMessage(ndjson)
+
+	var s serializer
+	b.Run("all", func(b *testing.B) {
+		output, err := s.Serialize(nil, pj.ParsedJson)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if true {
+			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
+		}
+		//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
+		b.SetBytes(int64(len(ndjson)))
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			output, err = s.Serialize(output[:0], pj.ParsedJson)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
