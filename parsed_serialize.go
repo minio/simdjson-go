@@ -3,6 +3,7 @@ package simdjson
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -96,6 +97,9 @@ func (s *serializer) Serialize4(dst []byte, pj ParsedJson) ([]byte, error) {
 
 func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	// Header: Version byte
+	// Varuint Strings size, uncompressed
+	// Varuint Tape size, uncompressed
+	// Varuint Compressed size of remaining data.
 	// Strings:
 	// - Varint: Compressed bytes total.
 	//  Compressed Blocks:
@@ -167,7 +171,6 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 		entry := pj.Tape[off]
 		ntype := Tag(entry >> 56)
 		payload := entry & JSONVALUEMASK
-		off++
 		s.tagsBuf[tagsOff] = uint8(ntype)
 		tagsOff++
 
@@ -207,19 +210,21 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 			// We cannot detect direction, so we encode as signed offset.
 			n := binary.PutVarint(tmp[:], int64(payload)-int64(off))
 			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
-
 		default:
 			wg.Wait()
 			return nil, fmt.Errorf("unknown tag: %v", ntype)
 		}
+		off++
 	}
 	wg.Add(1)
 	// Compress values
 	const valuesZstd = false
+	valueCompType := blockTypeUncompressed
 	go func() {
 		defer wg.Done()
 		if valuesZstd {
 			s.valuesCompBuf = zEncNoEnt.EncodeAll(s.valuesBuf, s.valuesCompBuf[:0])
+			valueCompType = blockTypeZstd
 		} else {
 			mel := s2.MaxEncodedLen(len(s.valuesBuf))
 			if cap(s.valuesCompBuf) < mel {
@@ -227,6 +232,7 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 			}
 			s.valuesCompBuf = s.valuesCompBuf[:mel]
 			s.valuesCompBuf = s2.Encode(s.valuesCompBuf, s.valuesBuf)
+			valueCompType = blockTypeS2
 		}
 	}()
 
@@ -239,9 +245,9 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 		compTags = s.tagsCompBuf
 		if len(compTags) > len(s.tagsBuf) {
 			compTags = s.tagsBuf
-			compTagsType = 0 // uncompressed
+			compTagsType = blockTypeUncompressed // uncompressed
 		} else {
-			compTagsType = 3 // zstd
+			compTagsType = blockTypeZstd // zstd
 		}
 	} else {
 		mel := s2.MaxEncodedLen(len(s.tagsBuf))
@@ -253,26 +259,34 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 		compTags = s.tagsCompBuf
 		if len(compTags) > len(s.tagsBuf) {
 			compTags = s.tagsBuf
-			compTagsType = 0 // uncompressed
+			compTagsType = blockTypeUncompressed // uncompressed
 		} else {
-			compTagsType = 4
+			compTagsType = blockTypeS2
 		}
 	}
 
-	// Wait for other compressors
+	// Wait for compressors
 	wg.Wait()
 	if compErr != nil {
 		return nil, compErr
 	}
 	// Version
 	dst = append(dst, 1)
+	// Strings uncompressed size
+	n := binary.PutUvarint(tmp[:], uint64(len(s.stringBuf)))
+	dst = append(dst, tmp[:n]...)
+	// Tape elements, uncompressed.
+	n = binary.PutUvarint(tmp[:], uint64(len(pj.Tape)))
+	dst = append(dst, tmp[:n]...)
 
 	// Size of varints...
 	varInts := binary.PutUvarint(tmp[:], uint64(len(s.sBuf))) +
+		binary.PutUvarint(tmp[:], uint64(len(s.tagsBuf))) +
 		binary.PutUvarint(tmp[:], uint64(len(compTags))) +
+		binary.PutUvarint(tmp[:], uint64(len(s.valuesBuf))) +
 		binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf)))
 
-	n := binary.PutUvarint(tmp[:], uint64(len(s.sBuf)+len(compTags)+len(s.valuesBuf)+1+varInts))
+	n = binary.PutUvarint(tmp[:], uint64(len(s.sBuf)+len(compTags)+len(s.valuesCompBuf)+2+varInts))
 	dst = append(dst, tmp[:n]...)
 
 	// Strings
@@ -281,7 +295,9 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	dst = append(dst, s.sBuf...)
 
 	// Tags
-	n = binary.PutUvarint(tmp[:], uint64(len(compTags)))
+	n = binary.PutUvarint(tmp[:], uint64(len(s.tagsBuf)))
+	dst = append(dst, tmp[:n]...)
+	n = binary.PutUvarint(tmp[:], uint64(len(compTags)+1))
 	dst = append(dst, tmp[:n]...)
 	dst = append(dst, compTagsType)
 	if len(compTags) > 0 {
@@ -289,14 +305,278 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	}
 
 	// Values
-	n = binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf)))
+	n = binary.PutUvarint(tmp[:], uint64(len(s.valuesBuf)))
 	dst = append(dst, tmp[:n]...)
+	n = binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf)+1))
+	dst = append(dst, tmp[:n]...)
+	dst = append(dst, valueCompType)
 	dst = append(dst, s.valuesCompBuf...)
 	if false {
 		fmt.Println("strings:", len(pj.Strings), "->", len(s.sBuf), "tags:", len(s.tagsBuf), "->", len(compTags), "values:", len(s.valuesBuf), "->", len(s.valuesCompBuf), "Total:", len(pj.Strings)+len(pj.Tape)*8, "->", len(dst))
 	}
 
 	return dst, nil
+}
+
+func (s *serializer) DeSerialize(src []byte, dst *ParsedJson) (*ParsedJson, error) {
+	br := bytes.NewBuffer(src)
+
+	if v, err := br.ReadByte(); err != nil {
+		return dst, err
+	} else if v != 1 {
+		return dst, errors.New("unknown version")
+	}
+
+	if dst == nil {
+		dst = &ParsedJson{}
+	}
+	// String size
+	if ss, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(dst.Strings)) < ss {
+			dst.Strings = make([]byte, ss)
+		}
+		dst.Strings = dst.Strings[:ss]
+	}
+	// Tape size
+	if ts, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(dst.Tape)) < ts {
+			dst.Tape = make([]uint64, ts)
+		}
+		dst.Tape = dst.Tape[:ts]
+	}
+
+	// Comp size
+	if c, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if int(c) > br.Len() {
+			return dst, fmt.Errorf("stream too short, want %d, only have %d left", c, br.Len())
+		}
+		if int(c) > br.Len() {
+			fmt.Println("extra length:", int(c), br.Len())
+		}
+	}
+
+	// Decompress strings
+	var sWG sync.WaitGroup
+	var stringsErr error
+	err := s.decBlock(br, dst.Strings, &sWG, &stringsErr)
+	if err != nil {
+		return dst, err
+	}
+	defer sWG.Wait()
+
+	// Decompress tags
+	if tags, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(s.tagsBuf)) < tags {
+			s.tagsBuf = make([]byte, tags)
+		}
+		s.tagsBuf = s.tagsBuf[:tags]
+	}
+
+	var wg sync.WaitGroup
+	var tagsErr error
+	err = s.decBlock(br, s.tagsBuf, &wg, &tagsErr)
+	if err != nil {
+		return dst, fmt.Errorf("decompressing tags: %w", err)
+	}
+	defer wg.Wait()
+
+	// Decompress values
+	if vals, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(s.valuesBuf)) < vals {
+			s.valuesBuf = make([]byte, vals)
+		}
+		s.valuesBuf = s.valuesBuf[:vals]
+	}
+
+	var valsErr error
+	err = s.decBlock(br, s.valuesBuf, &wg, &valsErr)
+	if err != nil {
+		return dst, fmt.Errorf("decompressing values: %w", err)
+	}
+
+	// Wait until we have what we need for the tape.
+	wg.Wait()
+	switch {
+	case tagsErr != nil:
+		return dst, fmt.Errorf("decompressing tags: %w", tagsErr)
+	case valsErr != nil:
+		return dst, fmt.Errorf("decompressing values: %w", valsErr)
+	}
+
+	// Reconstruct tape:
+	var off int
+	values := bytes.NewBuffer(s.valuesBuf)
+	var tmpBuf [8]byte
+	for _, tag := range s.tagsBuf {
+		if off == len(dst.Tape) {
+			return dst, errors.New("tags extended beyond tape")
+		}
+		tagDst := uint64(tag) << 56
+		switch Tag(tag) {
+		case TagString:
+			sOffset, err := binary.ReadUvarint(values)
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			if sOffset > uint64(len(dst.Strings)-5) {
+				return dst, fmt.Errorf("%v extends beyond stringbuf (%d). offset:%d", tag, len(dst.Strings), sOffset)
+			}
+
+			dst.Tape[off] = tagDst | sOffset
+			off++
+		case TagUint:
+			val, err := binary.ReadUvarint(values)
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			dst.Tape[off] = tagDst
+			dst.Tape[off+1] = val
+			off += 2
+		case TagInteger:
+			val, err := binary.ReadVarint(values)
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			dst.Tape[off] = tagDst
+			dst.Tape[off+1] = uint64(val)
+			off += 2
+		case TagFloat:
+			_, err := values.Read(tmpBuf[:])
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			val := binary.LittleEndian.Uint64(tmpBuf[:])
+			dst.Tape[off] = tagDst
+			dst.Tape[off+1] = val
+			off += 2
+		case TagNull, TagBoolTrue, TagBoolFalse:
+			dst.Tape[off] = tagDst
+			off++
+		case TagObjectStart, TagArrayStart:
+			// Always forward
+			val, err := binary.ReadUvarint(values)
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			val += uint64(off)
+			if val > uint64(len(dst.Tape)) {
+				return dst, fmt.Errorf("%v extends beyond tape (%d). offset:%d", tag, len(dst.Tape), val)
+			}
+
+			dst.Tape[off] = tagDst | val
+			off++
+		case TagObjectEnd, TagArrayEnd:
+			// Always backward
+			val, err := binary.ReadUvarint(values)
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			val = uint64(off) - val
+			if val > uint64(len(dst.Tape)) {
+				return dst, fmt.Errorf("%v extends beyond tape (%d). offset:%d", tag, len(dst.Tape), val)
+			}
+			dst.Tape[off] = tagDst | val
+			off++
+		case TagRoot:
+			// We cannot detect direction, so we encode as signed offset.
+			val, err := binary.ReadVarint(values)
+			if err != nil {
+				err = fmt.Errorf("reading value: %w", err)
+				return dst, err
+			}
+			val2 := int64(off) + val
+			if val2 < 0 {
+				return dst, fmt.Errorf("root is negative. offset:%d, value read: %d", off, val)
+			}
+			if val2 > int64(len(dst.Tape)) {
+				return dst, fmt.Errorf("root extends beyond tape (%d). offset:%d", len(dst.Tape), val2)
+			}
+			dst.Tape[off] = tagDst | uint64(val2)
+			off++
+		default:
+			wg.Wait()
+			return nil, fmt.Errorf("unknown tag: %v", tag)
+		}
+	}
+	if off != len(dst.Tape) {
+		return dst, fmt.Errorf("tags did not fill tape, want %d, got %d", len(dst.Tape), off)
+	}
+	sWG.Wait()
+	if stringsErr != nil {
+		return dst, fmt.Errorf("reading strings: %w", stringsErr)
+	}
+	return dst, nil
+}
+
+func (s *serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, dstErr *error) error {
+	size, err := binary.ReadUvarint(br)
+	if err != nil {
+		return err
+	}
+	if size > uint64(br.Len()) {
+		return fmt.Errorf("block size (%d) extends beyond input %d", size, br.Len())
+	}
+	if size < 1 {
+		return fmt.Errorf("block size (%d) too small %d", size, br.Len())
+	}
+	typ, err := br.ReadByte()
+	if err != nil {
+		return err
+	}
+	size--
+	compressed := br.Next(int(size))
+	if len(compressed) != int(size) {
+		return errors.New("short block section")
+	}
+	switch typ {
+	case blockTypeUncompressed:
+		// uncompressed
+		if len(compressed) != len(dst) {
+			return errors.New("short uncompressed block")
+		}
+		copy(dst, compressed)
+	case blockTypeS2:
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			want := len(dst)
+			dst, err = s2.Decode(dst, compressed)
+			if err == nil && want != len(dst) {
+				err = errors.New("s2 decompressed size mismatch")
+			}
+			*dstErr = err
+		}()
+	case blockTypeZstd:
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			want := len(dst)
+			dst, err = zDec.DecodeAll(compressed, dst[:0])
+			if err == nil && want != len(dst) {
+				err = errors.New("zstd decompressed size mismatch")
+			}
+			*dstErr = err
+		}()
+	default:
+		return fmt.Errorf("unknown compression type: %d", typ)
+	}
+	return nil
 }
 
 // indexStrings will deduplicate strings and populate
@@ -394,9 +674,9 @@ func (s *serializer) indexStringsLazy(sb []byte) error {
 }
 
 const (
-	blockTypeUncompressed = 0
-	blockTypeS2           = 1
-	blockTypeZstd         = 2
+	blockTypeUncompressed byte = 0
+	blockTypeS2           byte = 1
+	blockTypeZstd         byte = 2
 )
 
 // compressStringsS2 compresses strings as an s2 block.
@@ -413,6 +693,7 @@ func (s *serializer) compressStringsS2() error {
 	return nil
 }
 
+var zDec, _ = zstd.NewReader(nil)
 var zEncFast, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest), zstd.WithEncoderCRC(false))
 var zEncNoEnt, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest), zstd.WithNoEntropyCompression(true), zstd.WithEncoderCRC(false))
 
@@ -423,7 +704,7 @@ func (s *serializer) compressStringsZstd() error {
 	}
 	s.sBuf = s.sBuf[:1]
 	s.sBuf[0] = blockTypeZstd
-	s.sBuf = zEncFast.EncodeAll(s.stringBuf, s.sBuf[:1])
+	s.sBuf = zEncFast.EncodeAll(s.stringBuf, s.sBuf)
 	//s.sBuf = zEncNoEnt.EncodeAll(s.stringBuf, s.sBuf[:1])
 
 	return nil
