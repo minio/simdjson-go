@@ -3,20 +3,20 @@ package simdjson
 import (
 	"fmt"
 	"math"
-	"testing"
-	"strconv"
-	"reflect"
-	"sync"
-	"time"
 	"math/rand"
+	"reflect"
+	"strconv"
+	"sync"
+	"testing"
+	"time"
 )
 
 func closeEnough(d1, d2 float64) (ce bool) {
-	return math.Abs((d1 - d2) / (0.5*(d1 + d2))) < 1e-20
+	return math.Abs((d1-d2)/(0.5*(d1+d2))) < 1e-20
 }
 
 func closeEnoughLessPrecision(d1, d2 float64) (ce bool) {
-	return math.Abs((d1 - d2) / (0.5*(d1 + d2))) < 1e-15
+	return math.Abs((d1-d2)/(0.5*(d1+d2))) < 1e-15
 }
 
 func TestParseNumber(t *testing.T) {
@@ -32,9 +32,9 @@ func TestParseNumber(t *testing.T) {
 		{"1.0", true, 1.0, 0},
 		{"1234567890", false, 0.0, 1234567890},
 		{"9876.543210", true, 9876.543210, 0},
-		{ "0.123456789e-12", true, 1.23456789e-13, 0},
-		{ "1.234567890E+34", true, 1.234567890E+34, 0},
-		{ "23456789012E66", true, 23456789012E66, 0},
+		{"0.123456789e-12", true, 1.23456789e-13, 0},
+		{"1.234567890E+34", true, 1.234567890e+34, 0},
+		{"23456789012E66", true, 23456789012e66, 0},
 		{"-9876.543210", true, -9876.543210, 0},
 		// The number below parses to -65.61972000000004 for parse_number()
 		// This extra inprecision is tolerated when SLOWGOLANGFLOATPARSING = false
@@ -135,15 +135,15 @@ type parseInt64Test struct {
 }
 
 var parseInt64Tests = []parseInt64Test{
-//	{"", 0, strconv.ErrSyntax},                                  /* fails for simdjson */
+	//	{"", 0, strconv.ErrSyntax},                                  /* fails for simdjson */
 	{"0", 0, nil},
 	{"-0", 0, nil},
 	{"1", 1, nil},
 	{"-1", -1, nil},
 	{"12345", 12345, nil},
 	{"-12345", -12345, nil},
-//	{"012345", 12345, nil},                                      /* fails for simdjson */
-//	{"-012345", -12345, nil},                                    /* fails for simdjson */
+	//	{"012345", 12345, nil},                                      /* fails for simdjson */
+	//	{"-012345", -12345, nil},                                    /* fails for simdjson */
 	{"98765432100", 98765432100, nil},
 	{"-98765432100", -98765432100, nil},
 	{"9223372036854775807", 1<<63 - 1, nil},
@@ -176,59 +176,59 @@ type atofTest struct {
 }
 
 var atoftests = []atofTest{
-//	{"", "0", strconv.ErrSyntax},                                /* fails for simdjson */
-//	{"1", "1", nil},                                             /* parsed as int for simdjson */
-//	{"+1", "1", nil},                                            /* parsed as int for simdjson */
+	//	{"", "0", strconv.ErrSyntax},                                /* fails for simdjson */
+	//	{"1", "1", nil},                                             /* parsed as int for simdjson */
+	//	{"+1", "1", nil},                                            /* parsed as int for simdjson */
 	{"1x", "0", strconv.ErrSyntax},
 	{"1.1.", "0", strconv.ErrSyntax},
 	{"1e23", "1e+23", nil},
 	{"1E23", "1e+23", nil},
-//	{"100000000000000000000000", "1e+23", nil},                  /* parsed as int for simdjson */
+	//	{"100000000000000000000000", "1e+23", nil},                  /* parsed as int for simdjson */
 	{"1e-100", "1e-100", nil},
-//	{"123456700", "1.234567e+08", nil},                          /* parsed as int for simdjson */
-//	{"99999999999999974834176", "9.999999999999997e+22", nil},   /* parsed as int for simdjson */
-//	{"100000000000000000000001", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
-//	{"100000000000000008388608", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
-//	{"100000000000000016777215", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
-//	{"100000000000000016777216", "1.0000000000000003e+23", nil}, /* parsed as int for simdjson */
-//	{"-1", "-1", nil},                                           /* parsed as int for simdjson */
+	//	{"123456700", "1.234567e+08", nil},                          /* parsed as int for simdjson */
+	//	{"99999999999999974834176", "9.999999999999997e+22", nil},   /* parsed as int for simdjson */
+	//	{"100000000000000000000001", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
+	//	{"100000000000000008388608", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
+	//	{"100000000000000016777215", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
+	//	{"100000000000000016777216", "1.0000000000000003e+23", nil}, /* parsed as int for simdjson */
+	//	{"-1", "-1", nil},                                           /* parsed as int for simdjson */
 	{"-0.1", "-0.1", nil},
-//	{"-0", "-0", nil},                                           /* parsed as int for simdjson */
+	//	{"-0", "-0", nil},                                           /* parsed as int for simdjson */
 	{"1e-20", "1e-20", nil},
 	{"625e-3", "0.625", nil},
 
 	// Hexadecimal floating-point.                               /* all fail for simdjson */
 
 	// zeros (several test cases for zero have been moved up because they are detected as ints)
-//	{"+0e0", "0", nil},                                          /* fails for simdjson */
-//	{"+0e-0", "0", nil},                                         /* fails for simdjson */
-//	{"+0e+0", "0", nil},                                         /* fails for simdjson */
-//	{"0e+01234567890123456789", "0", nil},                       /* fails for simdjson */
-//	{"0.00e-01234567890123456789", "0", nil},                    /* fails for simdjson */
-//	{"-0e+01234567890123456789", "-0", nil},                     /* fails for simdjson */
-//	{"-0.00e-01234567890123456789", "-0", nil},                  /* fails for simdjson */
+	//	{"+0e0", "0", nil},                                          /* fails for simdjson */
+	//	{"+0e-0", "0", nil},                                         /* fails for simdjson */
+	//	{"+0e+0", "0", nil},                                         /* fails for simdjson */
+	//	{"0e+01234567890123456789", "0", nil},                       /* fails for simdjson */
+	//	{"0.00e-01234567890123456789", "0", nil},                    /* fails for simdjson */
+	//	{"-0e+01234567890123456789", "-0", nil},                     /* fails for simdjson */
+	//	{"-0.00e-01234567890123456789", "-0", nil},                  /* fails for simdjson */
 
 	{"0e291", "0", nil}, // issue 15364
 	{"0e292", "0", nil}, // issue 15364
 	{"0e347", "0", nil}, // issue 15364
 	{"0e348", "0", nil}, // issue 15364
-//	{"-0e291", "-0", nil},                                       /* returns "0" */
-//	{"-0e292", "-0", nil},                                       /* returns "0" */
-//	{"-0e347", "-0", nil},                                       /* returns "0" */
-//	{"-0e348", "-0", nil},                                       /* returns "0" */
+	//	{"-0e291", "-0", nil},                                       /* returns "0" */
+	//	{"-0e292", "-0", nil},                                       /* returns "0" */
+	//	{"-0e347", "-0", nil},                                       /* returns "0" */
+	//	{"-0e348", "-0", nil},                                       /* returns "0" */
 
 	// NaNs
-//	{"nan", "NaN", nil},                                         /* fails for simdjson */
-//	{"NaN", "NaN", nil},                                         /* fails for simdjson */
-//	{"NAN", "NaN", nil},                                         /* fails for simdjson */
+	//	{"nan", "NaN", nil},                                         /* fails for simdjson */
+	//	{"NaN", "NaN", nil},                                         /* fails for simdjson */
+	//	{"NAN", "NaN", nil},                                         /* fails for simdjson */
 
 	// Infs
-//	{"inf", "+Inf", nil},                                        /* fails for simdjson */
-//	{"-Inf", "-Inf", nil},                                       /* fails for simdjson */
-//	{"+INF", "+Inf", nil},                                       /* fails for simdjson */
-//	{"-Infinity", "-Inf", nil},                                  /* fails for simdjson */
-//	{"+INFINITY", "+Inf", nil},                                  /* fails for simdjson */
-//	{"Infinity", "+Inf", nil},                                   /* fails for simdjson */
+	//	{"inf", "+Inf", nil},                                        /* fails for simdjson */
+	//	{"-Inf", "-Inf", nil},                                       /* fails for simdjson */
+	//	{"+INF", "+Inf", nil},                                       /* fails for simdjson */
+	//	{"-Infinity", "-Inf", nil},                                  /* fails for simdjson */
+	//	{"+INFINITY", "+Inf", nil},                                  /* fails for simdjson */
+	//	{"Infinity", "+Inf", nil},                                   /* fails for simdjson */
 
 	// largest float64
 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},
@@ -240,8 +240,8 @@ var atoftests = []atofTest{
 
 	// the border is ...158079
 	// borderline - okay
-//	{"1.7976931348623158e308", "1.7976931348623157e+308", nil},  /* returns "+Inf" */
-//	{"-1.7976931348623158e308", "-1.7976931348623157e+308", nil},/* returns "-Inf" */
+	//	{"1.7976931348623158e308", "1.7976931348623157e+308", nil},  /* returns "+Inf" */
+	//	{"-1.7976931348623158e308", "-1.7976931348623157e+308", nil},/* returns "-Inf" */
 
 	// borderline - too large
 	{"1.797693134862315808e308", "+Inf", strconv.ErrRange},
@@ -250,39 +250,39 @@ var atoftests = []atofTest{
 	// a little too large
 	{"1e308", "1e+308", nil},
 	{"2e308", "+Inf", strconv.ErrRange},
-//	{"1e309", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
+	//	{"1e309", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
 
 	// way too large
-//	{"1e310", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
-//	{"-1e310", "-Inf", strconv.ErrRange},                        /* fails for simdjson */
-//	{"1e400", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
-//	{"-1e400", "-Inf", strconv.ErrRange},                        /* fails for simdjson */
-//	{"1e400000", "+Inf", strconv.ErrRange},                      /* fails for simdjson */
-//	{"-1e400000", "-Inf", strconv.ErrRange},                     /* fails for simdjson */
+	//	{"1e310", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
+	//	{"-1e310", "-Inf", strconv.ErrRange},                        /* fails for simdjson */
+	//	{"1e400", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
+	//	{"-1e400", "-Inf", strconv.ErrRange},                        /* fails for simdjson */
+	//	{"1e400000", "+Inf", strconv.ErrRange},                      /* fails for simdjson */
+	//	{"-1e400000", "-Inf", strconv.ErrRange},                     /* fails for simdjson */
 
 	// denormalized
 	{"1e-305", "1e-305", nil},
 	{"1e-306", "1e-306", nil},
 	{"1e-307", "1e-307", nil},
 	{"1e-308", "1e-308", nil},
-//	{"1e-309", "1e-309", nil},                                   /* fails for simdjson */
-//	{"1e-310", "1e-310", nil},                                   /* fails for simdjson */
-//	{"1e-322", "1e-322", nil},                                   /* fails for simdjson */
+	//	{"1e-309", "1e-309", nil},                                   /* fails for simdjson */
+	//	{"1e-310", "1e-310", nil},                                   /* fails for simdjson */
+	//	{"1e-322", "1e-322", nil},                                   /* fails for simdjson */
 	// smallest denormal
-//	{"5e-324", "5e-324", nil},                                   /* fails for simdjson */
-//	{"4e-324", "5e-324", nil},                                   /* fails for simdjson */
-//	{"3e-324", "5e-324", nil},                                   /* fails for simdjson */
+	//	{"5e-324", "5e-324", nil},                                   /* fails for simdjson */
+	//	{"4e-324", "5e-324", nil},                                   /* fails for simdjson */
+	//	{"3e-324", "5e-324", nil},                                   /* fails for simdjson */
 	// too small
-//	{"2e-324", "0", nil},                                        /* fails for simdjson */
+	//	{"2e-324", "0", nil},                                        /* fails for simdjson */
 	// way too small
-//	{"1e-350", "0", nil},                                        /* fails for simdjson */
-//	{"1e-400000", "0", nil},                                     /* fails for simdjson */
+	//	{"1e-350", "0", nil},                                        /* fails for simdjson */
+	//	{"1e-400000", "0", nil},                                     /* fails for simdjson */
 
 	// try to overflow exponent
-//	{"1e-4294967296", "0", nil},                                 /* fails for simdjson */
-//	{"1e+4294967296", "+Inf", strconv.ErrRange},                 /* fails for simdjson */
-//	{"1e-18446744073709551616", "0", nil},                       /* fails for simdjson */
-//	{"1e+18446744073709551616", "+Inf", strconv.ErrRange},       /* fails for simdjson */
+	//	{"1e-4294967296", "0", nil},                                 /* fails for simdjson */
+	//	{"1e+4294967296", "+Inf", strconv.ErrRange},                 /* fails for simdjson */
+	//	{"1e-18446744073709551616", "0", nil},                       /* fails for simdjson */
+	//	{"1e+18446744073709551616", "+Inf", strconv.ErrRange},       /* fails for simdjson */
 
 	// Parse errors
 	{"1e", "0", strconv.ErrSyntax},
@@ -290,33 +290,33 @@ var atoftests = []atofTest{
 	{".e-1", "0", strconv.ErrSyntax},
 
 	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
-//	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil}, /* fails for simdjson */
+	//	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil}, /* fails for simdjson */
 	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
-//	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},  /* fails for simdjson */
+	//	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},  /* fails for simdjson */
 
 	// A very large number (initially wrongly parsed by the fast algorithm).
-//	{"4.630813248087435e+307", "4.630813248087435e+307", nil},   /* fails for simdjson */
+	//	{"4.630813248087435e+307", "4.630813248087435e+307", nil},   /* fails for simdjson */
 
 	// A different kind of very large number.
-//	{"22.222222222222222", "22.22222222222222", nil},            /* fails for simdjson */
-//	{"2." + strings.Repeat("2", 4000) + "e+1", "22.22222222222222", nil},
+	//	{"22.222222222222222", "22.22222222222222", nil},            /* fails for simdjson */
+	//	{"2." + strings.Repeat("2", 4000) + "e+1", "22.22222222222222", nil},
 
 	// Exactly halfway between 1 and math.Nextafter(1, 2).
 	// Round to even (down).
-//	{"1.00000000000000011102230246251565404236316680908203125", "1", nil}, /* fails for simdjson */
+	//	{"1.00000000000000011102230246251565404236316680908203125", "1", nil}, /* fails for simdjson */
 	// Slightly lower; still round down.
-//	{"1.00000000000000011102230246251565404236316680908203124", "1", nil}, /* fails for simdjson */
+	//	{"1.00000000000000011102230246251565404236316680908203124", "1", nil}, /* fails for simdjson */
 	// Slightly higher; round up.
-//	{"1.00000000000000011102230246251565404236316680908203126", "1.0000000000000002", nil}, /* fails for simdjson */
+	//	{"1.00000000000000011102230246251565404236316680908203126", "1.0000000000000002", nil}, /* fails for simdjson */
 	// Slightly higher, but you have to read all the way to the end.
-//	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},  /* fails for simdjson */
+	//	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},  /* fails for simdjson */
 
 	// Halfway between x := math.Nextafter(1, 2) and math.Nextafter(x, 2)
 	// Round to even (up).
-//	{"1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004", nil}, /* fails for simdjson */
+	//	{"1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004", nil}, /* fails for simdjson */
 
 	// Underscores.
-//	{"1_23.50_0_0e+1_2", "1.235e+14", nil},                      /* fails for simdjson */
+	//	{"1_23.50_0_0e+1_2", "1.235e+14", nil},                      /* fails for simdjson */
 	{"-_123.5e+12", "0", strconv.ErrSyntax},
 	{"+_123.5e+12", "0", strconv.ErrSyntax},
 	{"_123.5e+12", "0", strconv.ErrSyntax},
@@ -452,7 +452,7 @@ func initAtofOnce() {
 		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
 		x := math.Float64frombits(bits)
 		benchmarksRandomBits[i] = strconv.FormatFloat(x, 'g', -1, 64)
-		benchmarksRandomBitsSimd[i]= benchmarksRandomBits[i] + ":"
+		benchmarksRandomBitsSimd[i] = benchmarksRandomBits[i] + ":"
 	}
 
 	for i := range benchmarksRandomNormal {

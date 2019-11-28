@@ -2,8 +2,6 @@ package simdjson
 
 import "sync"
 
-const paddingSpaces64 = "                                                                "
-
 var indexPool = sync.Pool{
 	New: func() interface{} {
 		return &[INDEX_SIZE]uint32{}
