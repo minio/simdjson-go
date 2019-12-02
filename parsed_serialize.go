@@ -451,50 +451,7 @@ func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, 
 	return nil
 }
 
-// indexStrings will deduplicate strings and populate
-// strings, stringsMap and stringBuf.
-func (s *Serializer) indexStrings(sb []byte) error {
-	if s.strings == nil {
-		s.strings = make(map[string]uint32, 100)
-	} else {
-		for k := range s.strings {
-			delete(s.strings, k)
-		}
-	}
-	// There should be at least 5 bytes between each source,
-	// so it should not be possible to alias lookups.
-	if cap(s.stringIdxLUT) < len(sb)/4 {
-		s.stringIdxLUT = make([]uint32, len(sb)/4)
-	}
-	s.stringIdxLUT = s.stringIdxLUT[:len(sb)/4]
-
-	if cap(s.stringBuf) == 0 {
-		s.stringBuf = make([]byte, 0, len(sb))
-	}
-	s.stringBuf = s.stringBuf[:0]
-	var srcOff, dstOff uint32
-	for int(srcOff) < len(sb) {
-		length := binary.LittleEndian.Uint32(sb[srcOff : srcOff+4])
-		value := sb[srcOff+4 : srcOff+4+length]
-		off, ok := s.strings[string(value)]
-		if ok {
-			s.stringIdxLUT[srcOff/4] = off
-			srcOff += 5 + length
-			continue
-		}
-		// New value, add to dst
-		s.stringIdxLUT[srcOff/4] = dstOff
-		s.stringBuf = append(s.stringBuf, byte(length), byte(length>>8), byte(length>>16), byte(length>>24))
-		s.stringBuf = append(s.stringBuf, value...)
-		s.stringBuf = append(s.stringBuf, 0)
-		s.strings[string(value)] = dstOff
-		srcOff += 5 + length
-		dstOff += 5 + length
-	}
-	return nil
-}
-
-// indexStrings will deduplicate strings and populate
+// indexStringsLazy will deduplicate strings and populate
 // strings, stringsMap and stringBuf.
 func (s *Serializer) indexStringsLazy(sb []byte) bool {
 	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
@@ -595,7 +552,7 @@ func encBlock(mode byte, src, dst []byte) []byte {
 //go:linkname memhash runtime.memhash
 func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 
-// memHash is the hash function used by go map, it utilizes available hardware instructions(behaves
+// memHash is the hash function used by go map, it utilizes available hardware instructions (behaves
 // as aeshash if aes instruction is available).
 // NOTE: The hash seed changes for every process. So, this cannot be used as a persistent hash.
 func memHash(data []byte) uint64 {
