@@ -31,6 +31,9 @@ const DEFAULTMAXDEPTH = 128
 type ParsedJson struct {
 	Tape    []uint64
 	Strings []byte
+
+	// allows to reuse the internal structures without exposing it.
+	internal *internalParsedJson
 }
 
 const INDEX_SIZE = 1024 // Seems to be a good size for the index buffering
