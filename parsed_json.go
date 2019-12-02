@@ -754,6 +754,10 @@ const (
 	TagEnd         = Tag(0)
 )
 
+func (t Tag) String() string {
+	return string([]byte{byte(t)})
+}
+
 // Type is a JSON value type.
 type Type uint8
 

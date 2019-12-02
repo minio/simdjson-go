@@ -124,13 +124,10 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	// - Varint total compressed size.
 	//  S2 block.
 	// 	 - Null, BoolTrue/BoolFalse: Nothing added.
-	//   - TagRoot:Absolute Varuint offset.
-	//   - TagObjectStart, TagArrayStart: varuint: Offset - Current offset
-	//   - TagObjectEnd, TagArrayEnd: varuint: Current offset - Offset
-	//   - TagInteger: Varint
-	//   - TagUint: Varuint
-	//   - TagFloat: 64 bits
-	// 	 - TagString: Varuint offset
+	//   - TagObjectStart, TagArrayStart, TagRoot: Offset - Current offset
+	//   - TagObjectEnd, TagArrayEnd: Current offset - Offset
+	//   - TagInteger, TagUint, TagFloat: 64 bits
+	// 	 - TagString: offset
 
 	const reIndexStrings = true
 	// Index strings
@@ -168,7 +165,7 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 	s.valuesBuf = s.valuesBuf[:0]
 	off := 0
 	tagsOff := 0
-	var tmp [binary.MaxVarintLen64]byte
+	var tmp [8]byte
 	for off < len(pj.Tape) {
 		entry := pj.Tape[off]
 		ntype := Tag(entry >> 56)
@@ -184,15 +181,15 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 			} else {
 				sOffset = uint32(payload)
 			}
-			n := binary.PutUvarint(tmp[:], uint64(sOffset))
-			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
+			binary.LittleEndian.PutUint64(tmp[:], uint64(sOffset))
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 		case TagUint:
-			n := binary.PutUvarint(tmp[:], pj.Tape[off])
-			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
+			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off])
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagInteger:
-			n := binary.PutVarint(tmp[:], int64(pj.Tape[off]))
-			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
+			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off])
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagFloat:
 			binary.LittleEndian.PutUint64(tmp[:8], pj.Tape[off])
@@ -200,18 +197,14 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) ([]byte, error) {
 			off++
 		case TagNull, TagBoolTrue, TagBoolFalse:
 			// No value.
-		case TagObjectStart, TagArrayStart:
+		case TagObjectStart, TagArrayStart, TagRoot:
 			// Always forward
-			n := binary.PutUvarint(tmp[:], payload-uint64(off))
-			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
+			binary.LittleEndian.PutUint64(tmp[:], payload-uint64(off))
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 		case TagObjectEnd, TagArrayEnd:
 			// Always backward
-			n := binary.PutUvarint(tmp[:], uint64(off)-payload)
-			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
-		case TagRoot:
-			// We cannot detect direction, so we encode as signed offset.
-			n := binary.PutVarint(tmp[:], int64(payload)-int64(off))
-			s.valuesBuf = append(s.valuesBuf, tmp[:n]...)
+			binary.LittleEndian.PutUint64(tmp[:], uint64(off)-payload)
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 		default:
 			wg.Wait()
 			return nil, fmt.Errorf("unknown tag: %v", ntype)
@@ -427,59 +420,45 @@ func (s *serializer) DeSerialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 
 	// Reconstruct tape:
 	var off int
-	values := bytes.NewBuffer(s.valuesBuf)
-	var tmpBuf [8]byte
-	for _, tag := range s.tagsBuf {
+	values := s.valuesBuf
+	for _, t := range s.tagsBuf {
 		if off == len(dst.Tape) {
 			return dst, errors.New("tags extended beyond tape")
 		}
-		tagDst := uint64(tag) << 56
-		switch Tag(tag) {
+		tag := Tag(t)
+
+		tagDst := uint64(t) << 56
+		switch tag {
 		case TagString:
-			sOffset, err := binary.ReadUvarint(values)
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
+			if len(values) < 8 {
+				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
+			sOffset := binary.LittleEndian.Uint64(values[:8])
+			values = values[8:]
 			if sOffset > uint64(len(dst.Strings)-5) {
 				return dst, fmt.Errorf("%v extends beyond stringbuf (%d). offset:%d", tag, len(dst.Strings), sOffset)
 			}
 
 			dst.Tape[off] = tagDst | sOffset
 			off++
-		case TagUint:
-			val, err := binary.ReadUvarint(values)
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
+		case TagFloat, TagInteger, TagUint:
+			if len(values) < 8 {
+				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
 			dst.Tape[off] = tagDst
-			dst.Tape[off+1] = val
-			off += 2
-		case TagInteger:
-			val, err := binary.ReadVarint(values)
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
-			}
-			dst.Tape[off] = tagDst
-			dst.Tape[off+1] = uint64(val)
-			off += 2
-		case TagFloat:
-			_, err := values.Read(tmpBuf[:])
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
-			}
-			val := binary.LittleEndian.Uint64(tmpBuf[:])
-			dst.Tape[off] = tagDst
-			dst.Tape[off+1] = val
+			dst.Tape[off+1] = binary.LittleEndian.Uint64(values[:8])
+			values = values[8:]
 			off += 2
 		case TagNull, TagBoolTrue, TagBoolFalse:
 			dst.Tape[off] = tagDst
 			off++
-		case TagObjectStart, TagArrayStart:
-			// Always forward
-			val, err := binary.ReadUvarint(values)
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
+		case TagObjectStart, TagArrayStart, TagRoot:
+			if len(values) < 8 {
+				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
+			// Always forward
+			val := binary.LittleEndian.Uint64(values[:8])
+			values = values[8:]
 			val += uint64(off)
 			if val > uint64(len(dst.Tape)) {
 				return dst, fmt.Errorf("%v extends beyond tape (%d). offset:%d", tag, len(dst.Tape), val)
@@ -488,32 +467,19 @@ func (s *serializer) DeSerialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			dst.Tape[off] = tagDst | val
 			off++
 		case TagObjectEnd, TagArrayEnd:
-			// Always backward
-			val, err := binary.ReadUvarint(values)
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
+			if len(values) < 8 {
+				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
+			// Always backward
+			val := binary.LittleEndian.Uint64(values[:8])
+			values = values[8:]
 			val = uint64(off) - val
 			if val > uint64(len(dst.Tape)) {
 				return dst, fmt.Errorf("%v extends beyond tape (%d). offset:%d", tag, len(dst.Tape), val)
 			}
 			dst.Tape[off] = tagDst | val
 			off++
-		case TagRoot:
-			// We cannot detect direction, so we encode as signed offset.
-			val, err := binary.ReadVarint(values)
-			if err != nil {
-				return dst, fmt.Errorf("reading value: %w", err)
-			}
-			val2 := int64(off) + val
-			if val2 < 0 {
-				return dst, fmt.Errorf("root is negative. offset:%d, value read: %d", off, val)
-			}
-			if val2 > int64(len(dst.Tape)) {
-				return dst, fmt.Errorf("root extends beyond tape (%d). offset:%d", len(dst.Tape), val2)
-			}
-			dst.Tape[off] = tagDst | uint64(val2)
-			off++
+
 		default:
 			return nil, fmt.Errorf("unknown tag: %v", tag)
 		}
