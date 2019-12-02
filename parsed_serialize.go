@@ -112,8 +112,10 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 		s.tagsBuf = make([]byte, len(pj.Tape)+1)
 	}
 	s.tagsBuf = s.tagsBuf[:len(pj.Tape)+1]
-	if cap(s.valuesBuf) < len(pj.Tape)*binary.MaxVarintLen64 {
-		s.valuesBuf = make([]byte, len(pj.Tape)*binary.MaxVarintLen64)
+
+	// At most one value per 2 tape entries
+	if cap(s.valuesBuf) < len(pj.Tape)*4 {
+		s.valuesBuf = make([]byte, len(pj.Tape)*4)
 	}
 	s.valuesBuf = s.valuesBuf[:0]
 	off := 0
@@ -128,13 +130,11 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 
 		switch ntype {
 		case TagString:
-			var sOffset uint32
 			if reIndexed {
-				sOffset = s.stringIdxLUT[uint32(payload)/4]
+				binary.LittleEndian.PutUint64(tmp[:], uint64(s.stringIdxLUT[uint32(payload)/4]))
 			} else {
-				sOffset = uint32(payload)
+				binary.LittleEndian.PutUint64(tmp[:], payload)
 			}
-			binary.LittleEndian.PutUint64(tmp[:], uint64(sOffset))
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 		case TagUint:
 			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off])
