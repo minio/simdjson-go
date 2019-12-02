@@ -48,8 +48,9 @@ func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 }
 
 // A Stream is used to stream back results.
+// Either Error or Value will be set on returned results.
 type Stream struct {
-	Value ParsedJson
+	Value *ParsedJson
 	Error error
 }
 
@@ -108,8 +109,9 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 					}
 					return
 				}
+				parsed := pj.ParsedJson
 				res <- Stream{
-					Value: pj.ParsedJson,
+					Value: &parsed,
 					Error: nil,
 				}
 			}
