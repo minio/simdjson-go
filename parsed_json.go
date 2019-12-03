@@ -333,8 +333,10 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		stackNone = iota
 		stackArray
 		stackObject
+		stackRoot
 	)
 
+writeloop:
 	for {
 		// Write key names.
 		if stack[len(stack)-1] == stackObject && i.t != TagObjectEnd {
@@ -353,12 +355,23 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 
 		switch i.t {
 		case TagRoot:
-			// Move into root.
-			var err error
-			i, err = i.Root(i)
-			if err != nil {
-				return nil, err
+			if len(stack) > 1 {
+				l := stack[len(stack)-1]
+				switch l {
+				case stackRoot:
+					stack = stack[:len(stack)-1]
+					dst = append(dst, '\n')
+				case stackNone:
+					break writeloop
+				default:
+					return dst, errors.New("root tag, but not at top of stack, got id " + strconv.Itoa(int(l)))
+				}
 			}
+
+			// Move into root.
+			stack = append(stack, stackRoot)
+			i.AdvanceInto()
+			continue
 		case TagString:
 			sb, err := i.StringBytes()
 			if err != nil {
