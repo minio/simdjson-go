@@ -124,7 +124,7 @@ func TestLoadTape(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			pj, err := LoadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
+			pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -198,7 +198,7 @@ func BenchmarkIter_MarshalJSONBuffer(b *testing.B) {
 		b.Run(tt.name, func(b *testing.B) {
 			tap, sb, _ := loadCompressed(b, tt.name)
 
-			pj, err := LoadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
+			pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
 			if err != nil {
 				b.Fatal(err)
 			}

@@ -9,8 +9,6 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/klauspost/compress/fse"
-	"github.com/klauspost/compress/huff0"
 	"github.com/klauspost/compress/s2"
 	"github.com/klauspost/compress/zstd"
 )
@@ -21,10 +19,9 @@ const (
 	stringmask = stringSize - 1
 )
 
+// Serializer allows to serialize parsed json and read it back.
+// A Serializer can be reused, but not used concurrently.
 type Serializer struct {
-	tComp   fse.Scratch
-	sComp   huff0.Scratch
-	strings map[string]uint32
 	// Old -> new offset
 	stringIdxLUT []uint32
 	stringBuf    []byte
@@ -45,6 +42,7 @@ type Serializer struct {
 	reIndexStrings       bool
 }
 
+// NewSerializer will create and initialize a serializer.
 func NewSerializer() *Serializer {
 	s := Serializer{}
 	s.CompressMode(CompressDefault)
@@ -98,6 +96,8 @@ func (s *Serializer) CompressMode(c CompressMode) {
 	}
 }
 
+// Serialize the data in pj and return the data.
+// An optional destination can be provided.
 func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// Header: Version byte
 	// Varuint Strings size, uncompressed
@@ -274,6 +274,10 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	return dst
 }
 
+// Deserialize the content in src.
+// Only basic sanity checks will be performed.
+// Slight corruption will likely go through unnoticed.
+// And optional destination can be provided.
 func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, error) {
 	br := bytes.NewBuffer(src)
 
@@ -502,13 +506,17 @@ func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, 
 
 // indexStringsLazy will deduplicate strings and populate
 // strings, stringsMap and stringBuf.
+// Returns false if unable to deduplicate.
 func (s *Serializer) indexStringsLazy(sb []byte) bool {
 	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
-	if uint32(len(sb)) > math.MaxUint32 {
+	if uint32(len(sb)) >= math.MaxUint32 {
 		s.stringBuf = sb
 		// This would overflow our offset table.
 		return false
 	}
+
+	// Reset lookup table.
+	// Offsets are offset by 1, so 0 indicates an unfilled entry.
 	for i := range s.strings2[:] {
 		s.strings2[i] = 0
 	}
