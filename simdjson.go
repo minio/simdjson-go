@@ -69,6 +69,7 @@ type Stream struct {
 }
 
 // ParseNDStream will parse a stream and return parsed JSON to the supplied result channel.
+// The method will return immediately.
 // Each element is contained within a root tag.
 //   <root>Element 1</root><root>Element 2</root>...
 // Each result will contain an unspecified number of full elements,
