@@ -52,8 +52,10 @@ type internalParsedJson struct {
 }
 
 func (pj *internalParsedJson) initialize(size int) {
-	if cap(pj.Tape) < size {
-		pj.Tape = make([]uint64, 0, size)
+	// Estimate the tape size to be a fifth of the length of the JSON message
+	avgTapeSize := size * 20 / 100
+	if cap(pj.Tape) < avgTapeSize {
+		pj.Tape = make([]uint64, 0, avgTapeSize)
 	}
 	pj.Tape = pj.Tape[:0]
 	if cap(pj.Strings) < size {
