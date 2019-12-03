@@ -193,7 +193,10 @@ func TestNdjsonCountWhere(t *testing.T) {
 	pj.initialize(len(ndjson) * 3 / 2)
 	pj.parseMessage(ndjson)
 
-	t.Log(countWhere("Make", carmake, pj.ParsedJson))
+	exptected := 110349
+	if result := countWhere("Make", carmake, pj.ParsedJson); result != exptected {
+		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, exptected)
+	}
 }
 
 func getPatchedNdjson(filename string) []byte {
