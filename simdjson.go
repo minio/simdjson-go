@@ -36,7 +36,7 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 	if pj == nil {
 		pj = &internalParsedJson{}
 	}
-	pj.initialize(len(b))
+	pj.initialize(len(b)*3/2)
 	err := pj.parseMessage(b)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 	if reuse != nil {
 		pj.ParsedJson = *reuse
 	}
-	pj.initialize(len(b))
+	pj.initialize(len(b)*3/2)
 
 	// FIXME(fwessels): We should not modify input.
 	err := pj.parseMessageNdjson(b)
@@ -126,7 +126,7 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 			if len(tmp) > 0 {
 				// We cannot reuse the result since we share it
 				pj.ParsedJson = ParsedJson{}
-				pj.initialize(len(tmp))
+				pj.initialize(len(tmp)*3/2)
 				parseErr := pj.parseMessageNdjson(tmp)
 				if parseErr != nil {
 					res <- Stream{
