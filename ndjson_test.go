@@ -237,7 +237,6 @@ func getPatchedNdjson(filename string) []byte {
 		panic("Failed to load file")
 	}
 	return bytes.ReplaceAll(ndjson, []byte("\n"), []byte("{"))
-
 }
 
 func BenchmarkNdjsonStage1(b *testing.B) {
