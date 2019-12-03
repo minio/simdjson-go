@@ -23,7 +23,7 @@ import (
 //
 // There is a slow code path that uses Golang's ParseFloat (disabled by default)
 //
-const SLOWGOLANGFLOATPARSING = false
+const SLOWGOLANGFLOATPARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
 const DEFAULTMAXDEPTH = 128
@@ -145,8 +145,8 @@ type Iter struct {
 	t Tag
 }
 
-// LoadTape will load the input from the supplied readers.
-func LoadTape(tape, strings io.Reader) (*ParsedJson, error) {
+// loadTape will load the input from the supplied readers.
+func loadTape(tape, strings io.Reader) (*ParsedJson, error) {
 	b, err := ioutil.ReadAll(tape)
 	if err != nil {
 		return nil, err

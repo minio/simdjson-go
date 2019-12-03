@@ -4,26 +4,21 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/klauspost/cpuid"
 	"io"
+
+	"github.com/klauspost/cpuid"
 )
 
-var hasAvx2 bool
-var hasClmul bool
-
-func init() {
-	hasAvx2 = cpuid.CPU.AVX2()
-	hasClmul = cpuid.CPU.Clmul()
-}
-
-func meetsCPU() bool {
-	return hasAvx2 && hasClmul
+// SupportedCPU will return whether the CPU is supported.
+func SupportedCPU() bool {
+	const want = cpuid.AVX2 | cpuid.CLMUL
+	return cpuid.CPU.Features&want == want
 }
 
 // Parse a block of data and return the parsed JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
-	if !meetsCPU() {
+	if !SupportedCPU() {
 		return nil, errors.New("Host CPU does not meet target specs")
 	}
 	var pj *internalParsedJson
@@ -36,7 +31,7 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 	if pj == nil {
 		pj = &internalParsedJson{}
 	}
-	pj.initialize(len(b))
+	pj.initialize(len(b) * 3 / 2)
 	err := pj.parseMessage(b)
 	if err != nil {
 		return nil, err
@@ -50,14 +45,14 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 // ParseND will parse newline delimited JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
-	if !meetsCPU() {
+	if !SupportedCPU() {
 		return nil, errors.New("Host CPU does not meet target specs")
 	}
 	var pj internalParsedJson
 	if reuse != nil {
 		pj.ParsedJson = *reuse
 	}
-	pj.initialize(len(b))
+	pj.initialize(len(b) * 3 / 2)
 
 	// FIXME(fwessels): We should not modify input.
 	err := pj.parseMessageNdjson(b)
@@ -75,6 +70,7 @@ type Stream struct {
 }
 
 // ParseNDStream will parse a stream and return parsed JSON to the supplied result channel.
+// The method will return immediately.
 // Each element is contained within a root tag.
 //   <root>Element 1</root><root>Element 2</root>...
 // Each result will contain an unspecified number of full elements,
@@ -87,11 +83,15 @@ type Stream struct {
 // There is no guarantee that elements will be consumed, so always use
 // non-blocking writes to the reuse channel.
 func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
-	if !meetsCPU() {
-		res <- Stream{
-			Value: nil,
-			Error: fmt.Errorf("Host CPU does not meet target specs"),
-		}
+	if !SupportedCPU() {
+		go func() {
+			res <- Stream{
+				Value: nil,
+				Error: fmt.Errorf("Host CPU does not meet target specs"),
+			}
+			close(res)
+		}()
+		return
 	}
 	const tmpSize = 10 << 20
 	buf := bufio.NewReaderSize(r, tmpSize)
@@ -126,7 +126,7 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 			if len(tmp) > 0 {
 				// We cannot reuse the result since we share it
 				pj.ParsedJson = ParsedJson{}
-				pj.initialize(len(tmp))
+				pj.initialize(len(tmp) * 3 / 2)
 				parseErr := pj.parseMessageNdjson(tmp)
 				if parseErr != nil {
 					res <- Stream{

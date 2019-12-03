@@ -10,7 +10,7 @@ func BenchmarkSerialize(b *testing.B) {
 		s := NewSerializer()
 		b.Run(tt.name, func(b *testing.B) {
 			tap, sb, org := loadCompressed(b, tt.name)
-			pj, err := LoadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
+			pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -34,7 +34,7 @@ func BenchmarkDeSerialize(b *testing.B) {
 		s := NewSerializer()
 		b.Run(tt.name, func(b *testing.B) {
 			tap, sb, org := loadCompressed(b, tt.name)
-			pj, err := LoadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
+			pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
 			if err != nil {
 				b.Fatal(err)
 			}
