@@ -9,7 +9,8 @@ import (
 	"github.com/klauspost/cpuid"
 )
 
-func meetsCPU() bool {
+// SupportedCPU will return whether the CPU is supported.
+func SupportedCPU() bool {
 	const want = cpuid.AVX2 | cpuid.CLMUL
 	return cpuid.CPU.Features&want == want
 }
@@ -17,7 +18,7 @@ func meetsCPU() bool {
 // Parse a block of data and return the parsed JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
-	if !meetsCPU() {
+	if !SupportedCPU() {
 		return nil, errors.New("Host CPU does not meet target specs")
 	}
 	var pj *internalParsedJson
@@ -44,7 +45,7 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 // ParseND will parse newline delimited JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
-	if !meetsCPU() {
+	if !SupportedCPU() {
 		return nil, errors.New("Host CPU does not meet target specs")
 	}
 	var pj internalParsedJson
@@ -82,7 +83,7 @@ type Stream struct {
 // There is no guarantee that elements will be consumed, so always use
 // non-blocking writes to the reuse channel.
 func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
-	if !meetsCPU() {
+	if !SupportedCPU() {
 		go func() {
 			res <- Stream{
 				Value: nil,
