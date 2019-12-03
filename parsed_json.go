@@ -23,7 +23,7 @@ import (
 //
 // There is a slow code path that uses Golang's ParseFloat (disabled by default)
 //
-const SLOWGOLANGFLOATPARSING = false
+const SLOWGOLANGFLOATPARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
 const DEFAULTMAXDEPTH = 128
