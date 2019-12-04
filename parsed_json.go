@@ -61,8 +61,22 @@ func (pj *internalParsedJson) initialize(size int) {
 		pj.Tape = make([]uint64, 0, avgTapeSize)
 	}
 	pj.Tape = pj.Tape[:0]
-	if cap(pj.Strings) < size {
-		pj.Strings = make([]byte, 0, size)
+
+	// For small messages, "over"-allocate the string buffer -- this is
+	// due to the fact that not just the string itself is copied but in
+	// addition a 4-byte length and closing 0-char are written. For small
+	// strings this can add up significantly
+	safeSize := size*3/2
+	if size < 1024 {
+		safeSize = size*4
+	} else if size < 1024*8 {
+		safeSize = size*3
+	} else if size < 1024*128 {
+		safeSize = size * 2
+	}
+
+	if cap(pj.Strings) < safeSize {
+		pj.Strings = make([]byte, 0, safeSize)
 	}
 	pj.Strings = pj.Strings[:0]
 	if cap(pj.containing_scope_offset) < DEFAULTMAXDEPTH {

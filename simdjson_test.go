@@ -30,6 +30,11 @@ func TestParseND(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "noclose-issue-13",
+			js:      `{"000"`,
+			wantErr: true,
+		},
+		{
 			name:    "valid",
 			js:      `{"bimbam":12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"aap":null}`,
 			want:    `{"bimbam":12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"aap":null}`,
