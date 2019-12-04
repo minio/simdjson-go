@@ -43,6 +43,7 @@ type Serializer struct {
 
 // NewSerializer will create and initialize a serializer.
 func NewSerializer() *Serializer {
+	initSerializerOnce.Do(initSerializer)
 	s := Serializer{
 		compValues:     blockTypeS2,
 		compTags:       blockTypeS2,
@@ -517,8 +518,14 @@ const (
 	blockTypeZstd         byte = 2
 )
 
-var zDec, _ = zstd.NewReader(nil)
-var zEncFast, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest), zstd.WithEncoderCRC(false))
+var zDec *zstd.Decoder
+var zEncFast *zstd.Encoder
+var initSerializerOnce sync.Once
+
+func initSerializer() {
+	zDec, _ = zstd.NewReader(nil)
+	zEncFast, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest), zstd.WithEncoderCRC(false))
+}
 
 // encBlock will encode a block of data.
 func encBlock(mode byte, src, dst []byte) []byte {
