@@ -71,9 +71,8 @@ func (pj *internalParsedJson) initialize(size int) {
 	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
 
-func (pj *internalParsedJson) parseMessage(msg []byte) error {
+func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
 
-	//TODO: Collect errors from both stages and return appropriately
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -83,21 +82,26 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 	pj.index_chan = make(chan indexChan, INDEX_SLOTS-2)
 	pj.buffers_offset = ^uint64(0)
 
-	var err error
+	var errStage1 error
 	go func() {
-		find_structural_indices(msg, pj)
+		if !find_structural_indices(msg, pj) {
+			errStage1 = errors.New("Failed to find all structural indices for stage 1")
+		}
 		wg.Done()
 	}()
 	go func() {
 		if !unified_machine(msg, pj) {
-			err = errors.New("Bad parsing")
+			err = errors.New("Bad parsing while executing stage 2")
 		}
 		wg.Done()
 	}()
 
 	wg.Wait()
 
-	return err
+	if errStage1 != nil {
+		return errStage1
+	}
+	return
 }
 
 func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
