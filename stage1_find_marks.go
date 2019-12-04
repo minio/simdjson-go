@@ -1,12 +1,6 @@
 package simdjson
 
-import "sync"
-
-var indexPool = sync.Pool{
-	New: func() interface{} {
-		return &[INDEX_SIZE]uint32{}
-	},
-}
+import "sync/atomic"
 
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
@@ -55,7 +49,8 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// #endif
 
 		index := indexChan{}
-		index.indexes = indexPool.Get().(*[INDEX_SIZE]uint32)
+		offset := atomic.AddUint64(&pj.buffers_offset, 1)
+		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
 
 		processed := find_structural_bits_loop(buf, &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,

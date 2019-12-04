@@ -36,6 +36,7 @@ type ParsedJson struct {
 	internal *internalParsedJson
 }
 
+const INDEX_SLOTS = 16
 const INDEX_SIZE = 1024 // Seems to be a good size for the index buffering
 
 type indexChan struct {
@@ -49,6 +50,8 @@ type internalParsedJson struct {
 	containing_scope_offset []uint64
 	isvalid                 bool
 	index_chan              chan indexChan
+	buffers                 [INDEX_SLOTS][INDEX_SIZE]uint32
+	buffers_offset          uint64
 }
 
 func (pj *internalParsedJson) initialize(size int) {
@@ -74,7 +77,11 @@ func (pj *internalParsedJson) parseMessage(msg []byte) error {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	pj.index_chan = make(chan indexChan, 16)
+	// Make the capacity of the channel smaller than the number of slots.
+	// This way the sender will automatically block until the consumer
+	// has finished the slot it is working on.
+	pj.index_chan = make(chan indexChan, INDEX_SLOTS-2)
+	pj.buffers_offset = ^uint64(0)
 
 	var err error
 	go func() {

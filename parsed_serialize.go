@@ -37,6 +37,7 @@ type Serializer struct {
 	strings2      [stringSize]uint32
 
 	compValues, compTags uint8
+	compStrings          bool
 	alwaysZstdStrings    bool
 	reIndexStrings       bool
 }
@@ -50,6 +51,53 @@ func NewSerializer() *Serializer {
 		reIndexStrings: true,
 	}
 	return &s
+}
+
+type CompressMode uint8
+
+const (
+	// CompressNone no compression whatsoever.
+	CompressNone CompressMode = iota
+
+	// CompressFast will apply light compression,
+	// but will not deduplicate strings which may affect deserialization speed.
+	CompressFast
+
+	// CompressDefault applies light compression and deduplicates strings.
+	CompressDefault
+
+	// CompressBest
+	CompressBest
+)
+
+func (s *Serializer) CompressMode(c CompressMode) {
+	switch c {
+	case CompressNone:
+		s.compValues = blockTypeUncompressed
+		s.compTags = blockTypeUncompressed
+		s.compStrings = false
+		s.reIndexStrings = false
+	case CompressFast:
+		s.compValues = blockTypeS2
+		s.compTags = blockTypeS2
+		s.compStrings = true
+		s.reIndexStrings = false
+		s.alwaysZstdStrings = false
+	case CompressDefault:
+		s.compValues = blockTypeS2
+		s.compTags = blockTypeS2
+		s.compStrings = true
+		s.reIndexStrings = true
+		s.alwaysZstdStrings = false
+	case CompressBest:
+		s.compValues = blockTypeZstd
+		s.compTags = blockTypeZstd
+		s.compStrings = true
+		s.reIndexStrings = true
+		s.alwaysZstdStrings = true
+	default:
+		panic("unknown compression mode")
+	}
 }
 
 // Serialize the data in pj and return the data.
@@ -95,18 +143,22 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 		s.stringBuf = pj.Strings
 	}
 	var wg sync.WaitGroup
-	wg.Add(1)
 
-	// Choose zstd when tape is likely to take longer than strings.
-	zstdStrings := len(s.stringBuf) < len(pj.Tape)*10
-	go func() {
-		defer wg.Done()
-		if zstdStrings || s.alwaysZstdStrings {
-			s.sBuf = encBlock(blockTypeZstd, s.stringBuf, s.sBuf)
-		} else {
-			s.sBuf = encBlock(blockTypeS2, s.stringBuf, s.sBuf)
-		}
-	}()
+	if s.compStrings {
+		// Choose zstd when tape is likely to take longer than strings.
+		zstdStrings := len(s.stringBuf) < len(pj.Tape)*10
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if zstdStrings || s.alwaysZstdStrings {
+				s.sBuf = encBlock(blockTypeZstd, s.stringBuf, s.sBuf)
+			} else {
+				s.sBuf = encBlock(blockTypeS2, s.stringBuf, s.sBuf)
+			}
+		}()
+	} else {
+		s.sBuf = encBlock(blockTypeUncompressed, s.stringBuf, s.sBuf)
+	}
 
 	// Pessimistically allocate for maximum possible size.
 	if cap(s.tagsBuf) <= len(pj.Tape) {
