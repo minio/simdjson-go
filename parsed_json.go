@@ -106,7 +106,7 @@ func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
 	return pj.parseMessage(bytes.ReplaceAll([]byte(msg), []byte("\n"), []byte("{")))
 }
 
-// Iter returns a new Iter
+// Iter returns a new Iter.
 func (pj *ParsedJson) Iter() Iter {
 	return Iter{tape: *pj}
 }
@@ -122,7 +122,7 @@ func (pj *ParsedJson) stringByteAt(offset uint64) ([]byte, error) {
 	offset &= JSONVALUEMASK
 	// There must be at least 4 byte length and one 0 byte.
 	if offset+5 > uint64(len(pj.Strings)) {
-		return nil, errors.New("string offset outside valid area")
+		return nil, fmt.Errorf("string offset (%v) outside valid area (%v)", offset+5, len(pj.Strings))
 	}
 	length := uint64(binary.LittleEndian.Uint32(pj.Strings[offset : offset+4]))
 	if offset+length+4 > uint64(len(pj.Strings)) {
@@ -326,7 +326,7 @@ func (i *Iter) MarshalJSON() ([]byte, error) {
 	return i.MarshalJSONBuffer(nil)
 }
 
-// MarshalJSONBuffer will marshal the entire remaining scope of the iterator.
+// MarshalJSONBuffer will marshal the remaining scope of the iterator including the current value.
 // An optional buffer can be provided for fewer allocations.
 // Output will be appended to the destination.
 func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
@@ -340,8 +340,10 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		stackNone = iota
 		stackArray
 		stackObject
+		stackRoot
 	)
 
+writeloop:
 	for {
 		// Write key names.
 		if stack[len(stack)-1] == stackObject && i.t != TagObjectEnd {
@@ -357,15 +359,37 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 			}
 			i.AdvanceInto()
 		}
-
+		//fmt.Println(i.t, len(stack)-1, i.off)
+	tagswitch:
 		switch i.t {
 		case TagRoot:
-			// Move into root.
-			var err error
-			i, err = i.Root(i)
-			if err != nil {
-				return nil, err
+			isOpenRoot := int(i.cur) > i.off
+			if len(stack) > 1 {
+				if isOpenRoot {
+					return dst, errors.New("root tag open, but not at top of stack")
+				}
+				l := stack[len(stack)-1]
+				switch l {
+				case stackRoot:
+					if i.PeekNextTag() != TagEnd {
+						dst = append(dst, '\n')
+					}
+					stack = stack[:len(stack)-1]
+					break tagswitch
+				case stackNone:
+					break writeloop
+				default:
+					return dst, errors.New("root tag, but not at top of stack, got id " + strconv.Itoa(int(l)))
+				}
 			}
+
+			if isOpenRoot {
+				// Always move into root.
+				i.addNext = 0
+			}
+			i.AdvanceInto()
+			stack = append(stack, stackRoot)
+			continue
 		case TagString:
 			sb, err := i.StringBytes()
 			if err != nil {
@@ -422,9 +446,15 @@ func (i *Iter) MarshalJSONBuffer(dst []byte) ([]byte, error) {
 		case TagArrayEnd:
 			dst = append(dst, ']')
 			if stack[len(stack)-1] != stackArray {
-				return nil, errors.New("end of object with no array on stack")
+				return nil, errors.New("end of array with no array on stack")
 			}
 			stack = stack[:len(stack)-1]
+		case TagEnd:
+			if i.PeekNextTag() == TagEnd {
+				return nil, errors.New("no content queued in iterator")
+			}
+			i.AdvanceInto()
+			continue
 		}
 
 		if i.PeekNextTag() == TagEnd {
@@ -598,14 +628,15 @@ func (i *Iter) StringCvt() (string, error) {
 	return "", fmt.Errorf("cannot convert type %s to string", TagToType[i.t])
 }
 
-// Root() returns the object embedded in root as an iterator.
+// Root() returns the object embedded in root as an iterator
+// along with the type of the content of the first element of the iterator.
 // An optional destination can be supplied to avoid allocations.
-func (i *Iter) Root(dst *Iter) (*Iter, error) {
+func (i *Iter) Root(dst *Iter) (Type, *Iter, error) {
 	if i.t != TagRoot {
-		return dst, errors.New("value is not root")
+		return TypeNone, dst, errors.New("value is not root")
 	}
 	if i.cur > uint64(len(i.tape.Tape)) {
-		return dst, errors.New("root element extends beyond tape")
+		return TypeNone, dst, errors.New("root element extends beyond tape")
 	}
 	if dst == nil {
 		c := *i
@@ -614,10 +645,11 @@ func (i *Iter) Root(dst *Iter) (*Iter, error) {
 		dst.cur = i.cur
 		dst.off = i.off
 		dst.t = i.t
+		dst.tape.Strings = i.tape.Strings
 	}
 	dst.addNext = 0
-	dst.tape.Tape = i.tape.Tape[:i.cur]
-	return dst, nil
+	dst.tape.Tape = i.tape.Tape[:i.cur-1]
+	return dst.AdvanceInto().Type(), dst, nil
 }
 
 // Bool() returns the bool value.
@@ -639,6 +671,7 @@ func (i *Iter) Bool() (bool, error) {
 // String values are returned as string.
 // Boolean values are returned as bool.
 // Null values are returned as nil.
+// Root objects are returned as []interface{}.
 func (i *Iter) Interface() (interface{}, error) {
 	switch i.t.Type() {
 	case TypeUint:
@@ -666,12 +699,33 @@ func (i *Iter) Interface() (interface{}, error) {
 	case TypeBool:
 		return i.t == TagBoolTrue, nil
 	case TypeRoot:
-		// Skip root
-		obj, err := i.Root(nil)
-		if err != nil {
-			return nil, err
+		var dst []interface{}
+		var tmp Iter
+		for {
+			typ, obj, err := i.Root(&tmp)
+			if err != nil {
+				return nil, err
+			}
+			if typ == TypeNone {
+				break
+			}
+			elem, err := obj.Interface()
+			if err != nil {
+				return nil, err
+			}
+			dst = append(dst, elem)
+			typ = i.Advance()
+			if typ != TypeRoot {
+				break
+			}
 		}
-		return obj.Interface()
+		return dst, nil
+	case TypeNone:
+		if i.PeekNextTag() == TagEnd {
+			return nil, errors.New("no content in iterator")
+		}
+		i.Advance()
+		return i.Interface()
 	default:
 	}
 	return nil, fmt.Errorf("unknown tag type: %v", i.t)

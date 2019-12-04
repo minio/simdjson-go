@@ -320,7 +320,7 @@ func countWhere(key, value string, data ParsedJson) (count int) {
 			stack = stack[:len(stack)-1]
 		case TypeRoot:
 			var err error
-			tmp, err = iter.Root(tmp)
+			_, tmp, err = iter.Root(tmp)
 			if err != nil {
 				log.Fatal(err)
 			}
