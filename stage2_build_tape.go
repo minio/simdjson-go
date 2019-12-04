@@ -12,10 +12,6 @@ const RET_ADDRESS_ARRAY_CONST = 3
 
 func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64, c byte) {
 	if (*indexesChan).index >= (*indexesChan).length {
-		if indexesChan.indexes != nil {
-			indexPool.Put(indexesChan.indexes)
-			indexesChan.indexes = nil
-		}
 		var ok bool
 		*indexesChan, ok = <-pj.index_chan // Get next element from channel
 		if !ok {
