@@ -1,6 +1,7 @@
 package simdjson
 
 import (
+	"bytes"
 	"encoding/binary"
 )
 
@@ -45,30 +46,45 @@ func parse_number(buf []byte, pj *ParsedJson, idx uint64, neg bool) bool {
 }
 
 func is_valid_true_atom(buf []byte) bool {
-	tv := uint64(0x0000000065757274) // "true    "
-	mask4 := uint64(0x00000000ffffffff)
-	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
-	error := (locval & mask4) ^ tv
-	error |= uint64(is_not_structural_or_whitespace(buf[4]))
-	return error == 0
+	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
+		tv := uint64(0x0000000065757274) // "true    "
+		mask4 := uint64(0x00000000ffffffff)
+		locval := binary.LittleEndian.Uint64(buf)
+		error := (locval & mask4) ^ tv
+		error |= uint64(is_not_structural_or_whitespace(buf[4]))
+		return error == 0
+	} else if len(buf) == 5 {
+		return bytes.Compare(buf[:4], []byte("true")) == 0 && is_not_structural_or_whitespace(buf[4]) == 0
+	}
+	return false
 }
 
 func is_valid_false_atom(buf []byte) bool {
-	fv := uint64(0x00000065736c6166) // "false   "
-	mask5 := uint64(0x000000ffffffffff)
-	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
-	error := (locval & mask5) ^ fv
-	error |= uint64(is_not_structural_or_whitespace(buf[5]))
-	return error == 0
+	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
+		fv := uint64(0x00000065736c6166) // "false   "
+		mask5 := uint64(0x000000ffffffffff)
+		locval := binary.LittleEndian.Uint64(buf)
+		error := (locval & mask5) ^ fv
+		error |= uint64(is_not_structural_or_whitespace(buf[5]))
+		return error == 0
+	} else if len(buf) == 6 {
+		return bytes.Compare(buf[:5], []byte("false")) == 0 && is_not_structural_or_whitespace(buf[5]) == 0
+	}
+	return false
 }
 
 func is_valid_null_atom(buf []byte) bool {
-	nv := uint64(0x000000006c6c756e) // "null    "
-	mask4 := uint64(0x00000000ffffffff)
-	locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
-	error := (locval & mask4) ^ nv
-	error |= uint64(is_not_structural_or_whitespace(buf[4]))
-	return error == 0
+	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
+		nv := uint64(0x000000006c6c756e) // "null    "
+		mask4 := uint64(0x00000000ffffffff)
+		locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
+		error := (locval & mask4) ^ nv
+		error |= uint64(is_not_structural_or_whitespace(buf[4]))
+		return error == 0
+	} else if len(buf) == 5 {
+		return bytes.Compare(buf[:4], []byte("null")) == 0 && is_not_structural_or_whitespace(buf[4]) == 0
+	}
+	return false
 }
 
 func unified_machine(buf []byte, pj *internalParsedJson) bool {

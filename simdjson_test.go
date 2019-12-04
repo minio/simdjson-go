@@ -31,17 +31,18 @@ func TestParseND(t *testing.T) {
 		},
 		{
 			name:    "valid",
-			js:      `{"bimbam:12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"something":null}`,
+			js:      `{"bimbam":12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"aap":null}`,
+			want:    `{"bimbam":12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"aap":null}`,
 			wantErr: false,
 		},
 		{
 			name:    "floatinvalid",
-			js:      `{"bimbam:12345465.44j7,"bumbum":true}`,
+			js:      `{"bimbam":12345465.44j7,"bumbum":true}`,
 			wantErr: true,
 		},
 		{
 			name:    "numberinvalid",
-			js:      `{"bimbam:1234546544j7}`,
+			js:      `{"bimbam":1234546544j7}`,
 			wantErr: true,
 		},
 		{
