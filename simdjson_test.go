@@ -160,3 +160,467 @@ func TestParseND(t *testing.T) {
 		})
 	}
 }
+
+func TestParseFailCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		js      string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "fail01_EXCLUDE",
+			js:      `"A JSON payload should be an object or array, not a string."`,
+			wantErr: true,
+		},
+		{
+			name:    "fail02",
+			js:      `["Unclosed array"`,
+			wantErr: true,
+		},
+		{
+			name:    "fail03",
+			js:      `{unquoted_key: "keys must be quoted"}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail04",
+			js:      `["extra comma",]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail05",
+			js:      `["double extra comma",,]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail06",
+			js:      `[   , "<-- missing value"]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail07",
+			js:      `["Comma after the close"],`,
+			wantErr: true,
+		},
+		{
+			name:    "fail08",
+			js:      `["Extra close"]]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail09",
+			js:      `{"Extra comma": true,}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail10",
+			js:      `{"Extra value after close": true} "misplaced quoted value"`,
+			wantErr: true,
+		},
+		{
+			name:    "fail11",
+			js:      `{"Illegal expression": 1 + 2}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail12",
+			js:      `{"Illegal invocation": alert()}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail13",
+			js:      `{"Numbers cannot have leading zeroes": 013}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail14",
+			js:      `{"Numbers cannot be hex": 0x14}`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail15",
+		//	js:      `["Illegal backslash escape: \x15"]`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail16",
+			js:      `[\naked]`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail17",
+		//	js:      `["Illegal backslash escape: \017"]`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "fail18", // this actually succeeds for simdjson-go
+		//	js:      `[[[[[[[[[[[[[[[[[[[["Not too deep for simdjson-go"]]]]]]]]]]]]]]]]]]]]`,
+		//	want:    `[[[[[[[[[[[[[[[[[[[["Not too deep for simdjson-go"]]]]]]]]]]]]]]]]]]]]`,
+		//	wantErr: false,
+		//},
+		{
+			name:    "fail19",
+			js:      `{"Missing colon" null}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail20",
+			js:      `{"Double colon":: null}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail21",
+			js:      `{"Comma instead of colon", null}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail22",
+			js:      `["Colon instead of comma": false]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail23",
+			js:      `["Bad value", truth]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail24",
+			js:      `['single quote']`,
+			wantErr: true,
+		},
+		{
+			name:    "fail25",
+			js:      `["	tab	character	in	string	"]`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail26",
+		//	js:      `["tab\   character\   in\  string\  "]`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail27",
+			js:      `["line
+break"]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail28",
+			js:      `["line\
+break"]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail29",
+			js:      `[0e]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail30",
+			js:      `[0e+]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail31",
+			js:      `[0e+-1]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail32",
+			js:      `{"Comma instead if closing brace": true,`,
+			wantErr: true,
+		},
+		{
+			name:    "fail33",
+			js:      `["mismatch"}`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail34",
+		//	js:      `["this string contains bad UTF-8 €"]`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "fail35",
+		//	js:      `{"this file" : "has an unbreakable character outside the strings"}`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "fail36",
+		//	js:      `["this is an unclosed string ]`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail37",
+			js:      `[12a]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail38",
+			js:      `[12 a]`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail39_EXCLUDE",
+		//	js:      `{"name":1,"name":2, "this is allowable as per the json spec": true}`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail41_toolarge",
+			js:      `18446744073709551616`,
+			wantErr: true,
+		},
+		{
+			name:    "fail42",
+			js:      `{"fdfds":
+"4332" }`,
+			wantErr: true,
+		},
+		{
+			name:    "fail43",
+			js:      `[-]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail44",
+			js:      `[-2.]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail45",
+			js:      `[0.e1]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail46",
+			js:      `[2.e+3]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail47",
+			js:      `[2.e-3]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail48",
+			js:      `[2.e3]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail49",
+			js:      `[-.123]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail50",
+			js:      `[1.]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail51",
+			js:      `[],`,
+			wantErr: true,
+		},
+		{
+			name:    "fail52",
+			js:      `[x]]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail53",
+			js:      `{}}`,
+			wantErr: true,
+		},
+		{
+			name:    "fail54",
+			js:      `[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[(...)`,
+			wantErr: true,
+		},
+		{
+			name:    "fail55",
+			js:      `[1,]`,
+			wantErr: true,
+		},
+		{
+			name:    "fail56",
+			js:      `["",]`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail57",
+		//	js:      `{ "name": "\udc00\ud800\uggggxy" }`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "fail58",
+		//	js:      `{ "name": "\uc0meatmebro" }`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "fail59",
+		//	js:      `{ "name": "\uf**k" }`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail60",
+			js:      `[1e+1111]`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail61",
+		//	js:      `{"badescape":"\uxhgj"}`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "fail62",
+		//	js:      `{"foo":"baa}`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail63",
+			js:      `"f[`,
+			wantErr: true,
+		},
+		{
+			name:    "fail64",
+			js:      `"`,
+			wantErr: true,
+		},
+		{
+			name:    "fail65",
+			js:      `falsy`,
+			wantErr: true,
+		},
+		{
+			name:    "fail66",
+			js:      `44`,
+			wantErr: true,
+		},
+		{
+			name:    "fail67",
+			js:      `4 4`,
+			wantErr: true,
+		},
+		{
+			name:    "fail68",
+			js:      `04`,
+			wantErr: true,
+		},
+		{
+			name:    "fail69",
+			js:      `falsefalse`,
+			wantErr: true,
+		},
+		{
+			name:    "fail70",
+			js:      ``,
+			wantErr: true,
+		},
+		{
+			name:    "fail71",
+			js:      `"a bad string��"`,
+			wantErr: true,
+		},
+		//{
+		//	name:    "fail72",
+		//	js:      `["with bad trailing space" ]`,
+		//	wantErr: true,
+		//},
+		{
+			name:    "fail73",
+			js:      `10000000000000000000000000000000000000000000e+308`,
+			wantErr: true,
+		},
+		{
+			name:    "fail74",
+			js:      `[7,7,7,7,6,7,7,7,6,7,7,6,[7,7,7,7,6,7,7,7,6,7,7,6,7,7,7,7,7,7,6`,
+			wantErr: true,
+		},
+		{
+			name:    "fail75",
+			js:      `f`,
+			wantErr: true,
+		},
+		{
+			name:    "nonewlineinkeys-issue-27",
+			js:      `{"
+":"","00":""}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Parse([]byte(tt.js), nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseFailCases() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			// Compare all
+			i := got.Iter()
+			b2, err := i.MarshalJSON()
+			if string(b2) != tt.want {
+				t.Errorf("ParseFailCases() got = %v, want %v", string(b2), tt.want)
+			}
+
+			// Compare each element
+			i = got.Iter()
+			ref := strings.Split(tt.js, "\n")
+			for i.Advance() == TypeRoot {
+				_, obj, err := i.Root(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := ref[0]
+				ref = ref[1:]
+				got, err := obj.MarshalJSON()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got) != want {
+					t.Errorf("ParseFailCases() got = %v, want %v", string(got), want)
+				}
+			}
+
+			i = got.Iter()
+			ref = []string{tt.js}
+			for i.Advance() == TypeRoot {
+				typ, obj, err := i.Root(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				switch typ {
+				case TypeObject:
+					// We must send it throught marshall/unmarshall to match.
+					var want = ref[0]
+					var tmpMap map[string]interface{}
+					err := json.Unmarshal([]byte(want), &tmpMap)
+					if err != nil {
+						t.Fatal(err)
+					}
+					w2, err := json.Marshal(tmpMap)
+					if err != nil {
+						t.Fatal(err)
+					}
+					want = string(w2)
+					got, err := obj.Interface()
+					if err != nil {
+						t.Fatal(err)
+					}
+					gotAsJson, err := json.Marshal(got)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(string(gotAsJson), want) {
+						t.Errorf("ParseFailCases() got = %#v, want %#v", string(gotAsJson), want)
+					}
+				}
+				ref = ref[1:]
+			}
+		})
+	}
+}
