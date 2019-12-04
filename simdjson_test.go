@@ -533,11 +533,6 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "noclose-issue-19",
-			js:      `[0.0`,
-			wantErr: true,
-		},
-		{
 			name:    "issue-17",
 			js: `{"bimbam:12345465.44j7,"bumbum":true}`,
 			wantErr: true,
@@ -548,6 +543,27 @@ break"]`,
 ":"","00":""}`,
 			wantErr: true,
 		},
+		//{
+		//	name:    "noclose-issue-19",
+		//	js:      `[0.0`,
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "binaryinput-issue-20",
+		//	js:      string([]byte{0x09, 0x20, 0x20, 0x0a}),
+		//	wantErr: true,
+		//},
+		//{
+		//	name:    "invalidjson-issue-24",
+		//	js:      "{\"\":[],\"\":[5\x00]}",
+		//	want:    "{\"\":[],\"\":[5\x00]}",
+		//	wantErr: false,
+		//},
+		//{
+		//	name:    "invalidchar-issue-25",
+		//	js:      `{"":"\_000"}`,
+		//	wantErr: true,
+		//},
 	}
 
 	for _, tt := range tests {
