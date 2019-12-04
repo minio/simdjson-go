@@ -25,26 +25,6 @@ func TestParseND(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "noclose",
-			js:      `{"bimbam:"something"`,
-			wantErr: true,
-		},
-		{
-			name:    "noclose-issue-13",
-			js:      `{"000"`,
-			wantErr: true,
-		},
-		{
-			name:    "noclose-issue-23",
-			js:      `{""0`,
-			wantErr: true,
-		},
-		{
-			name:    "noclose-issue-19",
-			js:      `[0.0`,
-			wantErr: true,
-		},
-		{
 			name:    "valid",
 			js:      `{"bimbam":12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"aap":null}`,
 			want:    `{"bimbam":12345465.447,"bumbum":true,"istrue":true,"isfalse":false,"aap":null}`,
@@ -69,11 +49,6 @@ func TestParseND(t *testing.T) {
 		{
 			name:    "emptyslice",
 			js:      ``,
-			wantErr: true,
-		},
-		{
-			name:    "issue-17",
-			js: `{"bimbam:12345465.44j7,"bumbum":true}`,
 			wantErr: true,
 		},
 		{
@@ -540,6 +515,31 @@ break"]`,
 		{
 			name:    "fail75",
 			js:      `f`,
+			wantErr: true,
+		},
+		{
+			name:    "noclose",
+			js:      `{"bimbam:"something"`,
+			wantErr: true,
+		},
+		{
+			name:    "noclose-issue-13",
+			js:      `{"000"`,
+			wantErr: true,
+		},
+		{
+			name:    "noclose-issue-23",
+			js:      `{""0`,
+			wantErr: true,
+		},
+		{
+			name:    "noclose-issue-19",
+			js:      `[0.0`,
+			wantErr: true,
+		},
+		{
+			name:    "issue-17",
+			js: `{"bimbam:12345465.44j7,"bumbum":true}`,
 			wantErr: true,
 		},
 		{
