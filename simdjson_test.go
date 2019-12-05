@@ -211,21 +211,21 @@ func TestParseFailCases(t *testing.T) {
 			js:      `{"Numbers cannot be hex": 0x14}`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail15",
-		//	js:      `["Illegal backslash escape: \x15"]`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail15",
+			js:      `["Illegal backslash escape: ` + string(byte(0x15)) + `"]`,
+			wantErr: true,
+		},
 		{
 			name:    "fail16",
 			js:      `[\naked]`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail17",
-		//	js:      `["Illegal backslash escape: \017"]`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail17",
+			js:      `["Illegal backslash escape: ` + string(byte(0x17)) + `"]`,
+			wantErr: true,
+		},
 		//{
 		//	name:    "fail18", // this actually succeeds for simdjson-go
 		//	js:      `[[[[[[[[[[[[[[[[[[[["Not too deep for simdjson-go"]]]]]]]]]]]]]]]]]]]]`,
@@ -267,6 +267,7 @@ func TestParseFailCases(t *testing.T) {
 			js:      `["	tab	character	in	string	"]`,
 			wantErr: true,
 		},
+		// fail26 is disabled for simdjson-go (not leading to errors, C specific escaping)
 		//{
 		//	name:    "fail26",
 		//	js:      `["tab\   character\   in\  string\  "]`,
@@ -315,11 +316,11 @@ break"]`,
 			js:      string([]byte{0x5b, 0x22, 0x74, 0x68, 0x69, 0x73, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x63, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x73, 0x20, 0x62, 0x61, 0x64, 0x20, 0x55, 0x54, 0x46, 0x2d, 0x38, 0x20, 0x80, 0x22, 0x5d, 0x0a}),
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail35",
-		//	js:      `{"this file" : "has an unbreakable character outside the strings"}`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail35",
+			js:      `{"this file" :` + string(byte(0xa0)) + `"has an unbreakable character outside the strings"}`,
+			wantErr: true,
+		},
 		{
 			name:    "fail36",
 			js:      `["this is an unclosed string ]`,
@@ -335,11 +336,11 @@ break"]`,
 			js:      `[12 a]`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail39_EXCLUDE",
-		//	js:      `{"name":1,"name":2, "this is allowable as per the json spec": true}`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail39_EXCLUDE",
+			js:      `{"name":1,"name":2, "this is allowable as per the json spec": true}`,
+			wantErr: false,
+		},
 		{
 			name:    "fail41_toolarge",
 			js:      `18446744073709551616`,
@@ -421,36 +422,21 @@ break"]`,
 			js:      `["",]`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail57",
-		//	js:      `{ "name": "\udc00\ud800\uggggxy" }`,
-		//	wantErr: true,
-		//},
-		//{
-		//	name:    "fail58",
-		//	js:      `{ "name": "\uc0meatmebro" }`,
-		//	wantErr: true,
-		//},
-		//{
-		//	name:    "fail59",
-		//	js:      `{ "name": "\uf**k" }`,
-		//	wantErr: true,
-		//},
+		// fail57 through to fail59 and fail61 are disabled for simdjson-go as Go does not allow illegal unicode chars
+		// { name: "fail57", js: `{ "name": "\udc00\ud800\uggggxy" }`, wantErr: true },
+		// { name: "fail58", js: `{ "name": "\uc0meatmebro" }`, wantErr: true },
+		// { name: "fail59", js: `{ "name": "\uf**k" }`, wantErr: true },
+		// { name: "fail61", js: `{"badescape":"\uxhgj"}`, wantErr: true },
 		{
 			name:    "fail60",
 			js:      `[1e+1111]`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail61",
-		//	js:      `{"badescape":"\uxhgj"}`,
-		//	wantErr: true,
-		//},
-		//{
-		//	name:    "fail62",
-		//	js:      `{"foo":"baa}`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail62",
+			js:      `{"foo":"baa}`,
+			wantErr: true,
+		},
 		{
 			name:    "fail63",
 			js:      `"f[`,
