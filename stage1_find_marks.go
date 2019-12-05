@@ -93,9 +93,5 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		return false
 	}
 
-	// #ifdef SIMDJSON_UTF8VALIDATE
-	// return _mm256_testz_si256(has_error, has_error) != 0;
-	// #endif
-
 	return true
 }
