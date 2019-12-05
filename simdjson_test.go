@@ -558,6 +558,11 @@ break"]`,
 			js:      `[6`,
 			wantErr: true,
 		},
+		{
+			name:    "deadlock-issue-29",
+			js:      `{""`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
