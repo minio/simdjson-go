@@ -1,6 +1,9 @@
 package simdjson
 
-import "sync/atomic"
+import (
+	"unicode/utf8"
+	"sync/atomic"
+)
 
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
@@ -44,10 +47,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	for len(buf) > 0 {
 
-		// #ifdef SIMDJSON_UTF8VALIDATE
-		// check_utf8(input_lo, input_hi, has_error, previous);
-		// #endif
-
 		index := indexChan{}
 		offset := atomic.AddUint64(&pj.buffers_offset, 1)
 		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
@@ -57,6 +56,15 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			structurals,
 			&prev_iter_ends_pseudo_pred,
 			index.indexes, &index.length, &carried)
+
+		// TODO: Checkout performance impact of UTF8 validation
+		if !utf8.Valid(buf[:processed]) {
+			// #ifdef SIMDJSON_UTF8VALIDATE
+			// check_utf8(input_lo, input_hi, has_error, previous);
+			// #endif
+			error_mask = ^uint64(0)
+			break
+		}
 
 		buf = buf[processed:]
 
