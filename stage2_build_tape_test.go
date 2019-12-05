@@ -8,6 +8,14 @@ import (
 
 func TestStage2BuildTape(t *testing.T) {
 
+	floatHexRepresentation1 := uint64(0x69066666666667)
+	floatHexRepresentation2 := uint64(0x79066666666667)
+
+	if SLOWGOLANGFLOATPARSING {
+		floatHexRepresentation1 = 0x69066666666666
+		floatHexRepresentation2 = 0x79066666666666
+	}
+
 	testCases := []struct {
 		input    string
 		expected []struct {
@@ -106,13 +114,13 @@ func TestStage2BuildTape(t *testing.T) {
 				{'\000', 0x64}, // 100
 				{'"', 0x6},
 				{'d', 0x0},
-				{'@', 0x69066666666667}, // 200.2
+				{'@', floatHexRepresentation1}, // 200.2
 				{'"', 0xc},
 				{'l', 0x0},
 				{'\000', 0x12c}, // 300
 				{'"', 0x12},
 				{'d', 0x0},
-				{'@', 0x79066666666667}, // 400.4
+				{'@', floatHexRepresentation2}, // 400.4
 				{'}', 0x1},
 				{'r', 0x0},
 			},
