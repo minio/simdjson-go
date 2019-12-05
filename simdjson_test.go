@@ -226,12 +226,11 @@ func TestParseFailCases(t *testing.T) {
 			js:      `["Illegal backslash escape: ` + string(byte(0x17)) + `"]`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail18", // this actually succeeds for simdjson-go
-		//	js:      `[[[[[[[[[[[[[[[[[[[["Not too deep for simdjson-go"]]]]]]]]]]]]]]]]]]]]`,
-		//	want:    `[[[[[[[[[[[[[[[[[[[["Not too deep for simdjson-go"]]]]]]]]]]]]]]]]]]]]`,
-		//	wantErr: false,
-		//},
+		{
+			name:    "fail18",
+			js:      `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
+			wantErr: true,
+		},
 		{
 			name:    "fail19",
 			js:      `{"Missing colon" null}`,
@@ -482,11 +481,11 @@ break"]`,
 			js:      `"a bad string��"`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "fail72",
-		//	js:      `["with bad trailing space" ]`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail72",
+			js:      `["with bad trailing space" ]`,
+			wantErr: true,
+		},
 		{
 			name:    "fail73",
 			js:      `10000000000000000000000000000000000000000000e+308`,
