@@ -533,11 +533,11 @@ break"]`,
 		//	js:      `[0.0`,
 		//	wantErr: true,
 		//},
-		//{
-		//	name:    "binaryinput-issue-20",
-		//	js:      string([]byte{0x09, 0x20, 0x20, 0x0a}),
-		//	wantErr: true,
-		//},
+		{
+			name:    "binaryinput-issue-20",
+			js:      string([]byte{0x09, 0x20, 0x20, 0x0a}),
+			wantErr: true,
+		},
 		//{
 		//	name:    "invalidjson-issue-24",
 		//	js:      "{\"\":[],\"\":[5\x00]}",

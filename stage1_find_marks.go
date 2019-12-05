@@ -15,8 +15,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	//	    previous.carried_continuations = _mm256_setzero_si256();
 	//	#endif
 
-	// we have padded the input out to 64 byte multiple with the remainder being zeros
-
 	// persistent state across loop
 	// does the last iteration end with an odd-length sequence of backslashes?
 	// either 0 or 1, but a 64-bit value
@@ -72,7 +70,8 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		// indices onto the channel as this may cause a read beyond the slice
 		// boundary in stage 2
 		unmatched_quote_at_end := prev_iter_inside_quote != 0 && len(buf) == 0
-		if !unmatched_quote_at_end {
+		if !unmatched_quote_at_end &&
+			index.length > 0 /* only send when structural chars have been found */ {
 			pj.index_chan <- index
 			indexTotal += index.length
 		}
