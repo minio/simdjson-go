@@ -262,8 +262,8 @@ func TestParseFailCases(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "fail25",
-			js:      `["	tab	character	in	string	"]`,
+			name: "fail25",
+			js: `["	tab	character	in	string	"]`,
 			wantErr: true,
 		},
 		// fail26 is disabled for simdjson-go (not leading to errors, C specific escaping)
@@ -273,14 +273,14 @@ func TestParseFailCases(t *testing.T) {
 		//	wantErr: true,
 		//},
 		{
-			name:    "fail27",
-			js:      `["line
+			name: "fail27",
+			js: `["line
 break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "fail28",
-			js:      `["line\
+			name: "fail28",
+			js: `["line\
 break"]`,
 			wantErr: true,
 		},
@@ -310,7 +310,7 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "fail34",
+			name: "fail34",
 			// `["this string contains bad UTF-8 €"]`
 			js:      string([]byte{0x5b, 0x22, 0x74, 0x68, 0x69, 0x73, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x63, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x73, 0x20, 0x62, 0x61, 0x64, 0x20, 0x55, 0x54, 0x46, 0x2d, 0x38, 0x20, 0x80, 0x22, 0x5d, 0x0a}),
 			wantErr: true,
@@ -346,8 +346,8 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "fail42",
-			js:      `{"fdfds":
+			name: "fail42",
+			js: `{"fdfds":
 "4332" }`,
 			wantErr: true,
 		},
@@ -518,12 +518,12 @@ break"]`,
 		},
 		{
 			name:    "issue-17",
-			js: `{"bimbam:12345465.44j7,"bumbum":true}`,
+			js:      `{"bimbam:12345465.44j7,"bumbum":true}`,
 			wantErr: true,
 		},
 		{
-			name:    "nonewlineinkeys-issue-27",
-			js:      `{"
+			name: "nonewlineinkeys-issue-27",
+			js: `{"
 ":"","00":""}`,
 			wantErr: true,
 		},
@@ -548,6 +548,11 @@ break"]`,
 		//	js:      `{"":"\_000"}`,
 		//	wantErr: true,
 		//},
+		{
+			name:    "fatal-error-issue-32",
+			js:      `{"":`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
