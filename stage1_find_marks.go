@@ -100,13 +100,5 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	close(pj.index_chan)
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
-	if indexTotal == 0 {
-		return false
-	}
-
-	if error_mask != 0 {
-		return false
-	}
-
-	return true
+	return error_mask == 0 && indexTotal > 0
 }
