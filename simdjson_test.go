@@ -319,11 +319,11 @@ break"]`,
 		//	js:      `{"this file" : "has an unbreakable character outside the strings"}`,
 		//	wantErr: true,
 		//},
-		//{
-		//	name:    "fail36",
-		//	js:      `["this is an unclosed string ]`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "fail36",
+			js:      `["this is an unclosed string ]`,
+			wantErr: true,
+		},
 		{
 			name:    "fail37",
 			js:      `[12a]`,
