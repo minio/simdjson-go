@@ -553,6 +553,11 @@ break"]`,
 			js:      `{"":`,
 			wantErr: true,
 		},
+		{
+			name:    "index-out-of-range-issue-28",
+			js:      `[6`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
