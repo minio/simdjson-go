@@ -80,33 +80,24 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			for i := 0; i < index.length; i++ {
 				offset += uint64(index.indexes[i])
 			}
-			// break out if either we have no structural chars or
-			// the ending structural char does not match the opening char
+			// break out if either
+			// - no structural chars have been found
+			// - is there an unmatched quote at the end
+			// - the ending structural char does not match the opening char
 			if index.length == 0 ||
-				(offset != ^uint64(0) && !matching_structurals(opening_struct_char, buf[offset])) {
+				prev_iter_inside_quote != 0 ||
+				(offset != ^uint64(0) && offset < uint64(len(buf)) && !matching_structurals(opening_struct_char, buf[offset])) {
 				error_mask = ^uint64(0)
 				break
 			}
 		}
 
-		buf = buf[processed:]
+		pj.index_chan <- index
+		indexTotal += index.length
 
-		// Is there an unmatched quote at the end? If so do not forward the
-		// indices onto the channel as this may cause a read beyond the slice
-		// boundary in stage 2
-		unmatched_quote_at_end := prev_iter_inside_quote != 0 && len(buf) == 0
-		if !unmatched_quote_at_end &&
-			index.length > 0 /* only send when structural chars have been found */ {
-			pj.index_chan <- index
-			indexTotal += index.length
-		}
+		buf = buf[processed:]
 	}
 	close(pj.index_chan)
-
-	// Did we end with an unmatched quote? If so fail the stage
-	if prev_iter_inside_quote != 0 {
-		return false
-	}
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
 	if indexTotal == 0 {
