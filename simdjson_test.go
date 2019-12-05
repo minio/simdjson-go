@@ -563,6 +563,15 @@ break"]`,
 			js:      `{""`,
 			wantErr: true,
 		},
+		{
+			name:    "unexpected-fault-address-issue-31",
+			js:      `{"": {
+  "": [   
+    {
+      "": "",
+      "\ud"00\uDc00`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
