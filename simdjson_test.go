@@ -528,11 +528,11 @@ break"]`,
 ":"","00":""}`,
 			wantErr: true,
 		},
-		//{
-		//	name:    "noclose-issue-19",
-		//	js:      `[0.0`,
-		//	wantErr: true,
-		//},
+		{
+			name:    "noclose-issue-19",
+			js:      `[0.0`,
+			wantErr: true,
+		},
 		{
 			name:    "binaryinput-issue-20",
 			js:      string([]byte{0x09, 0x20, 0x20, 0x0a}),

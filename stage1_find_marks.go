@@ -5,6 +5,10 @@ import (
 	"sync/atomic"
 )
 
+func matching_structurals(opening, ending byte) bool {
+	return opening == '{' && ending == '}'
+}
+
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	//  #ifdef SIMDJSON_UTF8VALIDATE
@@ -43,6 +47,9 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	// empty bits that are carried over to the next call to flatten_bits_incremental
 	carried := uint64(0)
 
+	// keep the opening structural char so that we can verify it with the closing char
+	opening_struct_char := byte(0)
+
 	for len(buf) > 0 {
 
 		index := indexChan{}
@@ -62,6 +69,24 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			// #endif
 			error_mask = ^uint64(0)
 			break
+		}
+
+		if opening_struct_char == 0 && index.length > 0 {
+			opening_struct_char = buf[^uint64(0)+uint64(index.indexes[0])]
+		}
+
+		if uint64(len(buf)) == processed { // message processing completed?
+			offset := ^uint64(0)
+			for i := 0; i < index.length; i++ {
+				offset += uint64(index.indexes[i])
+			}
+			// break out if either we have no structural chars or
+			// the ending structural char does not match the opening char
+			if index.length == 0 ||
+				(offset != ^uint64(0) && !matching_structurals(opening_struct_char, buf[offset])) {
+				error_mask = ^uint64(0)
+				break
+			}
 		}
 
 		buf = buf[processed:]
