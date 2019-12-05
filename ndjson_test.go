@@ -186,16 +186,27 @@ func TestDemoNdjson(t *testing.T) {
 }
 
 func TestNdjsonCountWhere(t *testing.T) {
-	const carmake = "HOND"
 	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
 	pj.parseMessage(ndjson)
 
-	exptected := 110349
-	if result := countWhere("Make", carmake, pj.ParsedJson); result != exptected {
-		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, exptected)
+	const want = 110349
+	if result := countWhere("Make", "HOND", pj.ParsedJson); result != want {
+		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
+	}
+}
+
+func TestNdjsonCountWhere2(t *testing.T) {
+	ndjson := getPatchedNdjson("testdata/RC_2009-01.json.zst")
+	pj, err := ParseND(ndjson, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = 170315
+	if result := countWhere("subreddit", "reddit.com", *pj); result != want {
+		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
 	}
 }
 
@@ -308,10 +319,12 @@ func countWhere(key, value string, data ParsedJson) (count int) {
 	var obj *Object
 	var tmp *Iter
 	var elem Element
+
 	for len(stack) > 0 {
 		iter := stack[len(stack)-1]
 		typ := iter.Advance()
 
+	typeswitch:
 		switch typ {
 		case TypeNone:
 			if len(stack) == 0 {
@@ -320,17 +333,21 @@ func countWhere(key, value string, data ParsedJson) (count int) {
 			stack = stack[:len(stack)-1]
 		case TypeRoot:
 			var err error
-			_, tmp, err = iter.Root(tmp)
+			typ, tmp, err = iter.Root(tmp)
 			if err != nil {
 				log.Fatal(err)
 			}
-			stack = append(stack, tmp)
-		case TypeObject:
+			switch typ {
+			case TypeNone:
+				break typeswitch
+			case TypeObject:
+			default:
+				log.Fatalf("expected object inside root, got %v", typ)
+			}
 			if len(stack) > 2 {
 				break
 			}
-			var err error
-			obj, err = iter.Object(obj)
+			obj, err = tmp.Object(obj)
 			if err != nil {
 				log.Fatal(err)
 			}
