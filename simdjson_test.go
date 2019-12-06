@@ -564,8 +564,8 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "unexpected-fault-address-issue-31",
-			js:      `{"": {
+			name: "unexpected-fault-address-issue-31",
+			js: `{"": {
   "": [   
     {
       "": "",
@@ -573,8 +573,8 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "index-out-of-range-issue-39",
-			js:      `{"": null,
+			name: "index-out-of-range-issue-39",
+			js: `{"": null,
     "c": false,"obj2": {
         "d": "c", "g": 
             [
@@ -658,6 +658,278 @@ break"]`,
 					}
 					if !reflect.DeepEqual(string(gotAsJson), want) {
 						t.Errorf("ParseFailCases() got = %#v, want %#v", string(gotAsJson), want)
+					}
+				}
+				ref = ref[1:]
+			}
+		})
+	}
+}
+
+func TestParsePassCases(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		js      string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "pass01.json",
+			js: `{"a":[
+    "JSON Test Pattern pass1",
+    {"object with 1 member":["array with 1 element"]},
+    {},
+    [],
+    -42,
+    true,
+    false,
+    null,
+    {
+        "integer": 1234567890,
+        "real": -9876.543210,
+        "e": 0.123456789e-12,
+        "E": 1.234567890E+34,
+        "":  23456789012E66,
+        "zero": 0,
+        "one": 1,
+        "space": " ",
+        "quote": "\"",
+        "backslash": "\\",
+        "controls": "\b\f\n\r\t",
+        "slash": "/ & \/",
+        "alpha": "abcdefghijklmnopqrstuvwyz",
+        "ALPHA": "ABCDEFGHIJKLMNOPQRSTUVWYZ",
+        "digit": "0123456789",
+        "0123456789": "digit",
+        "special": "1~!@#$%^&*()_+-={':[,]}|;.</>?",
+			"hex": "\u0123\u4567\u89AB\uCDEF\uabcd\uef4A",
+			"true": true,
+			"false": false,
+			"null": null,
+			"array":[  ],
+			"object":{  },
+			"address": "50 St. James Street",
+			"url": "http://www.JSON.org/",
+			"comment": "// /* <!-- --",
+			"# -- --> */": " ",
+			" s p a c e d " :[1,2 , 3
+
+			,
+
+			4 , 5        ,          6           ,7        ],"compact":[1,2,3,4,5,6,7],
+			"jsontext": "{\"object with 1 member\":[\"array with 1 element\"]}",
+			"quotes": "&#34; \u0022 %22 0x22 034 &#x22;",
+			"\/\\\"\uCAFE\uBABE\uAB98\uFCDE\ubcda\uef4A\b\f\n\r\t1~!@#$%^&*()_+-=[]{}|;:',./<>?"
+			: "A key can be any string"
+		},
+		0.5 ,98.6
+		,
+		99.44
+		,
+
+		1066,
+		1e1,
+		0.1e1,
+		1e-1,
+		1e00,2e+00,2e-00
+		,"rosebud"]}`,
+			wantErr: false,
+		},
+		{
+			name:    "pass02.json",
+			js:      `{"a":[[[[[[[[[[[[[[[[[[["Not too deep"]]]]]]]]]]]]]]]]]]]}`,
+			wantErr: false,
+		},
+		{
+			name: "pass03.json",
+			js: `{
+    "JSON Test Pattern pass3": {
+        "The outermost value": "must be an object or array.",
+        "In this test": "It is an object."
+    }
+}`,
+			wantErr: false,
+		},
+		{
+			name:    "pass04.json",
+			js:      `{"a":[3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679,0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003]}`,
+			wantErr: false,
+		},
+		//{
+		//	name: "pass05.json",
+		//	js: `12345678900000002170460276904689664.000000`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass06.json",
+		//	js: `true`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass07.json",
+		//	js: `null`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass08.json",
+		//	js: `1`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass09.json",
+		//	js: `false`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass10.json",
+		//	js: `"124"`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass11.json",
+		//	js: `4611686018427387904`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass12.json",
+		//	js: `2147483648`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass13.json",
+		//	js: `12300`,
+		//	wantErr: false,
+		//},
+		{
+			name:    "pass14.json",
+			js:      `{"string with backandquote \\\"":1, "string with back\\":2}`,
+			wantErr: false,
+		},
+		{
+			name:    "pass15.json",
+			js:      `{"a":[-65.619720000000029]}`,
+			wantErr: false,
+		},
+		//{
+		//	name: "pass16.json",
+		//	js: `0`,
+		//	wantErr: false,
+		//},
+		{
+			name:    "pass17.json",
+			js:      `{"a":[1.0e-307,0.1e-307,0.01e-306,1.79769e+308,-1.79769e+308]}`,
+			wantErr: false,
+		},
+		{
+			name:    "pass18.json",
+			js:      `{"a":[1000000000000000000e0,1000000000000000000e-0,1000000000000000000.0e0,1000000000000000000e10,"issue187"]}`,
+			wantErr: false,
+		},
+		//{
+		//	name: "pass19.json",
+		//	js: `-1`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass20.json",
+		//	js: `1.2e000000010`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass21.json",
+		//	js: `9223372036854775808`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass22.json",
+		//	js: `18446744073709551615`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass23.json",
+		//	js: `-5.96916642387374e-309`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass24.json",
+		//	js: `-7.9431`,
+		//	wantErr: false,
+		//},
+		//{
+		//	name: "pass25.json",
+		//	js: `4E-2147483674`,
+		//	wantErr: false,
+		//},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Parse([]byte(tt.js), nil)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("TestParsePassCases() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			// Compare all
+			i := got.Iter()
+			b2, err := i.MarshalJSON()
+			if string(b2) != tt.want {
+				t.Errorf("TestParsePassCases() got = %v, want %v", string(b2), tt.want)
+			}
+
+			// Compare each element
+			i = got.Iter()
+			ref := strings.Split(tt.js, "\n")
+			for i.Advance() == TypeRoot {
+				_, obj, err := i.Root(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := ref[0]
+				ref = ref[1:]
+				got, err := obj.MarshalJSON()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got) != want {
+					t.Errorf("TestParsePassCases() got = %v, want %v", string(got), want)
+				}
+			}
+
+			i = got.Iter()
+			ref = []string{tt.js}
+			for i.Advance() == TypeRoot {
+				typ, obj, err := i.Root(nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				switch typ {
+				case TypeObject:
+					// We must send it throught marshall/unmarshall to match.
+					var want = ref[0]
+					var tmpMap map[string]interface{}
+					err := json.Unmarshal([]byte(want), &tmpMap)
+					if err != nil {
+						t.Fatal(err)
+					}
+					w2, err := json.Marshal(tmpMap)
+					if err != nil {
+						t.Fatal(err)
+					}
+					want = string(w2)
+					got, err := obj.Interface()
+					if err != nil {
+						t.Fatal(err)
+					}
+					gotAsJson, err := json.Marshal(got)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if !reflect.DeepEqual(string(gotAsJson), want) {
+						t.Errorf("TestParsePassCases() got = %#v, want %#v", string(gotAsJson), want)
 					}
 				}
 				ref = ref[1:]
