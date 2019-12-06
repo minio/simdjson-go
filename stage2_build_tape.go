@@ -361,8 +361,8 @@ succeed:
 	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
 
 	pj.isvalid = true
-	return true // simdjson::SUCCESS
+	return true
 
 fail:
-	return false // simdjson::TAPE_ERROR
+	return false
 }
