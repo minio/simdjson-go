@@ -2,6 +2,7 @@ package simdjson
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -52,6 +53,7 @@ func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 	if reuse != nil {
 		pj.ParsedJson = *reuse
 	}
+	b = bytes.TrimSpace(b)
 	pj.initialize(len(b) * 3 / 2)
 
 	// FIXME(fwessels): We should not modify input.
@@ -123,11 +125,12 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 				tmp = append(tmp, b...)
 			}
 			// TODO: Do the parsing in several goroutines, but keep output in order.
-			if len(tmp) > 0 {
+			trimmed := bytes.TrimSpace(tmp)
+			if len(trimmed) > 0 {
 				// We cannot reuse the result since we share it
 				pj.ParsedJson = ParsedJson{}
-				pj.initialize(len(tmp) * 3 / 2)
-				parseErr := pj.parseMessageNdjson(tmp)
+				pj.initialize(len(trimmed) * 3 / 2)
+				parseErr := pj.parseMessageNdjson(trimmed)
 				if parseErr != nil {
 					res <- Stream{
 						Value: nil,
