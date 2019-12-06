@@ -1,7 +1,6 @@
 package simdjson
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
@@ -186,7 +185,7 @@ func TestDemoNdjson(t *testing.T) {
 }
 
 func TestNdjsonCountWhere(t *testing.T) {
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
@@ -199,7 +198,12 @@ func TestNdjsonCountWhere(t *testing.T) {
 }
 
 func TestNdjsonCountWhere2(t *testing.T) {
-	ndjson := getPatchedNdjson("testdata/RC_2009-01.json.zst")
+	ndjson := loadFile("testdata/RC_2009-01.json.zst")
+	// Test trimming
+	b := make([]byte, 0, len(ndjson)+4)
+	b = append(b, '\n', '\n')
+	b = append(b, ndjson...)
+	b = append(b, '\n', '\n')
 	pj, err := ParseND(ndjson, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -210,13 +214,13 @@ func TestNdjsonCountWhere2(t *testing.T) {
 	}
 }
 
-func getPatchedNdjson(filename string) []byte {
+func loadFile(filename string) []byte {
 	if !strings.HasSuffix(filename, ".zst") {
 		ndjson, err := ioutil.ReadFile(filename)
 		if err != nil {
 			panic("Failed to load file")
 		}
-		return bytes.ReplaceAll(ndjson, []byte("\n"), []byte("{"))
+		return ndjson
 	}
 	var f *os.File
 	var err error
@@ -250,12 +254,12 @@ func getPatchedNdjson(filename string) []byte {
 	if err != nil {
 		panic("Failed to load file")
 	}
-	return bytes.ReplaceAll(ndjson, []byte("\n"), []byte("{"))
+	return ndjson
 }
 
 func BenchmarkNdjsonStage1(b *testing.B) {
 
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
 
@@ -271,7 +275,7 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 }
 
 func BenchmarkNdjsonStage2(b *testing.B) {
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
 
@@ -296,7 +300,7 @@ func count_raw_tape(tape []uint64) (count int) {
 
 func BenchmarkNdjsonColdCountStar(b *testing.B) {
 
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	b.SetBytes(int64(len(ndjson)))
 	b.ReportAllocs()
@@ -443,7 +447,7 @@ func countObjects(data ParsedJson) (count int) {
 }
 
 func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	const want = 110349
 	runtime.GC()
 	pj := internalParsedJson{}
@@ -482,7 +486,7 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 }
 
 func BenchmarkNdjsonWarmCountStar(b *testing.B) {
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
@@ -498,7 +502,7 @@ func BenchmarkNdjsonWarmCountStar(b *testing.B) {
 }
 
 func BenchmarkNdjsonWarmCountStarWithWhere(b *testing.B) {
-	ndjson := getPatchedNdjson("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
