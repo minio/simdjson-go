@@ -734,11 +734,13 @@ func TestParsePassCases(t *testing.T) {
 		1e-1,
 		1e00,2e+00,2e-00
 		,"rosebud"]}`,
+			want:    `{"a":["JSON Test Pattern pass1",{"object with 1 member":["array with 1 element"]},{},[],-42,true,false,null,{"integer":1234567890,"real":-9876.54321,"e":1.23456789e-13,"E":1.23456789e+34,"":2.3456789012e+76,"zero":0,"one":1,"space":" ","quote":"\"","backslash":"\\","controls":"\b\f\n\r\t","slash":"/ & /","alpha":"abcdefghijklmnopqrstuvwyz","ALPHA":"ABCDEFGHIJKLMNOPQRSTUVWYZ","digit":"0123456789","0123456789":"digit","special":"1~!@#$%^&*()_+-={':[,]}|;.</>?","hex":"ģ䕧覫췯ꯍ","true":true,"false":false,"null":null,"array":[],"object":{},"address":"50 St. James Street","url":"http://www.JSON.org/","comment":"// /* <!-- --","# -- --> */":" "," s p a c e d ":[1,2,3,4,5,6,7],"compact":[1,2,3,4,5,6,7],"jsontext":"{\"object with 1 member\":[\"array with 1 element\"]}","quotes":"&#34; \" %22 0x22 034 &#x22;","/\\\"쫾몾ꮘﳞ볚\b\f\n\r\t1~!@#$%^&*()_+-=[]{}|;:',./<>?":"A key can be any string"},0.5,98.6,99.44,1066,10,1,0.1,1,2,2,"rosebud"]}`,
 			wantErr: false,
 		},
 		{
 			name:    "pass02.json",
 			js:      `{"a":[[[[[[[[[[[[[[[[[[["Not too deep"]]]]]]]]]]]]]]]]]]]}`,
+			want:    `{"a":[[[[[[[[[[[[[[[[[[["Not too deep"]]]]]]]]]]]]]]]]]]]}`,
 			wantErr: false,
 		},
 		{
@@ -749,11 +751,13 @@ func TestParsePassCases(t *testing.T) {
         "In this test": "It is an object."
     }
 }`,
+			want:    `{"JSON Test Pattern pass3":{"The outermost value":"must be an object or array.","In this test":"It is an object."}}`,
 			wantErr: false,
 		},
 		{
 			name:    "pass04.json",
 			js:      `{"a":[3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679,0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003]}`,
+			want:	 `{"a":[3.141592653589793,3e-117]}`,
 			wantErr: false,
 		},
 		//{
@@ -804,11 +808,13 @@ func TestParsePassCases(t *testing.T) {
 		{
 			name:    "pass14.json",
 			js:      `{"string with backandquote \\\"":1, "string with back\\":2}`,
+			want:	 `{"string with backandquote \\\"":1,"string with back\\":2}`,
 			wantErr: false,
 		},
 		{
 			name:    "pass15.json",
 			js:      `{"a":[-65.619720000000029]}`,
+			want:    `{"a":[-65.61972000000003]}`,
 			wantErr: false,
 		},
 		//{
@@ -819,11 +825,13 @@ func TestParsePassCases(t *testing.T) {
 		{
 			name:    "pass17.json",
 			js:      `{"a":[1.0e-307,0.1e-307,0.01e-306,1.79769e+308,-1.79769e+308]}`,
+			want: 	 `{"a":[1e-307,1e-308,1e-308,1.79769e+308,-1.79769e+308]}`,
 			wantErr: false,
 		},
 		{
 			name:    "pass18.json",
 			js:      `{"a":[1000000000000000000e0,1000000000000000000e-0,1000000000000000000.0e0,1000000000000000000e10,"issue187"]}`,
+			want:	 `{"a":[1000000000000000000,1000000000000000000,1000000000000000000,1e+28,"issue187"]}`,
 			wantErr: false,
 		},
 		//{
@@ -863,9 +871,12 @@ func TestParsePassCases(t *testing.T) {
 		//},
 	}
 
+	var got *ParsedJson
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Parse([]byte(tt.js), nil)
+			var err error
+			got, err = Parse([]byte(tt.js), got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TestParsePassCases() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -880,27 +891,8 @@ func TestParsePassCases(t *testing.T) {
 				t.Errorf("TestParsePassCases() got = %v, want %v", string(b2), tt.want)
 			}
 
-			// Compare each element
 			i = got.Iter()
-			ref := strings.Split(tt.js, "\n")
-			for i.Advance() == TypeRoot {
-				_, obj, err := i.Root(nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				want := ref[0]
-				ref = ref[1:]
-				got, err := obj.MarshalJSON()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if string(got) != want {
-					t.Errorf("TestParsePassCases() got = %v, want %v", string(got), want)
-				}
-			}
-
-			i = got.Iter()
-			ref = []string{tt.js}
+			ref := []string{tt.js}
 			for i.Advance() == TypeRoot {
 				typ, obj, err := i.Root(nil)
 				if err != nil {
@@ -908,7 +900,7 @@ func TestParsePassCases(t *testing.T) {
 				}
 				switch typ {
 				case TypeObject:
-					// We must send it throught marshall/unmarshall to match.
+					// We must send it through marshall/unmarshal to match.
 					var want = ref[0]
 					var tmpMap map[string]interface{}
 					err := json.Unmarshal([]byte(want), &tmpMap)
