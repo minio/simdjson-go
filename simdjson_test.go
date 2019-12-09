@@ -338,6 +338,7 @@ break"]`,
 		{
 			name:    "fail39_EXCLUDE",
 			js:      `{"name":1,"name":2, "this is allowable as per the json spec": true}`,
+			want:    `{"name":1,"name":2,"this is allowable as per the json spec":true}`,
 			wantErr: false,
 		},
 		{
@@ -608,27 +609,8 @@ break"]`,
 				t.Errorf("ParseFailCases() got = %v, want %v", string(b2), tt.want)
 			}
 
-			// Compare each element
 			i = got.Iter()
-			ref := strings.Split(tt.js, "\n")
-			for i.Advance() == TypeRoot {
-				_, obj, err := i.Root(nil)
-				if err != nil {
-					t.Fatal(err)
-				}
-				want := ref[0]
-				ref = ref[1:]
-				got, err := obj.MarshalJSON()
-				if err != nil {
-					t.Fatal(err)
-				}
-				if string(got) != want {
-					t.Errorf("ParseFailCases() got = %v, want %v", string(got), want)
-				}
-			}
-
-			i = got.Iter()
-			ref = []string{tt.js}
+			ref := []string{tt.js}
 			for i.Advance() == TypeRoot {
 				typ, obj, err := i.Root(nil)
 				if err != nil {
