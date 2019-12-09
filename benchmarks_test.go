@@ -1,8 +1,8 @@
 package simdjson
 
 import (
-	"testing"
 	"encoding/json"
+	"testing"
 )
 
 func benchmarkFromFile(b *testing.B, filename string) {
