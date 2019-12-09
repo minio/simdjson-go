@@ -38,7 +38,6 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 		return nil, err
 	}
 	parsed := &pj.ParsedJson
-	pj.ParsedJson = ParsedJson{}
 	parsed.internal = pj
 	return parsed, nil
 }
