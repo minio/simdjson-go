@@ -28,8 +28,7 @@ func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *
 
 func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint64) bool {
 	pj.write_tape(uint64(len(pj.Strings)), '"')
-	parse_string_simd(buf[offset:], &pj.Strings)
-	return true
+	return parse_string_simd(buf[offset:], &pj.Strings)
 }
 
 func parse_number(buf []byte, pj *ParsedJson, idx uint64, neg bool) bool {
