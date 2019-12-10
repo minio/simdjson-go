@@ -565,6 +565,17 @@ break"]`,
 			wantErr: true,
 		},
 		{
+			name:    "written-beyond-slice-capacity-issue-33",
+			js:      `{"":"\u20A"}`,
+			wantErr: true,
+		},
+		{
+			name:    "not-written-beyond-slice-capacity-issue-33",
+			js:      `{"":"\u20AC"}`,
+			want:    `{"":"€"}`,
+			wantErr: false,
+		},
+		{
 			name: "unexpected-fault-address-issue-31",
 			js: `{"": {
   "": [   
