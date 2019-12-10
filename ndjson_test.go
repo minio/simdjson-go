@@ -189,7 +189,7 @@ func TestNdjsonCountWhere(t *testing.T) {
 
 	pj := internalParsedJson{}
 	pj.initialize(len(ndjson) * 3 / 2)
-	pj.parseMessage(ndjson)
+	pj.parseMessageNdjson(ndjson)
 
 	const want = 110349
 	if result := countWhere("Make", "HOND", pj.ParsedJson); result != want {
