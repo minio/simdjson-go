@@ -1,8 +1,8 @@
 package simdjson
 
 import (
-	"unicode/utf8"
 	"sync/atomic"
+	"unicode/utf8"
 )
 
 func matching_structurals(opening, ending byte) bool {
@@ -48,7 +48,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	carried := uint64(0)
 
 	// keep the opening structural char so that we can verify it with the closing char
-	opening_struct_char := byte(0)
+	opening_struct_char := ^uint64(0)
 
 	for len(buf) > 0 {
 
@@ -71,8 +71,8 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			break
 		}
 
-		if opening_struct_char == 0 && index.length > 0 {
-			opening_struct_char = buf[^uint64(0)+uint64(index.indexes[0])]
+		if opening_struct_char == ^uint64(0) && index.length > 0 {
+			opening_struct_char = uint64(buf[opening_struct_char+uint64(index.indexes[0])])
 		}
 
 		if uint64(len(buf)) == processed { // message processing completed?
@@ -86,7 +86,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			// - the ending structural char does not match the opening char
 			if index.length == 0 ||
 				prev_iter_inside_quote != 0 ||
-				(offset != ^uint64(0) && offset < uint64(len(buf)) && !matching_structurals(opening_struct_char, buf[offset])) {
+				(offset != ^uint64(0) && offset < uint64(len(buf)) && !matching_structurals(byte(opening_struct_char), buf[offset])) {
 				error_mask = ^uint64(0)
 				break
 			}
