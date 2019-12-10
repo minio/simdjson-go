@@ -1,73 +1,58 @@
 package simdjson
 
 import (
-	"encoding/binary"
+	"bytes"
 	"fmt"
 	"testing"
 )
 
 func TestParseString(t *testing.T) {
 
-	stringbuf := make([]byte, 0, 256)
-
-	const str = "key"
-	size := parse_string_simd([]byte(fmt.Sprintf(`"%s"`, str)), &stringbuf)
-
-	// First four bytes are size
-	length := int(binary.LittleEndian.Uint32(stringbuf[0:4]))
-	if length != len(str) {
-		t.Errorf("TestParseString: got: %d want: %d", length, len(str))
+	tests := []struct {
+		name    string
+		str     string
+		success bool
+		want    []byte
+	}{
+		{
+			name:    "simple1",
+			str:     `a`,
+			success: true,
+			want:    []byte(`a`),
+		},
+		{
+			name:    "unicode-euro",
+			str:     `\u20AC`,
+			success: true,
+			want:    []byte("€"),
+		},
+		{
+			name:    "unicode-too-short",
+			str:     `\u20A`,
+			success: false,
+		},
 	}
-	// Then comes value of string
-	if string(stringbuf[4:4+length]) != str {
-		t.Errorf("TestParseString: got: %s want: %s", string(stringbuf[4:4+length]), str)
-	}
-	// Followed by NULL-character
-	if stringbuf[4+length] != 0 {
-		t.Errorf("TestParseString: got: 0x%x want: 0x0", stringbuf[4+length])
-	}
-	if size != 4+length+1 {
-		t.Errorf("TestParseString: got: %d want: %d", size, 4+length+1)
-	}
 
-	const str2 = "value"
-	size2 := parse_string_simd([]byte(fmt.Sprintf(`"%s"`, str2)), &stringbuf)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// enclose test string in quotes (as validated by stage 1)
+			buf := []byte(fmt.Sprintf(`"%s"`, tt.str))
+			dest := make([]byte, 0, 5+len(buf))
 
-	// First four bytes are size
-	length = int(binary.LittleEndian.Uint32(stringbuf[size : size+4]))
-	if length != len(str2) {
-		t.Errorf("TestParseString: got: %d want: %d", length, len(str2))
+			success := parse_string_simd(buf, &dest)
+
+			if success != tt.success {
+				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)
+			}
+			if success {
+				size := len(dest) - 4 - 1
+				if size != len(tt.want) {
+					t.Errorf("TestParseString() got = %d, want %d", size, len(tt.want))
+				}
+				if bytes.Compare(dest[4:4+size], tt.want) != 0 {
+					t.Errorf("TestParseString() got = %v, want %v", string(dest[4:4+size]), tt.want)
+				}
+			}
+		})
 	}
-	// Then comes value of string
-	if string(stringbuf[size+4:size+4+length]) != str2 {
-		t.Errorf("TestParseString: got: %s want: %s", string(stringbuf[size+4:size+4+length]), str2)
-	}
-	// Followed by NULL-character
-	if stringbuf[size+4+length] != 0 {
-		t.Errorf("TestParseString: got: 0x%x want: 0x0", stringbuf[size+4+length])
-	}
-	if size2 != 4+length+1 {
-		t.Errorf("TestParseString: got: %d want: %d", size2, 4+length+1)
-	}
-}
-
-func benchmarkParseString(b *testing.B, str string) {
-
-	// Add beginning and closing double-quote
-	terminated := []byte(fmt.Sprintf(`"%s"`, str))
-
-	stringbuf := make([]byte, 0, 1024)
-
-	for i := 0; i < b.N; i++ {
-		stringbuf = stringbuf[:0]
-		parse_string_simd(terminated, &stringbuf)
-	}
-}
-
-func BenchmarkParseStringShort(b *testing.B) {
-	benchmarkParseString(b, "short")
-}
-
-func BenchmarkParseStringLong(b *testing.B) {
-	benchmarkParseString(b, "longlonglonglonglonglong")
 }
