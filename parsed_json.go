@@ -106,6 +106,9 @@ func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
 	go func() {
 		if !unified_machine(msg, pj) {
 			err = errors.New("Bad parsing while executing stage 2")
+			// drain the channel until empty
+			for range pj.index_chan {
+			}
 		}
 		wg.Done()
 	}()
