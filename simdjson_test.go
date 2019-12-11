@@ -616,6 +616,11 @@ break"]`,
 			js: `"{\"\":[],\"\":[5\x00]}"`,
 			wantErr: true,
 		},
+		{
+			name: "missing-invalid-character-issue-25",
+			js: `{"":"\_000"}`,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
