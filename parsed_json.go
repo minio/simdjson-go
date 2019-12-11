@@ -26,7 +26,7 @@ import (
 const SLOWGOLANGFLOATPARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
-const DEFAULTMAXDEPTH = 128
+const DEFAULTDEPTH = 128
 
 type ParsedJson struct {
 	Tape    []uint64
@@ -79,8 +79,8 @@ func (pj *internalParsedJson) initialize(size int) {
 		pj.Strings = make([]byte, 0, safeSize)
 	}
 	pj.Strings = pj.Strings[:0]
-	if cap(pj.containing_scope_offset) < DEFAULTMAXDEPTH {
-		pj.containing_scope_offset = make([]uint64, 0, DEFAULTMAXDEPTH)
+	if cap(pj.containing_scope_offset) < DEFAULTDEPTH {
+		pj.containing_scope_offset = make([]uint64, 0, DEFAULTDEPTH)
 	}
 	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
