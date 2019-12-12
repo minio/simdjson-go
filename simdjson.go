@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
+	"sync"
 
 	"github.com/klauspost/cpuid"
 )
@@ -96,18 +98,38 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 	}
 	const tmpSize = 10 << 20
 	buf := bufio.NewReaderSize(r, tmpSize)
-	tmp := make([]byte, tmpSize+1024)
+	tmpPool := sync.Pool{New: func() interface{} {
+		return make([]byte, tmpSize+1024)
+	}}
+	conc := (runtime.GOMAXPROCS(0) + 1) / 2
+	queue := make(chan chan Stream, conc)
 	go func() {
+		// Forward finished items in order.
 		defer close(res)
-		var pj internalParsedJson
+		end := false
+		for items := range queue {
+			i := <-items
+			select {
+			case res <- i:
+			default:
+				if !end {
+					// Block if we haven't returned an error
+					res <- i
+				}
+			}
+			if i.Error != nil {
+				end = true
+			}
+		}
+	}()
+	go func() {
+		defer close(queue)
 		for {
+			tmp := tmpPool.Get().([]byte)
 			tmp = tmp[:tmpSize]
 			n, err := buf.Read(tmp)
 			if err != nil && err != io.EOF {
-				res <- Stream{
-					Value: nil,
-					Error: fmt.Errorf("reading input: %w", err),
-				}
+				queueError(queue, err)
 				return
 			}
 			tmp = tmp[:n]
@@ -115,42 +137,56 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 			if err != io.EOF {
 				b, err := buf.ReadBytes('\n')
 				if err != nil && err != io.EOF {
-					res <- Stream{
-						Value: nil,
-						Error: fmt.Errorf("reading input: %w", err),
-					}
+					queueError(queue, err)
 					return
 				}
 				tmp = append(tmp, b...)
 			}
-			// TODO: Do the parsing in several goroutines, but keep output in order.
+
 			trimmed := bytes.TrimSpace(tmp)
 			if len(trimmed) > 0 {
-				// We cannot reuse the result since we share it
-				pj.ParsedJson = ParsedJson{}
-				pj.initialize(len(trimmed) * 3 / 2)
-				parseErr := pj.parseMessageNdjson(trimmed)
-				if parseErr != nil {
-					res <- Stream{
-						Value: nil,
-						Error: fmt.Errorf("parsing input: %w", parseErr),
+				result := make(chan Stream, 0)
+				queue <- result
+				go func() {
+					defer tmpPool.Put(tmp)
+					var pj internalParsedJson
+					select {
+					case v := <-reuse:
+						pj.ParsedJson = *v
+					default:
 					}
-					return
-				}
-				parsed := pj.ParsedJson
-				res <- Stream{
-					Value: &parsed,
-					Error: nil,
-				}
+					pj.initialize(len(trimmed) * 3 / 2)
+					parseErr := pj.parseMessageNdjson(trimmed)
+					if parseErr != nil {
+						result <- Stream{
+							Value: nil,
+							Error: fmt.Errorf("parsing input: %w", parseErr),
+						}
+						return
+					}
+					parsed := pj.ParsedJson
+					result <- Stream{
+						Value: &parsed,
+						Error: nil,
+					}
+				}()
+			} else {
+				tmpPool.Put(tmp)
 			}
 			if err != nil {
 				// Should only really be io.EOF
-				res <- Stream{
-					Value: nil,
-					Error: err,
-				}
+				queueError(queue, err)
 				return
 			}
 		}
 	}()
+}
+
+func queueError(queue chan chan Stream, err error) {
+	result := make(chan Stream, 0)
+	queue <- result
+	result <- Stream{
+		Value: nil,
+		Error: err,
+	}
 }
