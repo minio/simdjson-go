@@ -612,13 +612,13 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name: "invalid-json-not-detected-issue-24",
-			js: `"{\"\":[],\"\":[5\x00]}"`,
+			name:    "invalid-json-not-detected-issue-24",
+			js:      `"{\"\":[],\"\":[5\x00]}"`,
 			wantErr: true,
 		},
 		{
-			name: "missing-invalid-character-issue-25",
-			js: `{"":"\_000"}`,
+			name:    "missing-invalid-character-issue-25",
+			js:      `{"":"\_000"}`,
 			wantErr: true,
 		},
 	}
