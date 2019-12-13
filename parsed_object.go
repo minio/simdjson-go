@@ -126,11 +126,17 @@ func (o *Object) NextElementBytes(dst *Iter) (name []byte, t Type, err error) {
 	switch Tag(v >> 56) {
 	case TagString:
 		// Read name:
-		name, err = o.tape.stringByteAt(v)
+		// We want name and at least one value.
+		if o.off+2 >= len(o.tape.Tape) {
+			return nil, TypeNone, fmt.Errorf("parsing object element name: unexpected end of tape")
+		}
+		length := o.tape.Tape[o.off+1]
+		offset := v & JSONVALUEMASK
+		name, err = o.tape.stringByteAt(offset, length)
 		if err != nil {
 			return nil, TypeNone, fmt.Errorf("parsing object element name: %w", err)
 		}
-		o.off++
+		o.off += 2
 	case TagObjectEnd:
 		return nil, TypeNone, nil
 	default:

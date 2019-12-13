@@ -899,6 +899,8 @@ func TestParsePassCases(t *testing.T) {
 			}
 			// Compare all
 			i := got.Iter()
+			ipj := internalParsedJson{isvalid: true, ParsedJson: *got}
+			ipj.dump_raw_tape()
 			b2, err := i.MarshalJSON()
 			if string(b2) != tt.want {
 				t.Errorf("TestParsePassCases() got = %v, want %v", string(b2), tt.want)

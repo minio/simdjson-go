@@ -26,7 +26,7 @@ import (
 const SLOWGOLANGFLOATPARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
-const STRINGBUFBIT  = 0x80000000000000
+const STRINGBUFBIT = 0x80000000000000
 const STRINGBUFMASK = 0x7fffffffffffff
 
 const DEFAULTDEPTH = 128
@@ -66,22 +66,14 @@ func (pj *internalParsedJson) initialize(size int) {
 	}
 	pj.Tape = pj.Tape[:0]
 
-	if cap(pj.Strings) < size / 10 {
-		pj.Strings = make([]byte, 0, size / 10)
+	if cap(pj.Strings) < size/10 {
+		pj.Strings = make([]byte, 0, size/10)
 	}
 	pj.Strings = pj.Strings[:0]
 	if cap(pj.containing_scope_offset) < DEFAULTDEPTH {
 		pj.containing_scope_offset = make([]uint64, 0, DEFAULTDEPTH)
 	}
 	pj.containing_scope_offset = pj.containing_scope_offset[:0]
-}
-
-func (pj *ParsedJson) getString(payload, string_length uint64) string {
-	if payload & STRINGBUFBIT == 0 {
-		return string(pj.Message[payload:payload+string_length])
-	}
-	payload = payload & STRINGBUFMASK
-	return string(pj.Strings[payload:payload+string_length])
 }
 
 func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
@@ -135,23 +127,26 @@ func (pj *ParsedJson) Iter() Iter {
 }
 
 // stringAt returns a string at a specific offset in the stringbuffer.
-func (pj *ParsedJson) stringAt(offset uint64) (string, error) {
-	b, err := pj.stringByteAt(offset)
+func (pj *ParsedJson) stringAt(offset, length uint64) (string, error) {
+	b, err := pj.stringByteAt(offset, length)
 	return string(b), err
 }
 
 // stringByteAt returns a string at a specific offset in the stringbuffer.
-func (pj *ParsedJson) stringByteAt(offset uint64) ([]byte, error) {
-	offset &= JSONVALUEMASK
+func (pj *ParsedJson) stringByteAt(offset, length uint64) ([]byte, error) {
+	if offset&STRINGBUFBIT == 0 {
+		if offset+length > uint64(len(pj.Message)) {
+			return nil, fmt.Errorf("string message offset (%v) outside valid area (%v)", offset+length, len(pj.Message))
+		}
+		return pj.Message[offset : offset+length], nil
+	}
+
+	offset = offset & STRINGBUFMASK
 	// There must be at least 4 byte length and one 0 byte.
-	if offset+5 > uint64(len(pj.Strings)) {
-		return nil, fmt.Errorf("string offset (%v) outside valid area (%v)", offset+5, len(pj.Strings))
+	if offset+length > uint64(len(pj.Strings)) {
+		return nil, fmt.Errorf("string buffer offset (%v) outside valid area (%v)", offset+length, len(pj.Strings))
 	}
-	length := uint64(binary.LittleEndian.Uint32(pj.Strings[offset : offset+4]))
-	if offset+length+4 > uint64(len(pj.Strings)) {
-		return nil, errors.New("string offset+length outside valid area")
-	}
-	return pj.Strings[offset+4 : offset+4+length], nil
+	return pj.Strings[offset : offset+length], nil
 }
 
 // Iter represents a section of JSON.
@@ -259,7 +254,7 @@ func (i *Iter) moveToEnd() {
 func (i *Iter) calcNext(into bool) {
 	i.addNext = 0
 	switch i.t {
-	case TagInteger, TagUint, TagFloat:
+	case TagInteger, TagUint, TagFloat, TagString:
 		i.addNext = 1
 	case TagRoot, TagObjectStart, TagArrayStart:
 		if !into {
@@ -612,7 +607,11 @@ func (i *Iter) String() (string, error) {
 	if i.t != TagString {
 		return "", errors.New("value is not string")
 	}
-	return i.tape.stringAt(i.cur)
+	if i.off >= len(i.tape.Tape) {
+		return "", errors.New("corrupt input: no string offset")
+	}
+
+	return i.tape.stringAt(i.cur, i.tape.Tape[i.off])
 }
 
 // StringBytes() returns a byte array.
@@ -620,7 +619,10 @@ func (i *Iter) StringBytes() ([]byte, error) {
 	if i.t != TagString {
 		return nil, errors.New("value is not string")
 	}
-	return i.tape.stringByteAt(i.cur)
+	if i.off >= len(i.tape.Tape) {
+		return nil, errors.New("corrupt input: no string offset on tape")
+	}
+	return i.tape.stringByteAt(i.cur, i.tape.Tape[i.off])
 }
 
 // StringCvt() returns a string representation of the value.
@@ -628,7 +630,7 @@ func (i *Iter) StringBytes() ([]byte, error) {
 func (i *Iter) StringCvt() (string, error) {
 	switch i.t {
 	case TagString:
-		return i.tape.stringAt(i.cur)
+		return i.String()
 	case TagInteger:
 		v, err := i.Int()
 		return strconv.FormatInt(v, 10), err
@@ -669,6 +671,7 @@ func (i *Iter) Root(dst *Iter) (Type, *Iter, error) {
 		dst.off = i.off
 		dst.t = i.t
 		dst.tape.Strings = i.tape.Strings
+		dst.tape.Message = i.tape.Message
 	}
 	dst.addNext = 0
 	dst.tape.Tape = i.tape.Tape[:i.cur-1]
@@ -772,6 +775,7 @@ func (i *Iter) Object(dst *Object) (*Object, error) {
 	}
 	dst.tape.Tape = i.tape.Tape[:end]
 	dst.tape.Strings = i.tape.Strings
+	dst.tape.Message = i.tape.Message
 	dst.off = i.off
 
 	return dst, nil
@@ -792,6 +796,7 @@ func (i *Iter) Array(dst *Array) (*Array, error) {
 	}
 	dst.tape.Tape = i.tape.Tape[:end]
 	dst.tape.Strings = i.tape.Strings
+	dst.tape.Message = i.tape.Message
 	dst.off = i.off
 
 	return dst, nil
@@ -800,6 +805,7 @@ func (i *Iter) Array(dst *Array) (*Array, error) {
 func (pj *ParsedJson) Reset() {
 	pj.Tape = pj.Tape[:0]
 	pj.Strings = pj.Strings[:0]
+	pj.Message = pj.Message[:0]
 }
 
 func (pj *ParsedJson) get_current_loc() uint64 {
@@ -949,8 +955,12 @@ func (pj *internalParsedJson) dump_raw_tape() bool {
 				fmt.Printf("string \"")
 				tapeidx++
 				string_length := pj.Tape[tapeidx]
-				str := pj.getString(payload, string_length)
-				fmt.Printf("%s", print_with_escapes([]byte(str)))
+				str, err := pj.stringAt(payload, string_length)
+				if err != nil {
+					fmt.Printf("string err:%v\n", err)
+					return false
+				}
+				fmt.Printf("%s (o:%d, l:%d)", print_with_escapes([]byte(str)), payload, string_length)
 				fmt.Println("\"")
 
 			case TagInteger: // we have a long int
@@ -1086,4 +1096,3 @@ func appendFloat(dst []byte, f float64) ([]byte, error) {
 	}
 	return dst, nil
 }
-
