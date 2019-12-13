@@ -26,9 +26,13 @@ import (
 const SLOWGOLANGFLOATPARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
+const STRINGBUFBIT  = 0x80000000000000
+const STRINGBUFMASK = 0x7fffffffffffff
+
 const DEFAULTDEPTH = 128
 
 type ParsedJson struct {
+	Message []byte
 	Tape    []uint64
 	Strings []byte
 
@@ -55,28 +59,15 @@ type internalParsedJson struct {
 }
 
 func (pj *internalParsedJson) initialize(size int) {
-	// Estimate the tape size to be a fifth of the length of the JSON message
-	avgTapeSize := size * 20 / 100
+	// Estimate the tape size to be about 15% of the length of the JSON message
+	avgTapeSize := size * 15 / 100
 	if cap(pj.Tape) < avgTapeSize {
 		pj.Tape = make([]uint64, 0, avgTapeSize)
 	}
 	pj.Tape = pj.Tape[:0]
 
-	// For small messages, "over"-allocate the string buffer -- this is
-	// due to the fact that not just the string itself is copied but in
-	// addition a 4-byte length and closing 0-char are written. For small
-	// strings this can add up significantly
-	safeSize := size*3/2
-	if size < 1024 {
-		safeSize = size*4
-	} else if size < 1024*8 {
-		safeSize = size*3
-	} else if size < 1024*128 {
-		safeSize = size * 2
-	}
-
-	if cap(pj.Strings) < safeSize {
-		pj.Strings = make([]byte, 0, safeSize)
+	if cap(pj.Strings) < size / 10 {
+		pj.Strings = make([]byte, 0, size / 10)
 	}
 	pj.Strings = pj.Strings[:0]
 	if cap(pj.containing_scope_offset) < DEFAULTDEPTH {
@@ -85,10 +76,21 @@ func (pj *internalParsedJson) initialize(size int) {
 	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
 
+func (pj *ParsedJson) getString(payload, string_length uint64) string {
+	if payload & STRINGBUFBIT == 0 {
+		return string(pj.Message[payload:payload+string_length])
+	}
+	payload = payload & STRINGBUFMASK
+	return string(pj.Strings[payload:payload+string_length])
+}
+
 func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
+
+	// Cache message so we can point directly to strings
+	pj.Message = msg
 
 	// Make the capacity of the channel smaller than the number of slots.
 	// This way the sender will automatically block until the consumer
@@ -941,9 +943,14 @@ func (pj *internalParsedJson) dump_raw_tape() bool {
 			payload := tape_val & JSONVALUEMASK
 			switch ntype {
 			case TagString: // we have a string
+				if tapeidx+1 >= howmany {
+					return false
+				}
 				fmt.Printf("string \"")
-				string_length := uint64(binary.LittleEndian.Uint32(pj.Strings[payload : payload+4]))
-				fmt.Printf("%s", print_with_escapes(pj.Strings[payload+4:payload+4+string_length]))
+				tapeidx++
+				string_length := pj.Tape[tapeidx]
+				str := pj.getString(payload, string_length)
+				fmt.Printf("%s", print_with_escapes([]byte(str)))
 				fmt.Println("\"")
 
 			case TagInteger: // we have a long int
@@ -1079,3 +1086,4 @@ func appendFloat(dst []byte, f float64) ([]byte, error) {
 	}
 	return dst, nil
 }
+

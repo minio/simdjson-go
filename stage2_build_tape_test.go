@@ -16,6 +16,8 @@ func TestStage2BuildTape(t *testing.T) {
 		floatHexRepresentation2 = 0x79066666666666
 	}
 
+	const nul = '\000'
+
 	testCases := []struct {
 		input    string
 		expected []struct {
@@ -24,17 +26,21 @@ func TestStage2BuildTape(t *testing.T) {
 		}
 	}{
 		{
-			`{"a":"b","c":"d"}`,
+			`{"a":"b","c":"dd"}`,
 			[]struct {
 				c   byte
 				val uint64
 			}{
-				{'r', 0x8},
-				{'{', 0x7},
-				{'"', 0x0},
+				{'r', 0xc},
+				{'{', 0xb},
+				{'"', 0x2},
+				{nul, 0x1},
 				{'"', 0x6},
-				{'"', 0xc},
-				{'"', 0x12},
+				{nul, 0x1},
+				{'"', 0xa},
+				{nul, 0x1},
+				{'"', 0xe},
+				{nul, 0x2},
 				{'}', 0x1},
 				{'r', 0x0},
 			},
@@ -45,15 +51,20 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0xb},
-				{'{', 0xa},
-				{'"', 0x0},
+				{'r', 0x10},
+				{'{', 0xf},
+				{'"', 0x2},
+				{nul, 0x1},
 				{'"', 0x6},
-				{'"', 0xc},
-				{'{', 0x9},
-				{'"', 0x12},
-				{'"', 0x18},
-				{'}', 0x5},
+				{nul, 0x1},
+				{'"', 0xa},
+				{nul, 0x1},
+				{'{', 0xe},
+				{'"', 0xf},
+				{nul, 0x1},
+				{'"', 0x13},
+				{nul, 0x1},
+				{'}', 0x8},
 				{'}', 0x1},
 				{'r', 0x0},
 			},
@@ -64,21 +75,28 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0x11},
-				{'{', 0x10},
-				{'"', 0x0},
+				{'r', 0x18},
+				{'{', 0x17},
+				{'"', 0x2},
+				{nul, 0x1},
 				{'"', 0x6},
-				{'"', 0xc},
-				{'[', 0xf},
-				{'{', 0xa},
-				{'"', 0x12},
-				{'"', 0x18},
-				{'}', 0x6},
-				{'{', 0xe},
+				{nul, 0x1},
+				{'"', 0xa},
+				{nul, 0x1},
+				{'[', 0x16},
+				{'{', 0xf},
+				{'"', 0x10},
+				{nul, 0x1},
+				{'"', 0x14},
+				{nul, 0x1},
+				{'}', 0x9},
+				{'{', 0x15},
+				{'"', 0x1a},
+				{nul, 0x1},
 				{'"', 0x1e},
-				{'"', 0x24},
-				{'}', 0xa},
-				{']', 0x5},
+				{nul, 0x1},
+				{'}', 0xf},
+				{']', 0x8},
 				{'}', 0x1},
 				{'r', 0x0},
 			},
@@ -89,13 +107,16 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0xa},
-				{'{', 0x9},
-				{'"', 0x0},
+				{'r', 0xd},
+				{'{', 0xc},
+				{'"', 0x2},
+				{nul, 0x1},
 				{'t', 0x0},
-				{'"', 0x6},
+				{'"', 0xb},
+				{nul, 0x1},
 				{'f', 0x0},
-				{'"', 0xc},
+				{'"', 0x15},
+				{nul, 0x1},
 				{'n', 0x0},
 				{'}', 0x1},
 				{'r', 0x0},
@@ -107,18 +128,22 @@ func TestStage2BuildTape(t *testing.T) {
 				c   byte
 				val uint64
 			}{
-				{'r', 0x10},
-				{'{', 0xf},
-				{'"', 0x0},
+				{'r', 0x14},
+				{'{', 0x13},
+				{'"', 0x2},
+				{nul, 0x1},
 				{'l', 0x0},
-				{'\000', 0x64}, // 100
-				{'"', 0x6},
+				{nul, 0x64}, // 100
+				{'"', 0xa},
+				{nul, 0x1},
 				{'d', 0x0},
 				{'@', floatHexRepresentation1}, // 200.2
-				{'"', 0xc},
+				{'"', 0x14},
+				{nul, 0x1},
 				{'l', 0x0},
-				{'\000', 0x12c}, // 300
-				{'"', 0x12},
+				{nul, 0x12c}, // 300
+				{'"', 0x1c},
+				{nul, 0x1},
 				{'d', 0x0},
 				{'@', floatHexRepresentation2}, // 400.4
 				{'}', 0x1},
@@ -141,7 +166,11 @@ func TestStage2BuildTape(t *testing.T) {
 		}
 
 		for ii, tp := range pj.Tape {
-			// fmt.Printf("{'%s', 0x%x},\n", string(byte((tp >> 56))), tp&0xffffffffffffff)
+			//c := "'" + string(byte(tp >> 56)) + "'"
+			//if byte(tp >> 56) == 0 {
+			//	c = "nul"
+			//}
+			//fmt.Printf("{%s, 0x%x},\n", c, tp&0xffffffffffffff)
 			expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
 			if tp != expected {
 				t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", ii, tp, expected)
@@ -231,7 +260,7 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 	expected, expectedStringBuf, msg := loadCompressed(t, filename)
 
 	pj := internalParsedJson{}
-	pj.initialize(len(msg) * 2)
+	pj.initialize(len(msg))
 
 	if err := pj.parseMessage(msg); err != nil {
 		t.Errorf("Stage2 failed: %w", err)
