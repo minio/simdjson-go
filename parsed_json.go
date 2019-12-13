@@ -142,7 +142,6 @@ func (pj *ParsedJson) stringByteAt(offset, length uint64) ([]byte, error) {
 	}
 
 	offset = offset & STRINGBUFMASK
-	// There must be at least 4 byte length and one 0 byte.
 	if offset+length > uint64(len(pj.Strings)) {
 		return nil, fmt.Errorf("string buffer offset (%v) outside valid area (%v)", offset+length, len(pj.Strings))
 	}
