@@ -231,7 +231,7 @@ func TestParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// enclose test string in quotes (as validated by stage 1)
 			buf := []byte(fmt.Sprintf(`"%s"`, tt.str))
-			dest := make([]byte, 0, 5+len(buf))
+			dest := make([]byte, 0, len(buf) + 32 /* safety margin as parse_string writes full AVX2 words */ )
 
 			success := parse_string_simd(buf, &dest)
 
@@ -239,12 +239,12 @@ func TestParseString(t *testing.T) {
 				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)
 			}
 			if success {
-				size := len(dest) - 4 - 1
+				size := len(dest)
 				if size != len(tt.want) {
 					t.Errorf("TestParseString() got = %d, want %d", size, len(tt.want))
 				}
-				if bytes.Compare(dest[4:4+size], tt.want) != 0 {
-					t.Errorf("TestParseString() got = %v, want %v", string(dest[4:4+size]), tt.want)
+				if bytes.Compare(dest[:size], tt.want) != 0 {
+					t.Errorf("TestParseString() got = %v, want %v", dest[:size], tt.want)
 				}
 			}
 		})
