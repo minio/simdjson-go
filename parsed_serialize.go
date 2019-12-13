@@ -28,6 +28,7 @@ type Serializer struct {
 
 	// Compressed strings
 	sBuf []byte
+	sMsg []byte
 	// Uncompressed tags
 	tagsBuf []byte
 	// Values
@@ -48,7 +49,7 @@ func NewSerializer() *Serializer {
 	s := Serializer{
 		compValues:     blockTypeS2,
 		compTags:       blockTypeS2,
-		reIndexStrings: true,
+		reIndexStrings: false,
 	}
 	return &s
 }
@@ -87,13 +88,13 @@ func (s *Serializer) CompressMode(c CompressMode) {
 		s.compValues = blockTypeS2
 		s.compTags = blockTypeS2
 		s.compStrings = true
-		s.reIndexStrings = true
+		s.reIndexStrings = false
 		s.alwaysZstdStrings = false
 	case CompressBest:
 		s.compValues = blockTypeZstd
 		s.compTags = blockTypeZstd
 		s.compStrings = true
-		s.reIndexStrings = true
+		s.reIndexStrings = false
 		s.alwaysZstdStrings = true
 	default:
 		panic("unknown compression mode")
@@ -147,7 +148,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	if s.compStrings {
 		// Choose zstd when tape is likely to take longer than strings.
 		zstdStrings := len(s.stringBuf) < len(pj.Tape)*10
-		wg.Add(1)
+		wg.Add(2)
 		go func() {
 			defer wg.Done()
 			if zstdStrings || s.alwaysZstdStrings {
@@ -156,8 +157,18 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 				s.sBuf = encBlock(blockTypeS2, s.stringBuf, s.sBuf)
 			}
 		}()
+		zstdMsg := len(pj.Message) < len(pj.Tape)*10
+		go func() {
+			defer wg.Done()
+			if zstdMsg || s.alwaysZstdStrings {
+				s.sMsg = encBlock(blockTypeZstd, pj.Message, s.sMsg)
+			} else {
+				s.sMsg = encBlock(blockTypeS2, pj.Message, s.sMsg)
+			}
+		}()
 	} else {
 		s.sBuf = encBlock(blockTypeUncompressed, s.stringBuf, s.sBuf)
+		s.sMsg = encBlock(blockTypeUncompressed, pj.Message, s.sMsg)
 	}
 
 	// Pessimistically allocate for maximum possible size.
@@ -189,6 +200,9 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 				binary.LittleEndian.PutUint64(tmp[:], payload)
 			}
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
+			binary.LittleEndian.PutUint64(tmp[:8], pj.Tape[off])
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
+			off++
 		case TagUint:
 			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off])
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
@@ -239,24 +253,33 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// Strings uncompressed size
 	n := binary.PutUvarint(tmp[:], uint64(len(s.stringBuf)))
 	dst = append(dst, tmp[:n]...)
+	// Strings uncompressed size
+	n = binary.PutUvarint(tmp[:], uint64(len(pj.Message)))
+	dst = append(dst, tmp[:n]...)
 	// Tape elements, uncompressed.
 	n = binary.PutUvarint(tmp[:], uint64(len(pj.Tape)))
 	dst = append(dst, tmp[:n]...)
 
 	// Size of varints...
 	varInts := binary.PutUvarint(tmp[:], uint64(len(s.sBuf))) +
+		binary.PutUvarint(tmp[:], uint64(len(s.sMsg))) +
 		binary.PutUvarint(tmp[:], uint64(len(s.tagsBuf))) +
 		binary.PutUvarint(tmp[:], uint64(len(s.tagsCompBuf))) +
 		binary.PutUvarint(tmp[:], uint64(len(s.valuesBuf))) +
 		binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf)))
 
-	n = binary.PutUvarint(tmp[:], uint64(len(s.sBuf)+len(s.tagsCompBuf)+len(s.valuesCompBuf)+varInts))
+	n = binary.PutUvarint(tmp[:], uint64(len(s.sBuf)+len(s.sMsg)+len(s.tagsCompBuf)+len(s.valuesCompBuf)+varInts))
 	dst = append(dst, tmp[:n]...)
 
 	// Strings
 	n = binary.PutUvarint(tmp[:], uint64(len(s.sBuf)))
 	dst = append(dst, tmp[:n]...)
 	dst = append(dst, s.sBuf...)
+
+	// Message
+	n = binary.PutUvarint(tmp[:], uint64(len(s.sMsg)))
+	dst = append(dst, tmp[:n]...)
+	dst = append(dst, s.sMsg...)
 
 	// Tags
 	n = binary.PutUvarint(tmp[:], uint64(len(s.tagsBuf)))
@@ -272,7 +295,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	dst = append(dst, tmp[:n]...)
 	dst = append(dst, s.valuesCompBuf...)
 	if false {
-		fmt.Println("strings:", len(pj.Strings), "->", len(s.sBuf), "tags:", len(s.tagsBuf), "->", len(s.tagsCompBuf), "values:", len(s.valuesBuf), "->", len(s.valuesCompBuf), "Total:", len(pj.Strings)+len(pj.Tape)*8, "->", len(dst))
+		fmt.Println("strings:", len(pj.Strings), "->", len(s.sBuf), "messages:", len(pj.Message), "->", len(s.sMsg), "tags:", len(s.tagsBuf), "->", len(s.tagsCompBuf), "values:", len(s.valuesBuf), "->", len(s.valuesCompBuf), "Total:", len(pj.Strings)+len(pj.Tape)*8, "->", len(dst))
 	}
 
 	return dst
@@ -303,6 +326,15 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		}
 		dst.Strings = dst.Strings[:ss]
 	}
+	// Message size
+	if ss, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(dst.Message)) < ss {
+			dst.Message = make([]byte, ss)
+		}
+		dst.Message = dst.Message[:ss]
+	}
 	// Tape size
 	if ts, err := binary.ReadUvarint(br); err != nil {
 		return dst, err
@@ -327,8 +359,13 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 
 	// Decompress strings
 	var sWG sync.WaitGroup
-	var stringsErr error
+	var stringsErr, msgErr error
 	err := s.decBlock(br, dst.Strings, &sWG, &stringsErr)
+	if err != nil {
+		return dst, err
+	}
+	// Messages
+	err = s.decBlock(br, dst.Message, &sWG, &msgErr)
 	if err != nil {
 		return dst, err
 	}
@@ -389,17 +426,20 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		tagDst := uint64(t) << 56
 		switch tag {
 		case TagString:
-			if len(values) < 8 {
+			if len(values) < 16 {
 				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
 			sOffset := binary.LittleEndian.Uint64(values[:8])
-			values = values[8:]
-			if sOffset > uint64(len(dst.Strings)-5) {
+			sLen := binary.LittleEndian.Uint64(values[8:16])
+			values = values[16:]
+			if false && sOffset+sLen > uint64(len(dst.Strings)) {
+				// TODO: Maybe validate
 				return dst, fmt.Errorf("%v extends beyond stringbuf (%d). offset:%d", tag, len(dst.Strings), sOffset)
 			}
 
 			dst.Tape[off] = tagDst | sOffset
-			off++
+			dst.Tape[off+1] = sLen
+			off += 2
 		case TagFloat, TagInteger, TagUint:
 			if len(values) < 8 {
 				return dst, fmt.Errorf("reading %v: no values left", tag)
@@ -511,7 +551,9 @@ func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, 
 // indexStringsLazy will deduplicate strings and populate
 // strings, stringsMap and stringBuf.
 // Returns false if unable to deduplicate.
+// FIXME: Not feasible anymore
 func (s *Serializer) indexStringsLazy(sb []byte) bool {
+	return false
 	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
 	if uint32(len(sb)) >= math.MaxUint32 {
 		s.stringBuf = sb
