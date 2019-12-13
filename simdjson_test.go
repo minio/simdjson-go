@@ -621,6 +621,12 @@ break"]`,
 			js:      `{"":"\_000"}`,
 			wantErr: true,
 		},
+		{
+			name:    "small-nested-issue-51",
+			js:      `{"M":{"T":false}}`,
+			want:    `{"M":{"T":false}}`,
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

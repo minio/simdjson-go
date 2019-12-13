@@ -72,7 +72,7 @@ func is_valid_true_atom(buf []byte) bool {
 		error := (locval & mask4) ^ tv
 		error |= uint64(is_not_structural_or_whitespace(buf[4]))
 		return error == 0
-	} else if len(buf) == 5 {
+	} else if len(buf) >= 5 {
 		return bytes.Compare(buf[:4], []byte("true")) == 0 && is_not_structural_or_whitespace(buf[4]) == 0
 	}
 	return false
@@ -86,7 +86,7 @@ func is_valid_false_atom(buf []byte) bool {
 		error := (locval & mask5) ^ fv
 		error |= uint64(is_not_structural_or_whitespace(buf[5]))
 		return error == 0
-	} else if len(buf) == 6 {
+	} else if len(buf) >= 6 {
 		return bytes.Compare(buf[:5], []byte("false")) == 0 && is_not_structural_or_whitespace(buf[5]) == 0
 	}
 	return false
@@ -100,7 +100,7 @@ func is_valid_null_atom(buf []byte) bool {
 		error := (locval & mask4) ^ nv
 		error |= uint64(is_not_structural_or_whitespace(buf[4]))
 		return error == 0
-	} else if len(buf) == 5 {
+	} else if len(buf) >= 5 {
 		return bytes.Compare(buf[:4], []byte("null")) == 0 && is_not_structural_or_whitespace(buf[4]) == 0
 	}
 	return false
