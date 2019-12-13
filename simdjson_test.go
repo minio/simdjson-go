@@ -621,12 +621,6 @@ break"]`,
 			js:      `{"":"\_000"}`,
 			wantErr: true,
 		},
-		{
-			name:    "small-nested-issue-51",
-			js:      `{"M":{"T":false}}`,
-			want:    `{"M":{"T":false}}`,
-			wantErr: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -888,6 +882,12 @@ func TestParsePassCases(t *testing.T) {
 		//	js: `4E-2147483674`,
 		//	wantErr: false,
 		//},
+		{
+			name:    "small-nested-issue-51",
+			js:      `{"M":{"T":false}}`,
+			want:    `{"M":{"T":false}}`,
+			wantErr: false,
+		},
 	}
 
 	var got *ParsedJson
@@ -905,8 +905,6 @@ func TestParsePassCases(t *testing.T) {
 			}
 			// Compare all
 			i := got.Iter()
-			ipj := internalParsedJson{isvalid: true, ParsedJson: *got}
-			ipj.dump_raw_tape()
 			b2, err := i.MarshalJSON()
 			if string(b2) != tt.want {
 				t.Errorf("TestParsePassCases() got = %v, want %v", string(b2), tt.want)
