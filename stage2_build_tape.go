@@ -33,18 +33,23 @@ func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint64) bool {
 		return false
 	}
 	if !need_copy {
-		pj.write_tape(offset + 1, '"')
+		pj.write_tape(offset+1, '"')
 	} else {
-		if size + 32 > uint64(cap(pj.Strings) - len(pj.Strings)) {
-			// fmt.Println("Reallocating")
-			strs := make([]byte, len(pj.Strings), cap(pj.Strings) * 2)
+		// Make sure we account for at least 32 bytes additional space due to
+		requiredLen := uint64(len(pj.Strings)) + size + 32
+		if requiredLen >= uint64(cap(pj.Strings)) {
+			newSize := uint64(cap(pj.Strings) * 2)
+			if newSize < requiredLen {
+				newSize = requiredLen + size // add size once more to account for further space
+			}
+			strs := make([]byte, len(pj.Strings), newSize)
 			copy(strs, pj.Strings)
 			pj.Strings = strs
 		}
 		start := len(pj.Strings)
 		_ = parse_string_simd(buf[offset:], &pj.Strings) // We can safely ignore the result since we validate above
-		pj.write_tape(uint64(STRINGBUFBIT + start), '"')
-		size = uint64(len(pj.Strings)-start)
+		pj.write_tape(uint64(STRINGBUFBIT+start), '"')
+		size = uint64(len(pj.Strings) - start)
 	}
 	// put length onto the tape
 	pj.Tape = append(pj.Tape, size)

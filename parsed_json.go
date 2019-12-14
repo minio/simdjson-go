@@ -66,8 +66,12 @@ func (pj *internalParsedJson) initialize(size int) {
 	}
 	pj.Tape = pj.Tape[:0]
 
-	if cap(pj.Strings) < size/10 {
-		pj.Strings = make([]byte, 0, size/10)
+	stringsSize := size / 10
+	if stringsSize < 128 {
+		stringsSize = 128 // always allocate at least 128 for the string buffer
+	}
+	if cap(pj.Strings) < stringsSize {
+		pj.Strings = make([]byte, 0, stringsSize)
 	}
 	pj.Strings = pj.Strings[:0]
 	if cap(pj.containing_scope_offset) < DEFAULTDEPTH {
