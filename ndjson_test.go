@@ -21,6 +21,8 @@ const demo_ndjson = `{"Image":{"Width":800,"Height":600,"Title":"View from 15th 
 
 func verifyDemoNdjson(pj internalParsedJson, t *testing.T) {
 
+	t.Skip()
+
 	const nul = '\000'
 
 	testCases := []struct {
