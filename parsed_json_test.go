@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -91,104 +90,96 @@ var testCases = []struct {
 	{
 		name: "twitterescaped",
 	},
-	{
-		name: "twitter",
-	},
-	{
-		name: "random",
-	},
+	//{
+	//	name: "twitter",
+	//},
+	//{
+	//	name: "random",
+	//},
 	{
 		name: "update-center",
 	},
 }
 
+func bytesToUint64(buf []byte) []uint64 {
+
+	tape := make([]uint64, len(buf)/8)
+	for i := range tape {
+		tape[i] = binary.LittleEndian.Uint64(buf[i*8:])
+	}
+	return tape
+}
+
+func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj internalParsedJson) {
+
+	gotape := pj.Tape
+
+	cindex, goindex := 0, 0
+	for goindex < len(gotape) {
+		cval, goval := ctape[cindex], gotape[goindex]
+
+		// Make sure the type is the same between the C and Go version
+		if cval >> 56 != goval >> 56 {
+			t.Errorf("TestCTapeCtoGoTapeCompare: got: %02x want: %02x", goval >> 56, cval >> 56)
+		}
+
+		ntype := Tag(goval >> 56)
+		switch ntype {
+		case TagRoot, TagObjectStart, TagObjectEnd, TagArrayStart, TagArrayEnd:
+			cindex++
+			goindex++
+
+		case TagString:
+			cpayload := cval & JSONVALUEMASK
+			cstrlen := binary.LittleEndian.Uint32(csbuf[cpayload:cpayload+4])
+			cstr := string(csbuf[cpayload+4:cpayload+4+uint64(cstrlen)])
+			gostr, _ := pj.stringAt(goval & JSONVALUEMASK, gotape[goindex+1])
+			if cstr != gostr {
+				t.Errorf("TestCTapeCtoGoTapeCompare: got: %s want: %s", gostr, cstr)
+			}
+			cindex++
+			goindex += 2
+
+		case TagNull, TagBoolTrue, TagBoolFalse:
+			cindex++
+			goindex++
+
+		case TagInteger, TagFloat:
+			if ctape[cindex+1] != gotape[goindex+1] {
+				if !(ntype == TagFloat && SLOWGOLANGFLOATPARSING) {
+					t.Errorf("TestCTapeCtoGoTapeCompare: got: %016x want: %016x", gotape[goindex+1], ctape[cindex+1])
+
+				}
+			}
+			cindex += 2
+			goindex += 2
+
+		default:
+			t.Errorf("TestCTapeCtoGoTapeCompare: unexpected token, got: %02x", ntype)
+		}
+	}
+
+	if cindex != len(ctape) {
+		t.Errorf("TestCTapeCtoGoTapeCompare: got: %d want: %d", cindex, len(ctape))
+	}
+}
+
 func TestLoadTape(t *testing.T) {
-	//TODO: Re-enable tests
-	t.SkipNow()
 
 	for _, tt := range testCases {
 
 		t.Run(tt.name, func(t *testing.T) {
-			tap, sb, ref := loadCompressed(t, tt.name)
+			cbuf, csbuf, ref := loadCompressed(t, tt.name)
 
-			var tmp interface{} = map[string]interface{}{}
-			if tt.array {
-				tmp = []interface{}{}
+			pj := internalParsedJson{}
+			if err := pj.parseMessage(ref); err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
 			}
-			var refJSON []byte
-			err := json.Unmarshal(ref, &tmp)
-			if err != nil {
-				t.Fatal(err)
-			}
-			refJSON, err = json.MarshalIndent(tmp, "", "  ")
-			if err != nil {
-				t.Fatal(err)
-			}
-			pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
-			if err != nil {
-				t.Fatal(err)
-			}
-			i := pj.Iter()
-			cpy := i
-			b, err := cpy.MarshalJSON()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if false {
-				t.Log(string(b))
-			}
-			//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".json"), b, os.ModePerm)
 
-			for {
-				var next Iter
-				typ, err := i.AdvanceIter(&next)
-				if err != nil {
-					t.Fatal(err)
-				}
-				switch typ {
-				case TypeNone:
-					return
-				case TypeRoot:
-					i = next
-				case TypeArray:
-					arr, err := next.Array(nil)
-					if err != nil {
-						t.Fatal(err)
-					}
-					got, err := arr.Interface()
-					if err != nil {
-						t.Fatal(err)
-					}
-					b, err := json.MarshalIndent(got, "", "  ")
-					if err != nil {
-						t.Fatal(err)
-					}
-					if !bytes.Equal(b, refJSON) {
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".want"), refJSON, os.ModePerm)
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".got"), b, os.ModePerm)
-						t.Error("Content mismatch. Output dumped to testdata.")
-					}
+			ctape := bytesToUint64(cbuf)
 
-				case TypeObject:
-					obj, err := next.Object(nil)
-					if err != nil {
-						t.Fatal(err)
-					}
-					got, err := obj.Map(nil)
-					if err != nil {
-						t.Fatal(err)
-					}
-					b, err := json.MarshalIndent(got, "", "  ")
-					if err != nil {
-						t.Fatal(err)
-					}
-					if !bytes.Equal(b, refJSON) {
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".want"), refJSON, os.ModePerm)
-						_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".got"), b, os.ModePerm)
-						t.Error("Content mismatch. Output dumped to testdata.")
-					}
-				}
-			}
+			testCTapeCtoGoTapeCompare(t, ctape, csbuf, pj)
 		})
 	}
 }
