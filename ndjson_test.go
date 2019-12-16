@@ -217,7 +217,6 @@ func verifyDemoNdjson(pj internalParsedJson, t *testing.T) {
 func TestDemoNdjson(t *testing.T) {
 
 	pj := internalParsedJson{}
-	pj.initialize(len(demo_ndjson))
 
 	if err := pj.parseMessageNdjson([]byte(demo_ndjson)); err != nil {
 		t.Errorf("TestDemoNdjson: got: %v want: nil", err)
@@ -230,7 +229,6 @@ func TestNdjsonCountWhere(t *testing.T) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
 	pj.parseMessageNdjson(ndjson)
 
 	const want = 110349
@@ -319,13 +317,11 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 func BenchmarkNdjsonStage2(b *testing.B) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
 
 	b.SetBytes(int64(len(ndjson)))
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		pj.initialize(len(ndjson) * 3 / 2)
 		pj.parseMessage(ndjson)
 	}
 }
@@ -348,12 +344,10 @@ func BenchmarkNdjsonColdCountStar(b *testing.B) {
 	b.ReportAllocs()
 	// Allocate stuff
 	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		pj.initialize(len(ndjson) * 3 / 2)
 		pj.parseMessage(ndjson)
 		count_raw_tape(pj.Tape)
 	}
@@ -493,13 +487,11 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 	const want = 110349
 	runtime.GC()
 	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
 
 	b.Run("raw", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			pj.initialize(len(ndjson) * 3 / 2)
 			err := pj.parseMessage(ndjson)
 			if err != nil {
 				b.Fatal(err)
@@ -514,7 +506,6 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			pj.initialize(len(ndjson) * 3 / 2)
 			err := pj.parseMessage(ndjson)
 			if err != nil {
 				b.Fatal(err)
@@ -531,7 +522,6 @@ func BenchmarkNdjsonWarmCountStar(b *testing.B) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
 	pj.parseMessage(ndjson)
 
 	b.SetBytes(int64(len(ndjson)))
@@ -547,7 +537,6 @@ func BenchmarkNdjsonWarmCountStarWithWhere(b *testing.B) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
-	pj.initialize(len(ndjson) * 3 / 2)
 	pj.parseMessage(ndjson)
 
 	b.Run("raw", func(b *testing.B) {

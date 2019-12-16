@@ -14,7 +14,6 @@ func benchmarkFromFile(b *testing.B, filename string) {
 	b.ResetTimer()
 
 	pj := internalParsedJson{}
-	pj.initialize(len(msg) * 2)
 
 	for i := 0; i < b.N; i++ {
 

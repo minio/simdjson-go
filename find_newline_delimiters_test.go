@@ -22,7 +22,6 @@ func TestFindNewlineDelimiters(t *testing.T) {
 	}
 
 	pj := internalParsedJson{}
-	pj.initialize(1024)
 
 	startIndex := uint32(0)
 	for index := uint64(0); index < rows; index++ {

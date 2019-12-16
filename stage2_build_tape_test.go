@@ -155,7 +155,6 @@ func TestStage2BuildTape(t *testing.T) {
 	for i, tc := range testCases {
 
 		pj := internalParsedJson{}
-		pj.initialize(1024)
 
 		if err := pj.parseMessage([]byte(tc.input)); err != nil {
 			t.Errorf("TestStage2BuildTape(%d): got: %v want: nil", i, err)
@@ -260,7 +259,6 @@ func testStage2VerifyTape(t *testing.T, filename string) {
 	expected, expectedStringBuf, msg := loadCompressed(t, filename)
 
 	pj := internalParsedJson{}
-	pj.initialize(len(msg))
 
 	if err := pj.parseMessage(msg); err != nil {
 		t.Errorf("Stage2 failed: %w", err)

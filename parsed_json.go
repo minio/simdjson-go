@@ -82,6 +82,8 @@ func (pj *internalParsedJson) initialize(size int) {
 
 func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
 
+	pj.initialize(len(msg))
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 
