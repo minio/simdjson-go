@@ -21,8 +21,6 @@ const demo_ndjson = `{"Image":{"Width":800,"Height":600,"Title":"View from 15th 
 
 func verifyDemoNdjson(pj internalParsedJson, t *testing.T) {
 
-	t.Skip()
-
 	const nul = '\000'
 
 	testCases := []struct {
@@ -211,7 +209,7 @@ func verifyDemoNdjson(pj internalParsedJson, t *testing.T) {
 		//fmt.Printf("{%s, 0x%x},\n", c, tp&0xffffffffffffff)
 		expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
 		if tp != expected {
-			t.Errorf("verifyDemoNdjson(%d): got: %d want: %d", ii, tp, expected)
+			t.Errorf("verifyDemoNdjson(%d): got: %016x want: %016x", ii, tp, expected)
 		}
 	}
 }
