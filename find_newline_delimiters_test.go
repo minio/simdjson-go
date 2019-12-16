@@ -24,16 +24,19 @@ func TestFindNewlineDelimiters(t *testing.T) {
 	pj := internalParsedJson{}
 
 	startIndex := uint32(0)
+	object := 1
 	for index := uint64(0); index < rows; index++ {
 		end := len(demo_ndjson)
 		if index < rows-1 {
 			end = int(indices[index])
 		}
 		if err := pj.parseMessage([]byte(demo_ndjson)[startIndex:end]); err != nil {
-			t.Errorf("TestNdjson: got: %v want: nil", err)
+			t.Errorf("TestFindNewlineDelimiters: got: %v want: nil", err)
 		}
+
+		verifyDemoNdjson(pj, t, object)
+		object++
+
 		startIndex = indices[index]
 	}
-
-	verifyDemoNdjson(pj, t)
 }

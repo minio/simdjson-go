@@ -19,7 +19,7 @@ const demo_ndjson = `{"Image":{"Width":800,"Height":600,"Title":"View from 15th 
 {"Image":{"Width":801,"Height":601,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}
 {"Image":{"Width":802,"Height":602,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
 
-func verifyDemoNdjson(pj internalParsedJson, t *testing.T) {
+func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int ) {
 
 	const nul = '\000'
 
@@ -198,6 +198,25 @@ func verifyDemoNdjson(pj internalParsedJson, t *testing.T) {
 
 	tc := testCases[0]
 
+	//	For TestFindNewlineDelimiters, adjust the array that we are testing against
+	if object == 1 {
+		tc.expected = tc.expected[:51]
+	} else if object == 2 || object == 3 {
+		tc.expected = tc.expected[:51]
+
+		adjustQoutes := []uint64{2, 5, 9, 13, 15, 17, 20, 22, 24, 28, 33, 36}
+		for _, a := range adjustQoutes {
+			tc.expected[a].val += 1
+		}
+		if object == 2 {
+			tc.expected[8].val = 801
+			tc.expected[12].val = 601
+		} else if object == 3 {
+			tc.expected[8].val = 802
+			tc.expected[12].val = 602
+		}
+	}
+
 	if len(pj.Tape) != len(tc.expected) {
 		t.Errorf("verifyDemoNdjson: got: %d want: %d", len(pj.Tape), len(tc.expected))
 	}
@@ -222,7 +241,7 @@ func TestDemoNdjson(t *testing.T) {
 		t.Errorf("TestDemoNdjson: got: %v want: nil", err)
 	}
 
-	verifyDemoNdjson(pj, t)
+	verifyDemoNdjson(pj, t, 0)
 }
 
 func TestNdjsonCountWhere(t *testing.T) {
