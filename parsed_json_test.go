@@ -90,12 +90,12 @@ var testCases = []struct {
 	{
 		name: "twitterescaped",
 	},
-	//{
-	//	name: "twitter",
-	//},
-	//{
-	//	name: "random",
-	//},
+	{
+		name: "twitter",
+	},
+	{
+		name: "random",
+	},
 	{
 		name: "update-center",
 	},
@@ -164,7 +164,7 @@ func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj in
 	}
 }
 
-func TestLoadTape(t *testing.T) {
+func TestVerifyTape(t *testing.T) {
 
 	for _, tt := range testCases {
 
@@ -173,7 +173,7 @@ func TestLoadTape(t *testing.T) {
 
 			pj := internalParsedJson{}
 			if err := pj.parseMessage(ref); err != nil {
-				t.Errorf("parseMessage failed\n")
+				t.Errorf("parseMessage failed: %v\n", err)
 				return
 			}
 
