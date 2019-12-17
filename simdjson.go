@@ -55,7 +55,6 @@ func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 	}
 	b = bytes.TrimSpace(b)
 
-	// FIXME(fwessels): We should not modify input.
 	err := pj.parseMessageNdjson(b)
 	if err != nil {
 		return nil, err
