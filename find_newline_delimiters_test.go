@@ -1,42 +1,30 @@
 package simdjson
 
 import (
+	"fmt"
 	_ "fmt"
 	"testing"
 )
 
 func TestFindNewlineDelimiters(t *testing.T) {
 
-	indices := make([]uint32, 16)
-
-	rows := find_newline_delimiters([]byte(demo_ndjson), indices, 0x0a)
-
-	if rows != 3 {
-		t.Errorf("TestFindNewlineDelimiters: got: %d want: 3", rows)
-	}
-	if indices[0] != 196 {
-		t.Errorf("TestFindNewlineDelimiters: got: %d want: 196", indices[0])
-	}
-	if indices[1] != 393 {
-		t.Errorf("TestFindNewlineDelimiters: got: %d want: 393", indices[1])
+	want := []uint64{
+		0b0000000000000000000000000000000000000000000000000000000000000000,
+		0b0000000000000000000000000000000000000000000000000000000000000000,
+		0b0000000000000000000000000000000000000000000000000000000000000000,
+		0b0000000000000000000000000000000000000000000000000000000000010000,
+		0b0000000000000000000000000000000000000000000000000000000000000000,
+		0b0000000000000000000000000000000000000000000000000000000000000000,
+		0b0000000000000000000000000000000000000000000000000000001000000000,
+		0b0000000000000000000000000000000000000000000000000000000000000000,
+		0b0000000000000000000000000000000000000000000000000000000000000000,
 	}
 
-	pj := internalParsedJson{}
-
-	startIndex := uint32(0)
-	object := 1
-	for index := uint64(0); index < rows; index++ {
-		end := len(demo_ndjson)
-		if index < rows-1 {
-			end = int(indices[index])
+	for offset := 0; offset < len(demo_ndjson) - 64; offset += 64 {
+		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:])
+		fmt.Printf("%064b\n", mask)
+		if mask != want[offset >> 6] {
+			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset >> 6])
 		}
-		if err := pj.parseMessage([]byte(demo_ndjson)[startIndex:end]); err != nil {
-			t.Errorf("TestFindNewlineDelimiters: got: %v want: nil", err)
-		}
-
-		verifyDemoNdjson(pj, t, object)
-		object++
-
-		startIndex = indices[index]
 	}
 }

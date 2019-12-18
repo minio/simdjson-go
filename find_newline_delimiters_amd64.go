@@ -1,4 +1,7 @@
 package simdjson
 
 //go:noescape
-func find_newline_delimiters(raw []byte, indices []uint32, delimiter uint64) (rows uint64)
+func _find_newline_delimiters(raw []byte) (mask uint64)
+
+//go:noescape
+func __find_newline_delimiters()
