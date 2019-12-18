@@ -11,14 +11,6 @@ func matching_structurals(opening, ending byte) bool {
 
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
-	//  #ifdef SIMDJSON_UTF8VALIDATE
-	//      __m256i has_error = _mm256_setzero_si256();
-	//      struct avx_processed_utf_bytes previous {};
-	//	    previous.rawbytes = _mm256_setzero_si256();
-	//	    previous.high_nibbles = _mm256_setzero_si256();
-	//	    previous.carried_continuations = _mm256_setzero_si256();
-	//	#endif
-
 	// persistent state across loop
 	// does the last iteration end with an odd-length sequence of backslashes?
 	// either 0 or 1, but a 64-bit value
