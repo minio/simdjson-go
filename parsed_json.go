@@ -56,6 +56,7 @@ type internalParsedJson struct {
 	index_chan              chan indexChan
 	buffers                 [INDEX_SLOTS][INDEX_SIZE]uint32
 	buffers_offset          uint64
+	ndjson                  uint64
 }
 
 func (pj *internalParsedJson) initialize(size int) {
@@ -80,15 +81,29 @@ func (pj *internalParsedJson) initialize(size int) {
 	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
 
-func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
+func (pj *internalParsedJson) parseMessage(msg []byte) error {
+	return pj.parseMessageInternal(msg, false)
+}
 
-	pj.initialize(len(msg))
+func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
+	return pj.parseMessageInternal(msg, true)
+}
+
+func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err error) {
+
+	// Cache message so we can point directly to strings
+	// TODO: Find out why TestVerifyTape/instruments fails without bytes.TrimSpace
+	pj.Message = bytes.TrimSpace(msg)
+	pj.initialize(len(pj.Message))
+
+	if ndjson {
+		pj.ndjson = 1
+	} else {
+		pj.ndjson = 0
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-
-	// Cache message so we can point directly to strings
-	pj.Message = msg
 
 	// Make the capacity of the channel smaller than the number of slots.
 	// This way the sender will automatically block until the consumer
@@ -98,13 +113,13 @@ func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
 
 	var errStage1 error
 	go func() {
-		if !find_structural_indices(msg, pj) {
+		if !find_structural_indices(pj.Message, pj) {
 			errStage1 = errors.New("Failed to find all structural indices for stage 1")
 		}
 		wg.Done()
 	}()
 	go func() {
-		if !unified_machine(msg, pj) {
+		if !unified_machine(pj.Message, pj) {
 			err = errors.New("Bad parsing while executing stage 2")
 			// drain the channel until empty
 			for range pj.index_chan {
@@ -119,12 +134,6 @@ func (pj *internalParsedJson) parseMessage(msg []byte) (err error) {
 		return errStage1
 	}
 	return
-}
-
-func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
-
-	// TODO: Fix hack. Instead properly detect newline as structural character
-	return pj.parseMessage(bytes.ReplaceAll([]byte(msg), []byte("\n"), []byte("{")))
 }
 
 // Iter returns a new Iter.

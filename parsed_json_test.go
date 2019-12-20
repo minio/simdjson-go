@@ -116,6 +116,10 @@ func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj in
 
 	cindex, goindex := 0, 0
 	for goindex < len(gotape) {
+		if cindex == len(ctape) {
+			t.Errorf("TestCTapeCtoGoTapeCompare: unexpected, ctape at end, but gotape not yet")
+			break
+		}
 		cval, goval := ctape[cindex], gotape[goindex]
 
 		// Make sure the type is the same between the C and Go version

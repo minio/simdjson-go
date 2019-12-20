@@ -70,7 +70,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
-			index.indexes, &index.length, &carried)
+			index.indexes, &index.length, &carried, 0)
 
 		if processed != uint64(l) {
 			t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, processed, l)
@@ -116,7 +116,7 @@ func TestFindStructuralBitsLoop(t *testing.T) {
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
-			index.indexes, &index.length, &carried)
+			index.indexes, &index.length, &carried, 0)
 
 		indexes = append(indexes, (*index.indexes)[:index.length]...)
 	}

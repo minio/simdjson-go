@@ -122,7 +122,6 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	var indexCh indexChan
 
 	////////////////////////////// START STATE /////////////////////////////
-new_root:
 	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
@@ -131,6 +130,7 @@ new_root:
 	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
 		goto succeed
 	}
+continue_root:
 	switch c {
 	case '{':
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
@@ -150,21 +150,29 @@ start_continue:
 		goto succeed
 	} else {
 		// For an ndjson object, wrap up current object and start new root
-		if c == '\n' ||
-			// TODO: Remove line below (only test for newline once it is properly detected as structural char)
-			c == '{' {
-			offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
-
-			// drop last element
-			pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
-
-			pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
-			pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
-
-			goto new_root
-		} else {
+		if c != '\n' {
 			goto fail
 		}
+
+		// Peek into next character, if we are at the end, exit out
+		if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+			goto succeed
+		}
+
+		// Otherwise close current root
+		offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+
+		// drop last element
+		pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+
+		pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
+		pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
+
+		// And open a new root
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
+		pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
+
+		goto continue_root
 	}
 
 	//////////////////////////////// OBJECT STATES /////////////////////////////
