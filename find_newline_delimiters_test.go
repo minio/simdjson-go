@@ -1,7 +1,6 @@
 package simdjson
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -21,7 +20,6 @@ func TestFindNewlineDelimiters(t *testing.T) {
 
 	for offset := 0; offset < len(demo_ndjson) - 64; offset += 64 {
 		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:])
-		fmt.Printf("%064b\n", mask)
 		if mask != want[offset >> 6] {
 			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset >> 6])
 		}
