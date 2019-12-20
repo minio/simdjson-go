@@ -19,7 +19,7 @@ func TestFindNewlineDelimiters(t *testing.T) {
 	}
 
 	for offset := 0; offset < len(demo_ndjson) - 64; offset += 64 {
-		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:])
+		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:], 0)
 		if mask != want[offset >> 6] {
 			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset >> 6])
 		}
@@ -37,7 +37,7 @@ func TestExcludeNewlineDelimitersWithinQuotes(t *testing.T) {
 	odd_ends := uint64(0)
 	quotemask := find_quote_mask_and_bits(input, odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
 
-	mask := _find_newline_delimiters(input) & ^quotemask
+	mask := _find_newline_delimiters(input, quotemask)
 	want := uint64(1 << 50)
 
 	if mask != want {
