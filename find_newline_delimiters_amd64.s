@@ -8,19 +8,19 @@ TEXT ·_find_newline_delimiters(SB), 7, $0
 
     CALL ·__find_newline_delimiters(SB)
 
-	MOVQ    AX, mask+24(FP)    // store result
+	MOVQ    BX, mask+24(FP)    // store result
 	VZEROUPPER
     RET
 
 TEXT ·__find_newline_delimiters(SB), 7, $0
-	MOVQ         $0x0a, AX // get newline
-	MOVQ         AX, X11
+	MOVQ         $0x0a, BX // get newline
+	MOVQ         BX, X11
 	VPBROADCASTB X11, Y11
 
 	VPCMPEQB  Y8, Y11, Y10
 	VPCMPEQB  Y9, Y11, Y11
-	VPMOVMSKB Y10, AX
+	VPMOVMSKB Y10, BX
 	VPMOVMSKB Y11, CX
 	SHLQ      $32, CX
-	ORQ       CX, AX
+	ORQ       CX, BX    // BX is resulting mask of newline chars
 	RET
