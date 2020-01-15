@@ -47,7 +47,7 @@ TEXT ·_find_structural_bits(SB), $0-80
     VPOR     Y12, Y,   Y          // Combine together
 
 
-TEXT ·_find_structural_bits_loop(SB), $0-120
+TEXT ·_find_structural_bits_in_slice(SB), $0-120
     XORQ AX, AX
     MOVQ len+8(FP), CX
     ANDQ $0xffffffffffffffc0, CX

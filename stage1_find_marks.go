@@ -48,7 +48,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		offset := atomic.AddUint64(&pj.buffers_offset, 1)
 		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
 
-		processed := find_structural_bits_loop(buf, &prev_iter_ends_odd_backslash,
+		processed := find_structural_bits_in_slice(buf, &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,

@@ -66,7 +66,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 		index := indexChan{}
 		index.indexes = &[INDEX_SIZE]uint32{}
 
-		processed := find_structural_bits_loop([]byte(msg[:l]), &prev_iter_ends_odd_backslash,
+		processed := find_structural_bits_in_slice([]byte(msg[:l]), &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
@@ -112,7 +112,7 @@ func TestFindStructuralBitsLoop(t *testing.T) {
 		index := indexChan{}
 		index.indexes = &[INDEX_SIZE]uint32{}
 
-		processed += find_structural_bits_loop(msg[processed:], &prev_iter_ends_odd_backslash,
+		processed += find_structural_bits_in_slice(msg[processed:], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
