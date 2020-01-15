@@ -56,8 +56,8 @@ func parse_string(buf []byte, pj *ParsedJson, offset uint64) bool {
 	return true
 }
 
-func parse_number(buf []byte, pj *ParsedJson, idx uint64, neg bool) bool {
-	succes, is_double, d, i := parse_number_simd(buf[idx:], neg)
+func parse_number(buf []byte, pj *ParsedJson, neg bool) bool {
+	succes, is_double, d, i := parse_number_simd(buf, neg)
 	if !succes {
 		return false
 	}
@@ -228,12 +228,12 @@ object_key_state:
 		pj.write_tape(0, c)
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf, &pj.ParsedJson, idx, false) {
+		if !parse_number(buf[idx:], &pj.ParsedJson, false) {
 			goto fail
 		}
 
 	case '-':
-		if !parse_number(buf, &pj.ParsedJson, idx, true) {
+		if !parse_number(buf[idx:], &pj.ParsedJson, true) {
 			goto fail
 		}
 
@@ -334,12 +334,12 @@ main_array_switch:
 		/* goto array_continue */
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf, &pj.ParsedJson, idx, false) {
+		if !parse_number(buf[idx:], &pj.ParsedJson, false) {
 			goto fail
 		}
 
 	case '-':
-		if !parse_number(buf, &pj.ParsedJson, idx, true) {
+		if !parse_number(buf[idx:], &pj.ParsedJson, true) {
 			goto fail
 		}
 		/* goto array_continue */
