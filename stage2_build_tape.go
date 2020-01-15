@@ -11,17 +11,17 @@ const RET_ADDRESS_START_CONST = 1
 const RET_ADDRESS_OBJECT_CONST = 2
 const RET_ADDRESS_ARRAY_CONST = 3
 
-func updateChar(pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64) {
-	if (*indexesChan).index >= (*indexesChan).length {
+func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
+	if pj.indexesChan.index >= pj.indexesChan.length {
 		var ok bool
-		*indexesChan, ok = <-pj.index_chan // Get next element from channel
+		pj.indexesChan, ok = <-pj.index_chan // Get next element from channel
 		if !ok {
 			done = true // return done if channel closed
 			return
 		}
 	}
-	idx = idx_in + uint64((*indexesChan).indexes[(*indexesChan).index])
-	(*indexesChan).index++
+	idx = idx_in + uint64(pj.indexesChan.indexes[pj.indexesChan.index])
+	pj.indexesChan.index++
 	return
 }
 
@@ -117,7 +117,6 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	done := false
 	idx := ^uint64(0)   // location of the structural character in the input (buf)
 	offset := uint64(0) // used to contain last element of containing_scope_offset
-	var indexCh indexChan
 
 	////////////////////////////// START STATE /////////////////////////////
 	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
@@ -125,7 +124,7 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
 
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 continue_root:
@@ -144,7 +143,7 @@ continue_root:
 
 start_continue:
 	// We are back at the top, read the next char and we should be done
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	} else {
 		// For an ndjson object, wrap up current object and start new root
@@ -153,7 +152,7 @@ start_continue:
 		}
 
 		// Peek into next character, if we are at the end, exit out
-		if done, idx = updateChar(pj, idx, &indexCh); done {
+		if done, idx = updateChar(pj, idx); done {
 			goto succeed
 		}
 
@@ -176,7 +175,7 @@ start_continue:
 	//////////////////////////////// OBJECT STATES /////////////////////////////
 
 object_begin:
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	switch buf[idx] {
@@ -192,13 +191,13 @@ object_begin:
 	}
 
 object_key_state:
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	if buf[idx] != ':' {
 		goto fail
 	}
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	switch buf[idx] {
@@ -252,12 +251,12 @@ object_key_state:
 	}
 
 object_continue:
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	switch buf[idx] {
 	case ',':
-		if done, idx = updateChar(pj, idx, &indexCh); done {
+		if done, idx = updateChar(pj, idx); done {
 			goto succeed
 		}
 		if buf[idx] != '"' {
@@ -297,7 +296,7 @@ scope_end:
 
 	////////////////////////////// ARRAY STATES /////////////////////////////
 array_begin:
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	if buf[idx] == ']' {
@@ -359,12 +358,12 @@ main_array_switch:
 	}
 
 array_continue:
-	if done, idx = updateChar(pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	switch buf[idx] {
 	case ',':
-		if done, idx = updateChar(pj, idx, &indexCh); done {
+		if done, idx = updateChar(pj, idx); done {
 			goto succeed
 		}
 		goto main_array_switch
