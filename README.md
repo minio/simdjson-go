@@ -1,5 +1,9 @@
 # simdjson-go
 
+## PRE-PRODUCTION WARNING
+
+**This reposition will be moved shortly to `github.com/minio/simdjson-go`, refrain from using in production until it has been migrated.**
+
 ## Introduction
 
 This is a Golang port of [simdjson](https://github.com/lemire/simdjson), a high performance JSON parser developed by Daniel Lemire and Geoff Langdale. It makes extensive use of SIMD instructions to achieve parsing performance of gigabytes of JSON per second.
@@ -106,7 +110,7 @@ func parse(message []buf) {
 
 `simdjson-go` has the following requirements:
 
-- A CPU with both AVX2 and CLMUL is required (pretty much Haswell from 2013 onwards should do).
+- A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPIC CPU (Q1 2017) should be sufficient).
 
 ## Minor number imprecisions
 
