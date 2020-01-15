@@ -11,7 +11,7 @@ const RET_ADDRESS_START_CONST = 1
 const RET_ADDRESS_OBJECT_CONST = 2
 const RET_ADDRESS_ARRAY_CONST = 3
 
-func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64, c byte) {
+func updateChar(pj *internalParsedJson, idx_in uint64, indexesChan *indexChan) (done bool, idx uint64) {
 	if (*indexesChan).index >= (*indexesChan).length {
 		var ok bool
 		*indexesChan, ok = <-pj.index_chan // Get next element from channel
@@ -22,7 +22,6 @@ func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *
 	}
 	idx = idx_in + uint64((*indexesChan).indexes[(*indexesChan).index])
 	(*indexesChan).index++
-	c = buf[idx]
 	return
 }
 
@@ -117,7 +116,6 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 
 	done := false
 	idx := ^uint64(0)   // location of the structural character in the input (buf)
-	c := byte(0)        // used to track the (structural) character we are looking at
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 	var indexCh indexChan
 
@@ -127,18 +125,18 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
 
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
 continue_root:
-	switch c {
+	switch buf[idx] {
 	case '{':
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
-		pj.write_tape(0, c) // strangely, moving this to object_begin slows things down
+		pj.write_tape(0, buf[idx])
 		goto object_begin
 	case '[':
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 		goto array_begin
 	default:
 		goto fail
@@ -146,16 +144,16 @@ continue_root:
 
 start_continue:
 	// We are back at the top, read the next char and we should be done
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	} else {
 		// For an ndjson object, wrap up current object and start new root
-		if c != '\n' {
+		if buf[idx] != '\n' {
 			goto fail
 		}
 
 		// Peek into next character, if we are at the end, exit out
-		if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+		if done, idx = updateChar(pj, idx, &indexCh); done {
 			goto succeed
 		}
 
@@ -178,10 +176,10 @@ start_continue:
 	//////////////////////////////// OBJECT STATES /////////////////////////////
 
 object_begin:
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
-	switch c {
+	switch buf[idx] {
 	case '"':
 		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
@@ -194,16 +192,16 @@ object_begin:
 	}
 
 object_key_state:
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
-	if c != ':' {
+	if buf[idx] != ':' {
 		goto fail
 	}
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
-	switch c {
+	switch buf[idx] {
 	case '"':
 		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
@@ -213,19 +211,19 @@ object_key_state:
 		if !is_valid_true_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 
 	case 'f':
 		if !is_valid_false_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 
 	case 'n':
 		if !is_valid_null_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		if !parse_number(buf[idx:], &pj.ParsedJson, false) {
@@ -239,13 +237,13 @@ object_key_state:
 
 	case '{':
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_OBJECT_CONST)
-		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, buf[idx])
 		// we have not yet encountered } so we need to come back for it
 		goto object_begin
 
 	case '[':
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_OBJECT_CONST)
-		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, buf[idx])
 		// we have not yet encountered } so we need to come back for it
 		goto array_begin
 
@@ -254,15 +252,15 @@ object_key_state:
 	}
 
 object_continue:
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
-	switch c {
+	switch buf[idx] {
 	case ',':
-		if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+		if done, idx = updateChar(pj, idx, &indexCh); done {
 			goto succeed
 		}
-		if c != '"' {
+		if buf[idx] != '"' {
 			goto fail
 		}
 		if !parse_string(buf, &pj.ParsedJson, idx) {
@@ -284,7 +282,7 @@ scope_end:
 	// drop last element
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
-	pj.write_tape(offset>>RET_ADDRESS_SHIFT, c)
+	pj.write_tape(offset>>RET_ADDRESS_SHIFT, buf[idx])
 	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
 
 	/* goto saved_state*/
@@ -299,17 +297,17 @@ scope_end:
 
 	////////////////////////////// ARRAY STATES /////////////////////////////
 array_begin:
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
-	if c == ']' {
+	if buf[idx] == ']' {
 		goto scope_end // could also go to array_continue
 	}
 
 main_array_switch:
 	// we call update char on all paths in, so we can peek at c on the
 	// on paths that can accept a close square brace (post-, and at start)
-	switch c {
+	switch buf[idx] {
 	case '"':
 		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
@@ -318,19 +316,19 @@ main_array_switch:
 		if !is_valid_true_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 
 	case 'f':
 		if !is_valid_false_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 
 	case 'n':
 		if !is_valid_null_atom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, c)
+		pj.write_tape(0, buf[idx])
 		/* goto array_continue */
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -347,13 +345,13 @@ main_array_switch:
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_ARRAY_CONST)
-		pj.write_tape(0, c) //  here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, buf[idx]) //  here the compilers knows what c is so this gets optimized
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_ARRAY_CONST)
-		pj.write_tape(0, c) // here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, buf[idx]) // here the compilers knows what c is so this gets optimized
 		goto array_begin
 
 	default:
@@ -361,12 +359,12 @@ main_array_switch:
 	}
 
 array_continue:
-	if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+	if done, idx = updateChar(pj, idx, &indexCh); done {
 		goto succeed
 	}
-	switch c {
+	switch buf[idx] {
 	case ',':
-		if done, idx, c = updateChar(buf, pj, idx, &indexCh); done {
+		if done, idx = updateChar(pj, idx, &indexCh); done {
 			goto succeed
 		}
 		goto main_array_switch
