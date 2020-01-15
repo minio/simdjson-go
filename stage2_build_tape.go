@@ -26,7 +26,7 @@ func updateChar(buf []byte, pj *internalParsedJson, idx_in uint64, indexesChan *
 	return
 }
 
-func parse_string(buf []byte, pj *ParsedJson, depth int, offset uint64) bool {
+func parse_string(buf []byte, pj *ParsedJson, offset uint64) bool {
 	size := uint64(0)
 	need_copy := false
 	if !parse_string_simd_validate_only(buf[offset:], &size, &need_copy) {
@@ -183,7 +183,7 @@ object_begin:
 	}
 	switch c {
 	case '"':
-		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
+		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
 		}
 		goto object_key_state
@@ -205,7 +205,7 @@ object_key_state:
 	}
 	switch c {
 	case '"':
-		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
+		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
 		}
 
@@ -265,7 +265,7 @@ object_continue:
 		if c != '"' {
 			goto fail
 		}
-		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
+		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
 		}
 		goto object_key_state
@@ -311,7 +311,7 @@ main_array_switch:
 	// on paths that can accept a close square brace (post-, and at start)
 	switch c {
 	case '"':
-		if !parse_string(buf, &pj.ParsedJson, len(pj.containing_scope_offset), idx) {
+		if !parse_string(buf, &pj.ParsedJson, idx) {
 			goto fail
 		}
 	case 't':
