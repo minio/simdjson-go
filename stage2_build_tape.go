@@ -30,7 +30,7 @@ func parse_string(pj *ParsedJson, idx uint64) bool {
 	need_copy := false
 	buf := pj.Message[idx:]
 	if len(buf) < 64 { // if we have less than 2 YMM words left, make sure there is enough space
-		paddedBuf := [64]byte{}
+		paddedBuf := [128]byte{}
 		copy(paddedBuf[:], buf)
 		buf = paddedBuf[:]
 	}
@@ -62,6 +62,11 @@ func parse_string(pj *ParsedJson, idx uint64) bool {
 }
 
 func parse_number(buf []byte, pj *ParsedJson, neg bool) bool {
+	if len(buf) < 64 { // if we have less than 2 YMM words left, make sure there is enough space
+		paddedBuf := [128]byte{}
+		copy(paddedBuf[:], buf)
+		buf = paddedBuf[:]
+	}
 	succes, is_double, d, i := parse_number_simd(buf, neg)
 	if !succes {
 		return false
