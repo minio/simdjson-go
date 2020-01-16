@@ -25,7 +25,7 @@ func parse_number_simd(buf []byte, found_minus bool) (success, is_double bool, d
 
 	if SLOWGOLANGFLOATPARSING && is_double {
 		pos := 0
-		for ; unicode.IsDigit(rune(buf[pos])) || buf[pos] == '.' || buf[pos] == '+' || buf[pos] == '-' || buf[pos] == 'e' || buf[pos] == 'E'; pos++ {
+		for ; pos < len(buf) && (unicode.IsDigit(rune(buf[pos])) || buf[pos] == '.' || buf[pos] == '+' || buf[pos] == '-' || buf[pos] == 'e' || buf[pos] == 'E'); pos++ {
 		}
 		dbl, err := strconv.ParseFloat(string(buf[:pos]), 64)
 		if err == nil {
