@@ -14,7 +14,7 @@ Performance wise, `simdjson-go` runs on average at about 40% to 60% of the speed
 
 `simdjson-go` is a validating parser, meaning that it amongst others validates and checks numerical values, booleans etc. As such numerical values are available as the appropriate `int` and `float64` representations after parsing.
 
-Addiitonally `simdjson-go` has the following features:
+Additionally `simdjson-go` has the following features:
 
 - No 4 GB object limit
 - Support for [ndjson](http://ndjson.org/) (newline delimited json)
@@ -113,9 +113,9 @@ func parse(message []buf) {
 
 - A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPIC CPU (Q1 2017) should be sufficient).
 
-## Minor number imprecisions
+## Minor number inprecisions
 
-The number parser has minor imprecisions compared to Golang's standard number parsing. There is constant  `SLOWGOLANGFLOATPARSING` (on by default) that uses Golang's parsing functionality at the expense of giving up some performance. Note that the performance metrics mentioned above have been measured by setting the `SLOWGOLANGFLOATPARSING` to false.
+The number parser has minor inprecisions compared to Golang's standard number parsing. There is constant  `SLOWGOLANGFLOATPARSING` (on by default) that uses Golang's parsing functionality at the expense of giving up some performance. Note that the performance metrics mentioned above have been measured by setting the `SLOWGOLANGFLOATPARSING` to false.
 
 ## License
 
