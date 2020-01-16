@@ -25,14 +25,20 @@ func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 	return
 }
 
-func parse_string(buf []byte, pj *ParsedJson, offset uint64) bool {
+func parse_string(pj *ParsedJson, idx uint64) bool {
 	size := uint64(0)
 	need_copy := false
-	if !parse_string_simd_validate_only(buf[offset:], &size, &need_copy) {
+	buf := pj.Message[idx:]
+	if len(buf) < 64 { // if we have less than 2 YMM words left, make sure there is enough space
+		paddedBuf := [64]byte{}
+		copy(paddedBuf[:], buf)
+		buf = paddedBuf[:]
+	}
+	if !parse_string_simd_validate_only(buf, &size, &need_copy) {
 		return false
 	}
 	if !need_copy {
-		pj.write_tape(offset+1, '"')
+		pj.write_tape(idx+1, '"')
 	} else {
 		// Make sure we account for at least 32 bytes additional space due to
 		requiredLen := uint64(len(pj.Strings)) + size + 32
@@ -46,7 +52,7 @@ func parse_string(buf []byte, pj *ParsedJson, offset uint64) bool {
 			pj.Strings = strs
 		}
 		start := len(pj.Strings)
-		_ = parse_string_simd(buf[offset:], &pj.Strings) // We can safely ignore the result since we validate above
+		_ = parse_string_simd(buf, &pj.Strings) // We can safely ignore the result since we validate above
 		pj.write_tape(uint64(STRINGBUFBIT+start), '"')
 		size = uint64(len(pj.Strings) - start)
 	}
@@ -180,7 +186,7 @@ object_begin:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parse_string(buf, &pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx) {
 			goto fail
 		}
 		goto object_key_state
@@ -202,7 +208,7 @@ object_key_state:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parse_string(buf, &pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx) {
 			goto fail
 		}
 
@@ -262,7 +268,7 @@ object_continue:
 		if buf[idx] != '"' {
 			goto fail
 		}
-		if !parse_string(buf, &pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx) {
 			goto fail
 		}
 		goto object_key_state
@@ -308,7 +314,7 @@ main_array_switch:
 	// on paths that can accept a close square brace (post-, and at start)
 	switch buf[idx] {
 	case '"':
-		if !parse_string(buf, &pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx) {
 			goto fail
 		}
 	case 't':
