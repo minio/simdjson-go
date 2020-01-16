@@ -2,7 +2,6 @@ package simdjson
 
 import (
 	"sync/atomic"
-	"unicode/utf8"
 )
 
 func matching_structurals(opening, ending byte) bool {
@@ -53,16 +52,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			structurals,
 			&prev_iter_ends_pseudo_pred,
 			index.indexes, &index.length, &carried, pj.ndjson)
-
-		// TODO: Checkout performance impact of UTF8 validation
-		// TODO: Disabled for now -- causes TestVerifytape for twitter.json and random.json to fail
-		if false && !utf8.Valid(buf[:processed]) {
-			// #ifdef SIMDJSON_UTF8VALIDATE
-			// check_utf8(input_lo, input_hi, has_error, previous);
-			// #endif
-			error_mask = ^uint64(0)
-			break
-		}
 
 		if opening_struct_char == ^uint64(0) && index.length > 0 {
 			opening_struct_char = uint64(buf[opening_struct_char+uint64(index.indexes[0])])
