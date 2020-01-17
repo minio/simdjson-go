@@ -9,10 +9,11 @@ import (
 
 func TestParseND(t *testing.T) {
 	tests := []struct {
-		name    string
-		js      string
-		want    string
-		wantErr bool
+		name       string
+		skipFloats bool // Skip tests that contain float64 inprecisions (see SLOWGOLANGFLOATPARSING flag)
+		js         string
+		want       string
+		wantErr    bool
 	}{
 		{
 			name: "demo",
@@ -31,14 +32,16 @@ func TestParseND(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "floatinvalid",
-			js:      `{"bimbam":12345465.44j7,"bumbum":true}`,
-			wantErr: true,
+			name:       "floatinvalid",
+			skipFloats: true,
+			js:         `{"bimbam":12345465.44j7,"bumbum":true}`,
+			wantErr:    true,
 		},
 		{
-			name:    "numberinvalid",
-			js:      `{"bimbam":1234546544j7}`,
-			wantErr: true,
+			name:       "numberinvalid",
+			skipFloats: true,
+			js:         `{"bimbam":1234546544j7}`,
+			wantErr:    true,
 		},
 		{
 			name:    "emptyobject",
@@ -61,6 +64,9 @@ func TestParseND(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipFloats && SLOWGOLANGFLOATPARSING {
+				return
+			}
 			got, err := ParseND([]byte(tt.js), nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseND() error = %v, wantErr %v", err, tt.wantErr)
@@ -136,10 +142,11 @@ func TestParseND(t *testing.T) {
 
 func TestParseFailCases(t *testing.T) {
 	tests := []struct {
-		name    string
-		js      string
-		want    string
-		wantErr bool
+		name       string
+		skipFloats bool // Skip tests that contain float64 inprecisions (see SLOWGOLANGFLOATPARSING flag)
+		js         string
+		want       string
+		wantErr    bool
 	}{
 		{
 			name:    "fail01_EXCLUDE",
@@ -202,14 +209,16 @@ func TestParseFailCases(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "fail13",
-			js:      `{"Numbers cannot have leading zeroes": 013}`,
-			wantErr: true,
+			name:       "fail13",
+			skipFloats: true,
+			js:         `{"Numbers cannot have leading zeroes": 013}`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail14",
-			js:      `{"Numbers cannot be hex": 0x14}`,
-			wantErr: true,
+			name:       "fail14",
+			skipFloats: true,
+			js:         `{"Numbers cannot be hex": 0x14}`,
+			wantErr:    true,
 		},
 		{
 			name:    "fail15",
@@ -622,7 +631,7 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "issue-59-a",
+			name: "issue-59-a",
 			js: `{
     "a": "b",
     "@35Z\b_\b333\u0033": { "a": "c" },
@@ -733,7 +742,7 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "issue-59-b",
+			name: "issue-59-b",
 			js: `{
     "a": "b",
     "@35Z\b_\b333\u0033": { "a": "c" },
@@ -992,6 +1001,9 @@ break"]`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.skipFloats && SLOWGOLANGFLOATPARSING {
+				return
+			}
 			got, err := Parse([]byte(tt.js), nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseFailCases() error = %v, wantErr %v", err, tt.wantErr)
@@ -1050,7 +1062,7 @@ func TestParsePassCases(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		skipFloats bool   // Skip tests that contain float64 imprecisions (see SLOWGOLANGFLOATPARSING flag)
+		skipFloats bool // Skip tests that contain float64 imprecisions (see SLOWGOLANGFLOATPARSING flag)
 		js         string
 		want       string
 		wantErr    bool
@@ -1136,7 +1148,7 @@ func TestParsePassCases(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "pass04.json", skipFloats: true,
+			name: "pass04.json", skipFloats: true,
 			js:      `{"a":[3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679,0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003]}`,
 			want:    `{"a":[3.141592653589793,3e-117]}`,
 			wantErr: false,
@@ -1193,7 +1205,7 @@ func TestParsePassCases(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "pass15.json", skipFloats: true,
+			name: "pass15.json", skipFloats: true,
 			js:      `{"a":[-65.619720000000029]}`,
 			want:    `{"a":[-65.61972000000003]}`,
 			wantErr: false,
@@ -1210,7 +1222,7 @@ func TestParsePassCases(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "pass18.json", skipFloats: true,
+			name: "pass18.json", skipFloats: true,
 			js:      `{"a":[1000000000000000000e0,1000000000000000000e-0,1000000000000000000.0e0,1000000000000000000e10,"issue187"]}`,
 			want:    `{"a":[1000000000000000000,1000000000000000000,1000000000000000000,1e+28,"issue187"]}`,
 			wantErr: false,

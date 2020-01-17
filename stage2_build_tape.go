@@ -74,7 +74,7 @@ func parse_number(buf []byte, pj *ParsedJson, neg bool) bool {
 	if is_double {
 		pj.write_tape_double(d)
 	} else {
-		pj.write_tape_s64(i)
+		pj.write_tape_s64(int64(i))
 	}
 	return true
 }

@@ -21,11 +21,15 @@ func closeEnoughLessPrecision(d1, d2 float64) (ce bool) {
 
 func TestParseNumber(t *testing.T) {
 
+	if SLOWGOLANGFLOATPARSING {
+		t.Skip()
+	}
+
 	testCases := []struct {
 		input     string
 		is_double bool
 		expectedD float64
-		expectedI int64
+		expectedI int
 	}{
 		{"1", false, 0.0, 1},
 		{"-1", false, 0.0, -1},
@@ -72,6 +76,11 @@ func TestParseNumber(t *testing.T) {
 }
 
 func TestParseInt64(t *testing.T) {
+
+	if SLOWGOLANGFLOATPARSING {
+		t.Skip()
+	}
+
 	for i := range parseInt64Tests {
 		test := &parseInt64Tests[i]
 
@@ -100,6 +109,10 @@ func TestParseInt64(t *testing.T) {
 }
 
 func TestParseFloat64(t *testing.T) {
+
+	if SLOWGOLANGFLOATPARSING {
+		t.Skip()
+	}
 
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
@@ -130,7 +143,7 @@ func TestParseFloat64(t *testing.T) {
 
 type parseInt64Test struct {
 	in  string
-	out int64
+	out int
 	err error
 }
 
