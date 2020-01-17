@@ -47,11 +47,23 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		offset := atomic.AddUint64(&pj.buffers_offset, 1)
 		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
 
-		processed := find_structural_bits_in_slice(buf, &prev_iter_ends_odd_backslash,
-			&prev_iter_inside_quote, &error_mask,
-			structurals,
-			&prev_iter_ends_pseudo_pred,
-			index.indexes, &index.length, &carried, pj.ndjson)
+		var processed uint64
+		if len(buf) > 64 {
+			processed = find_structural_bits_in_slice(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
+				&prev_iter_inside_quote, &error_mask,
+				structurals,
+				&prev_iter_ends_pseudo_pred,
+				index.indexes, &index.length, &carried, pj.ndjson)
+		} else {
+			// Process last 64 bytes in larger buffer (to safeguard against reading beyond the end of the buffer)
+			paddedBuf := [128]byte{}
+			copy(paddedBuf[:], buf)
+			processed = find_structural_bits_in_slice(paddedBuf[:len(buf)], &prev_iter_ends_odd_backslash,
+				&prev_iter_inside_quote, &error_mask,
+				structurals,
+				&prev_iter_ends_pseudo_pred,
+				index.indexes, &index.length, &carried, pj.ndjson)
+		}
 
 		if opening_struct_char == ^uint64(0) && index.length > 0 {
 			opening_struct_char = uint64(buf[opening_struct_char+uint64(index.indexes[0])])
