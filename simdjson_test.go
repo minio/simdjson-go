@@ -1268,6 +1268,12 @@ func TestParsePassCases(t *testing.T) {
 			want:    `{"M":{"T":false}}`,
 			wantErr: false,
 		},
+		{
+			name:    "big-float-inprecision-46",
+			js:      `{"":60000000000000000000}`,
+			want:    `{"":60000000000000000000}`,
+			wantErr: false,
+		},
 	}
 
 	var got *ParsedJson
