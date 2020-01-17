@@ -21,10 +21,10 @@ import (
 // instead of
 //     "-65.619720000000029" --> -65.61972000000003
 //
-// There is a slow code path that uses Golang's ParseFloat (disabled by default)
+// There is a slower code path that uses Golang's Atoi() and ParseFloat()
 //
-// For benchmarking SLOWGOLANGFLOATPARSING is set to false
-const SLOWGOLANGFLOATPARSING = true
+// For benchmarking GOLANG_NUMBER_PARSING is set to false
+const GOLANG_NUMBER_PARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
 const STRINGBUFBIT = 0x80000000000000

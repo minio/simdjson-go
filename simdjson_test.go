@@ -10,7 +10,7 @@ import (
 func TestParseND(t *testing.T) {
 	tests := []struct {
 		name       string
-		skipFloats bool // Skip tests that contain float64 inprecisions (see SLOWGOLANGFLOATPARSING flag)
+		skipFloats bool // Skip tests that contain float64 inprecisions (see GOLANG_NUMBER_PARSING flag)
 		js         string
 		want       string
 		wantErr    bool
@@ -64,7 +64,7 @@ func TestParseND(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipFloats && SLOWGOLANGFLOATPARSING {
+			if tt.skipFloats && GOLANG_NUMBER_PARSING {
 				return
 			}
 			got, err := ParseND([]byte(tt.js), nil)
@@ -143,7 +143,7 @@ func TestParseND(t *testing.T) {
 func TestParseFailCases(t *testing.T) {
 	tests := []struct {
 		name       string
-		skipFloats bool // Skip tests that contain float64 inprecisions (see SLOWGOLANGFLOATPARSING flag)
+		skipFloats bool // Skip tests that contain float64 inprecisions (see GOLANG_NUMBER_PARSING flag)
 		js         string
 		want       string
 		wantErr    bool
@@ -1001,7 +1001,7 @@ break"]`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipFloats && SLOWGOLANGFLOATPARSING {
+			if tt.skipFloats && GOLANG_NUMBER_PARSING {
 				return
 			}
 			got, err := Parse([]byte(tt.js), nil)
@@ -1062,7 +1062,7 @@ func TestParsePassCases(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		skipFloats bool // Skip tests that contain float64 imprecisions (see SLOWGOLANGFLOATPARSING flag)
+		skipFloats bool // Skip tests that contain float64 imprecisions (see GOLANG_NUMBER_PARSING flag)
 		js         string
 		want       string
 		wantErr    bool

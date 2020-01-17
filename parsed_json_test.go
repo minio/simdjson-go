@@ -150,7 +150,7 @@ func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj in
 
 		case TagInteger, TagFloat:
 			if ctape[cindex+1] != gotape[goindex+1] {
-				if !(ntype == TagFloat && SLOWGOLANGFLOATPARSING) {
+				if !(ntype == TagFloat && GOLANG_NUMBER_PARSING) {
 					t.Errorf("TestCTapeCtoGoTapeCompare: got: %016x want: %016x", gotape[goindex+1], ctape[cindex+1])
 
 				}

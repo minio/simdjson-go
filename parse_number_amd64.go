@@ -14,7 +14,7 @@ func _parse_number(buf unsafe.Pointer, offset, found_minus uint64, is_double, re
 
 func parse_number_simd(buf []byte, found_minus bool) (success, is_double bool, d float64, i int) {
 
-	if SLOWGOLANGFLOATPARSING {
+	if GOLANG_NUMBER_PARSING {
 
 		pos := 0
 		for ; pos < len(buf) && (unicode.IsDigit(rune(buf[pos])) || buf[pos] == '.' || buf[pos] == '+' || buf[pos] == '-' || buf[pos] == 'e' || buf[pos] == 'E'); pos++ {

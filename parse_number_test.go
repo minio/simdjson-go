@@ -21,7 +21,7 @@ func closeEnoughLessPrecision(d1, d2 float64) (ce bool) {
 
 func TestParseNumber(t *testing.T) {
 
-	if SLOWGOLANGFLOATPARSING {
+	if GOLANG_NUMBER_PARSING {
 		t.Skip()
 	}
 
@@ -41,7 +41,7 @@ func TestParseNumber(t *testing.T) {
 		{"23456789012E66", true, 23456789012e66, 0},
 		{"-9876.543210", true, -9876.543210, 0},
 		// The number below parses to -65.61972000000004 for parse_number()
-		// This extra inprecision is tolerated when SLOWGOLANGFLOATPARSING = false
+		// This extra inprecision is tolerated when GOLANG_NUMBER_PARSING = false
 		{"-65.619720000000029", true, -65.61972000000003, 0},
 	}
 
@@ -59,7 +59,7 @@ func TestParseNumber(t *testing.T) {
 		}
 		if is_double {
 			if !closeEnough(d, tc.expectedD) {
-				if SLOWGOLANGFLOATPARSING {
+				if GOLANG_NUMBER_PARSING {
 					t.Errorf("TestParseNumber: got: %g want: %g", d, tc.expectedD)
 				} else {
 					if !closeEnoughLessPrecision(d, tc.expectedD) {
@@ -77,7 +77,7 @@ func TestParseNumber(t *testing.T) {
 
 func TestParseInt64(t *testing.T) {
 
-	if SLOWGOLANGFLOATPARSING {
+	if GOLANG_NUMBER_PARSING {
 		t.Skip()
 	}
 
@@ -110,7 +110,7 @@ func TestParseInt64(t *testing.T) {
 
 func TestParseFloat64(t *testing.T) {
 
-	if SLOWGOLANGFLOATPARSING {
+	if GOLANG_NUMBER_PARSING {
 		t.Skip()
 	}
 
