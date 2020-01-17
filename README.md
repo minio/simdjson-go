@@ -115,7 +115,7 @@ func parse(message []buf) {
 
 ## Minor number inprecisions
 
-The number parser has minor inprecisions compared to Golang's standard number parsing. There is constant  `SLOWGOLANGFLOATPARSING` (on by default) that uses Golang's parsing functionality at the expense of giving up some performance. Note that the performance metrics mentioned above have been measured by setting the `SLOWGOLANGFLOATPARSING` to false.
+The number parser has minor inprecisions compared to Golang's standard number parsing. There is constant  `GOLANG_NUMBER_PARSING` (on by default) that uses Golang's parsing functionality at the expense of giving up some performance. Note that the performance metrics mentioned above have been measured by setting the `GOLANG_NUMBER_PARSING` to false.
 
 ## License
 
