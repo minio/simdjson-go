@@ -1274,6 +1274,12 @@ func TestParsePassCases(t *testing.T) {
 			want:    `{"":60000000000000000000}`,
 			wantErr: false,
 		},
+		{
+			name:    "big-integer-overflow-47",
+			js:      `{"o":30886023086020860230}`,
+			want:    `{"o":30886023086020860000}`,
+			wantErr: false,
+		},
 	}
 
 	var got *ParsedJson
