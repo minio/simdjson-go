@@ -1280,6 +1280,12 @@ func TestParsePassCases(t *testing.T) {
 			want:    `{"o":30886023086020860000}`,
 			wantErr: false,
 		},
+		{
+			name:    "small-number-array-issue-49",
+			js:      `{"G":[0,5e-500,5e-50]}`,
+			want:    `{"G":[0,0,5e-50]}`,
+			wantErr: false,
+		},
 	}
 
 	var got *ParsedJson
