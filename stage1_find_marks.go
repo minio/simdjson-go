@@ -47,18 +47,18 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		offset := atomic.AddUint64(&pj.buffers_offset, 1)
 		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
 
-		var processed uint64
-		if len(buf) > 64 {
-			processed = find_structural_bits_in_slice(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
-				&prev_iter_inside_quote, &error_mask,
-				structurals,
-				&prev_iter_ends_pseudo_pred,
-				index.indexes, &index.length, &carried, pj.ndjson)
-		} else {
+		processed := find_structural_bits_in_slice(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
+			&prev_iter_inside_quote, &error_mask,
+			structurals,
+			&prev_iter_ends_pseudo_pred,
+			index.indexes, &index.length, &carried, pj.ndjson)
+
+		// Check if we have at most a single iteration of 64 bytes left, tag on to previous invocation
+		if uint64(len(buf)) - processed <= 64 {
 			// Process last 64 bytes in larger buffer (to safeguard against reading beyond the end of the buffer)
 			paddedBuf := [128]byte{}
-			copy(paddedBuf[:], buf)
-			processed = find_structural_bits_in_slice(paddedBuf[:len(buf)], &prev_iter_ends_odd_backslash,
+			copy(paddedBuf[:], buf[processed:])
+			processed += find_structural_bits_in_slice(paddedBuf[:uint64(len(buf))-processed], &prev_iter_ends_odd_backslash,
 				&prev_iter_inside_quote, &error_mask,
 				structurals,
 				&prev_iter_ends_pseudo_pred,
