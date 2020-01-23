@@ -4,6 +4,10 @@ import (
 	"sync/atomic"
 )
 
+func json_markup(b byte) bool {
+	return b == '{' || b == '}' || b == '[' || b == ']' || b == ',' || b == ':'
+}
+
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	// persistent state across loop
@@ -36,12 +40,20 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	// absolute position into message buffer
 	pos := ^uint64(0)
+	stripped_index := ^uint64(0)
 
 	for len(buf) > 0 {
 
 		index := indexChan{}
 		offset := atomic.AddUint64(&pj.buffers_offset, 1)
 		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
+
+		// In case last index during previous round was stripped back, put it back
+		if stripped_index != ^uint64(0) {
+			index.indexes[0] = uint32(stripped_index)
+			index.length = 1
+			stripped_index = ^uint64(0)
+		}
 
 		processed := find_structural_bits_in_slice(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
@@ -61,21 +73,30 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 				index.indexes, &index.length, &carried, pj.ndjson)
 		}
 
+		if index.length == 0 { // No structural chars found, so error out
+			error_mask = ^uint64(0)
+			break
+		}
+
 		for i := 0; i < index.length; i++ {
 			pos += uint64(index.indexes[i])
 		}
 
 		if uint64(len(buf)) == processed { // message processing completed?
 			// break out if either
-			// - no structural chars have been found
 			// - is there an unmatched quote at the end
 			// - the ending structural char does not match the opening char
-			if index.length == 0 ||
-				prev_iter_inside_quote != 0 ||
+			if prev_iter_inside_quote != 0 ||
 				(pos != ^uint64(0) && buf[pos] != '}') {
 				error_mask = ^uint64(0)
 				break
 			}
+		} else if !json_markup(buf[pos]) {
+			// There may be a dangling quote at the end of the index buffer
+			// Strip it from current index buffer and save for next round
+			stripped_index = uint64(index.indexes[index.length-1])
+			pos -= stripped_index
+			index.length -= 1
 		}
 
 		pj.index_chan <- index
