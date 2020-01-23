@@ -5,16 +5,20 @@
 #define ZEROS   CX
 #define CARRIED DX
 #define SHIFTS  R8
+#define POSITION R10
 
-TEXT ·_flatten_bits_incremental(SB), $0-32
+TEXT ·_flatten_bits_incremental(SB), $0-40
 
     MOVQ base_ptr+0(FP), DI
     MOVQ pbase+8(FP), SI
     MOVQ mask+16(FP), MASK
-    MOVQ pcarried+24(FP), R11
+    MOVQ carried+24(FP), R11
+    MOVQ position+32(FP), R12
     MOVQ (SI), INDEX
     MOVQ (R11), CARRIED
+    MOVQ (R12), POSITION
     CALL ·__flatten_bits_incremental(SB)
+    MOVQ   POSITION, (R12)
     MOVQ   CARRIED, (R11)
     MOVQ   INDEX, (SI)
     RET
@@ -35,6 +39,7 @@ TEXT ·__flatten_bits_incremental(SB), $0
     ADDQ   CARRIED, ZEROS
     MOVQ   ZEROS, (DI)(INDEX*4)
     ADDQ   $1, INDEX
+    ADDQ   ZEROS, POSITION
     XORQ   CARRIED, CARRIED // Reset CARRIED to 0 (since it has been used)
 
 loop:
@@ -46,6 +51,7 @@ loop:
     ADDQ   ZEROS, SHIFTS
     MOVQ   ZEROS, (DI)(INDEX*4)
     ADDQ   $1, INDEX
+    ADDQ   ZEROS, POSITION
     JMP    loop
 
 done:

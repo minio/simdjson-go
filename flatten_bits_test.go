@@ -50,9 +50,10 @@ func TestFlattenBitsIncremental(t *testing.T) {
 		index := indexChan{}
 		index.indexes = &[INDEX_SIZE]uint32{}
 		carried := 0
+		position := ^uint64(0)
 
 		for _, mask := range tc.masks {
-			flatten_bits_incremental(index.indexes, &index.length, mask, &carried)
+			flatten_bits_incremental(index.indexes, &index.length, mask, &carried, &position)
 		}
 
 		if index.length != len(tc.expected) {
@@ -99,11 +100,12 @@ func BenchmarkFlattenBits(b *testing.B) {
 	index := indexChan{}
 	index.indexes = &[INDEX_SIZE]uint32{}
 	carried := 0
+	position := ^uint64(0)
 
 	for i := 0; i < b.N; i++ {
 		for _, structurals := range structuralsArray {
 			index.length = 0 // reset length to prevent overflow
-			flatten_bits_incremental(index.indexes, &index.length, structurals, &carried)
+			flatten_bits_incremental(index.indexes, &index.length, structurals, &carried, &position)
 		}
 	}
 }
