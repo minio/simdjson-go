@@ -51,8 +51,6 @@ func find_structural_bits_in_slice(buf []byte, prev_iter_ends_odd_backslash *uin
 	quote_bits := uint64(0)
 	whitespace := uint64(0)
 
-	const INDEX_SIZE_WITH_SAFETY_BUFFER = INDEX_SIZE - 64
-
 	return _find_structural_bits_in_slice(unsafe.Pointer(&buf[0]), uint64(len(buf)), unsafe.Pointer(prev_iter_ends_odd_backslash),
 		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(&quote_bits), unsafe.Pointer(error_mask),
 		unsafe.Pointer(&whitespace), unsafe.Pointer(&structurals),
