@@ -1,6 +1,6 @@
 //+build !noasm !appengine
 
-TEXT ·_find_structural_bits(SB), $0-80
+TEXT ·_find_structural_bits(SB), $0-72
 
     MOVQ p1+0(FP), DI
     MOVQ p3+8(FP), DX
