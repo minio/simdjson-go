@@ -4,10 +4,6 @@ import (
 	"sync/atomic"
 )
 
-func matching_structurals(opening, ending byte) bool {
-	return opening == '{' && ending == '}'
-}
-
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	// persistent state across loop
@@ -38,8 +34,8 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	// empty bits that are carried over to the next call to flatten_bits_incremental
 	carried := uint64(0)
 
-	// keep the opening structural char so that we can verify it with the closing char
-	opening_struct_char := ^uint64(0)
+	// absolute position into message buffer
+	pos := ^uint64(0)
 
 	for len(buf) > 0 {
 
@@ -65,22 +61,18 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 				index.indexes, &index.length, &carried, pj.ndjson)
 		}
 
-		if opening_struct_char == ^uint64(0) && index.length > 0 {
-			opening_struct_char = uint64(buf[opening_struct_char+uint64(index.indexes[0])])
+		for i := 0; i < index.length; i++ {
+			pos += uint64(index.indexes[i])
 		}
 
 		if uint64(len(buf)) == processed { // message processing completed?
-			offset := ^uint64(0)
-			for i := 0; i < index.length; i++ {
-				offset += uint64(index.indexes[i])
-			}
 			// break out if either
 			// - no structural chars have been found
 			// - is there an unmatched quote at the end
 			// - the ending structural char does not match the opening char
 			if index.length == 0 ||
 				prev_iter_inside_quote != 0 ||
-				(offset != ^uint64(0) && offset < uint64(len(buf)) && !matching_structurals(byte(opening_struct_char), buf[offset])) {
+				(pos != ^uint64(0) && buf[pos] != '}') {
 				error_mask = ^uint64(0)
 				break
 			}
@@ -90,6 +82,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		indexTotal += index.length
 
 		buf = buf[processed:]
+		pos -= processed
 	}
 	close(pj.index_chan)
 
