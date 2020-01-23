@@ -39,7 +39,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	carried := uint64(0)
 
 	// absolute position into message buffer
-	pos := ^uint64(0)
+	position := ^uint64(0)
 	stripped_index := ^uint64(0)
 
 	for len(buf) > 0 {
@@ -50,6 +50,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 		// In case last index during previous round was stripped back, put it back
 		if stripped_index != ^uint64(0) {
+			position += stripped_index
 			index.indexes[0] = uint32(stripped_index)
 			index.length = 1
 			stripped_index = ^uint64(0)
@@ -59,7 +60,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
-			index.indexes, &index.length, &carried, pj.ndjson)
+			index.indexes, &index.length, &carried, &position, pj.ndjson)
 
 		// Check if we have at most a single iteration of 64 bytes left, tag on to previous invocation
 		if uint64(len(buf)) - processed <= 64 {
@@ -70,7 +71,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 				&prev_iter_inside_quote, &error_mask,
 				structurals,
 				&prev_iter_ends_pseudo_pred,
-				index.indexes, &index.length, &carried, pj.ndjson)
+				index.indexes, &index.length, &carried, &position, pj.ndjson)
 		}
 
 		if index.length == 0 { // No structural chars found, so error out
@@ -78,24 +79,20 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			break
 		}
 
-		for i := 0; i < index.length; i++ {
-			pos += uint64(index.indexes[i])
-		}
-
 		if uint64(len(buf)) == processed { // message processing completed?
 			// break out if either
 			// - is there an unmatched quote at the end
 			// - the ending structural char does not match the opening char
 			if prev_iter_inside_quote != 0 ||
-				(pos != ^uint64(0) && buf[pos] != '}') {
+				(position != ^uint64(0) && buf[position] != '}') {
 				error_mask = ^uint64(0)
 				break
 			}
-		} else if !json_markup(buf[pos]) {
+		} else if !json_markup(buf[position]) {
 			// There may be a dangling quote at the end of the index buffer
 			// Strip it from current index buffer and save for next round
 			stripped_index = uint64(index.indexes[index.length-1])
-			pos -= stripped_index
+			position -= stripped_index
 			index.length -= 1
 		}
 
@@ -103,7 +100,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		indexTotal += index.length
 
 		buf = buf[processed:]
-		pos -= processed
+		position -= processed
 	}
 	close(pj.index_chan)
 

@@ -47,7 +47,7 @@ TEXT ·_find_structural_bits(SB), $0-72
     VPOR     Y12, Y,   Y          // Combine together
 
 
-TEXT ·_find_structural_bits_in_slice(SB), $0-120
+TEXT ·_find_structural_bits_in_slice(SB), $0-128
     XORQ AX, AX
     MOVQ len+8(FP), CX
     ANDQ $0xffffffffffffffc0, CX
@@ -91,18 +91,20 @@ loop_after_load:
     CALL ·__finalize_structurals(SB)
 
     POPQ DX                                       // DX = quote_mask
-    CMPQ ndjson+104(FP), $0
+    CMPQ ndjson+112(FP), $0
     JZ   skip_ndjson_detection
     CALL ·__find_newline_delimiters(SB)
     ORQ  BX, AX
 
 skip_ndjson_detection:
     MOVQ indexes+72(FP), DI
-    MOVQ index+80(FP), SI; MOVQ (SI), BX      // BX = index
-    MOVQ pcarried+96(FP), R11; MOVQ (R11), DX // DX = carried
+    MOVQ index+80(FP), SI; MOVQ (SI), BX        // BX = index
+    MOVQ carried+96(FP), R11; MOVQ (R11), DX    // DX = carried
+    MOVQ position+104(FP), R12; MOVQ (R12), R10 // R10 = position
     CALL ·__flatten_bits_incremental(SB)
-    MOVQ BX, (SI)                             // *index = BX
-    MOVQ DX, (R11)                            // *carried = DX
+    MOVQ BX, (SI)                               // *index = BX
+    MOVQ DX, (R11)                              // *carried = DX
+    MOVQ R10, (R12)                             // *position = R10
 
     POPQ AX
     POPQ CX
@@ -126,7 +128,7 @@ check_partial_load:
     JNE  masking // end of message is not aligned on 64-byte boundary, so mask the remaining bytes
 
 done:
-    MOVQ AX, processed+112(FP)
+    MOVQ AX, processed+120(FP)
     VZEROUPPER
     RET
 
