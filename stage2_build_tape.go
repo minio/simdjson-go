@@ -25,7 +25,15 @@ func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 	return
 }
 
-func parse_string(pj *ParsedJson, idx uint64) bool {
+func peekSize(pj *internalParsedJson) uint64 {
+	if pj.indexesChan.index >= pj.indexesChan.length {
+		// TODO: Remove panic
+		panic("cannot peek the size") // should never happen since last string element should be saved for next buffer
+	}
+	return uint64(pj.indexesChan.indexes[pj.indexesChan.index])
+}
+
+func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 	size := uint64(0)
 	need_copy := false
 	buf := pj.Message[idx:]
@@ -34,7 +42,7 @@ func parse_string(pj *ParsedJson, idx uint64) bool {
 		copy(paddedBuf[:], buf)
 		buf = paddedBuf[:]
 	}
-	if !parse_string_simd_validate_only(buf, &size, &need_copy) {
+	if !parse_string_simd_validate_only(buf, &maxStringSize, &size, &need_copy) {
 		return false
 	}
 	if !need_copy {
@@ -191,7 +199,7 @@ object_begin:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parse_string(&pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 		goto object_key_state
@@ -213,7 +221,7 @@ object_key_state:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parse_string(&pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 
@@ -273,7 +281,7 @@ object_continue:
 		if buf[idx] != '"' {
 			goto fail
 		}
-		if !parse_string(&pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 		goto object_key_state
@@ -319,7 +327,7 @@ main_array_switch:
 	// on paths that can accept a close square brace (post-, and at start)
 	switch buf[idx] {
 	case '"':
-		if !parse_string(&pj.ParsedJson, idx) {
+		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 	case 't':
