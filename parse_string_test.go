@@ -274,3 +274,16 @@ func TestParseStringValidateOnly(t *testing.T) {
 		})
 	}
 }
+
+func TestParseStringValidateOnlyBeyondBuffer(t *testing.T) {
+
+	buf := []byte(fmt.Sprintf(`"%s`, "   "))
+
+	dst_length := uint64(0)
+	need_copy := false
+	l := uint64(len(buf))+32
+	success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
+	if !success {
+		t.Errorf("TestParseStringValidateOnlyBeyondBuffer() got = %v, want %v", success, false)
+	}
+}
