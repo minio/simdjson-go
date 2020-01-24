@@ -260,7 +260,8 @@ func TestParseStringValidateOnly(t *testing.T) {
 
 			dst_length := uint64(0)
 			need_copy := false
-			success := parse_string_simd_validate_only(buf, &dst_length, &need_copy)
+			l := uint64(len(buf))
+			success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
 
 			if success != tt.success {
 				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)

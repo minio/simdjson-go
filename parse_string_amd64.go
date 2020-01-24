@@ -9,17 +9,17 @@ import (
 )
 
 //go:noescape
-func _parse_string_validate_only(src, str_length, dst_length unsafe.Pointer) (result uint64)
+func _parse_string_validate_only(src, maxStringSize, str_length, dst_length unsafe.Pointer) (result uint64)
 
 //go:noescape
 func _parse_string(src, dst, pcurrent_string_buf_loc unsafe.Pointer) (res uint64)
 
-func parse_string_simd_validate_only(buf []byte, dst_length *uint64, need_copy *bool) bool {
+func parse_string_simd_validate_only(buf []byte, maxStringSize, dst_length *uint64, need_copy *bool) bool {
 
 	src := uintptr(unsafe.Pointer(&buf[0])) + 1 // Advance buffer by one in order to skip opening quote
 	src_length := uint64(0)
 
-	success := _parse_string_validate_only(unsafe.Pointer(src), unsafe.Pointer(&src_length), unsafe.Pointer(dst_length))
+	success := _parse_string_validate_only(unsafe.Pointer(src), unsafe.Pointer(&maxStringSize), unsafe.Pointer(&src_length), unsafe.Pointer(dst_length))
 
 	*need_copy = src_length != *dst_length
 	return success != 0
