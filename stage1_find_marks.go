@@ -100,7 +100,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		indexTotal += index.length
 
 		buf = buf[processed:]
-		position -= processed
+		position -= processed - carried
 	}
 	close(pj.index_chan)
 
