@@ -67,7 +67,8 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			// Process last 64 bytes in larger buffer (to safeguard against reading beyond the end of the buffer)
 			paddedBuf := [128]byte{}
 			copy(paddedBuf[:], buf[processed:])
-			processed += find_structural_bits_in_slice(paddedBuf[:uint64(len(buf))-processed], &prev_iter_ends_odd_backslash,
+			paddedBytes := uint64(len(buf))-processed
+			processed += find_structural_bits_in_slice(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
 				&prev_iter_inside_quote, &error_mask,
 				structurals,
 				&prev_iter_ends_pseudo_pred,
@@ -80,12 +81,11 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		}
 
 		if uint64(len(buf)) == processed { // message processing completed?
-			position -= carried
 			// break out if either
 			// - is there an unmatched quote at the end
 			// - the ending structural char does not match the opening char
 			if prev_iter_inside_quote != 0 ||
-				(position != ^uint64(0) && buf[position] != '}') {
+				(position != ^uint64(0) && position < uint64(len(buf)) && buf[position] != '}') {
 				error_mask = ^uint64(0)
 				break
 			}
@@ -101,7 +101,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		indexTotal += index.length
 
 		buf = buf[processed:]
-		position -= processed - carried
+		position -= processed
 	}
 	close(pj.index_chan)
 
