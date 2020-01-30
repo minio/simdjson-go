@@ -27,8 +27,9 @@ func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 
 func peekSize(pj *internalParsedJson) uint64 {
 	if pj.indexesChan.index >= pj.indexesChan.length {
-		// TODO: Remove panic
-		panic("cannot peek the size") // should never happen since last string element should be saved for next buffer
+		//panic("cannot peek the size") // should never happen since last string element should be saved for next buffer
+		// let's return 0 for the sake of safety (could lead to a string being to short)
+		return 0
 	}
 	return uint64(pj.indexesChan.indexes[pj.indexesChan.index])
 }
