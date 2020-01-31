@@ -83,7 +83,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 		if uint64(len(buf)) == processed { // message processing completed?
 			// break out if either
 			// - is there an unmatched quote at the end
-			// - the ending structural char does not match the opening char
+			// - the ending structural char is not either a '}' (normal json) or a ']' (array style)
 			if prev_iter_inside_quote != 0 ||
 				position >= uint64(len(buf)) ||
 				!(buf[position] == '}' || buf[position] == ']') {
