@@ -64,20 +64,20 @@ var testCases = []struct {
 	{
 		name: "citm_catalog",
 	},
-	//{
-	//	name:  "github_events",
-	//	array: true,
-	//},
+	{
+		name:  "github_events",
+		array: true,
+	},
 	{
 		name: "gsoc-2018",
 	},
 	{
 		name: "instruments",
 	},
-	//{
-	//	name:  "numbers",
-	//	array: true,
-	//},
+	{
+		name:  "numbers",
+		array: true,
+	},
 	{
 		name: "marine_ik",
 	},
