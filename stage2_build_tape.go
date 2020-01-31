@@ -38,10 +38,11 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 	size := uint64(0)
 	need_copy := false
 	buf := pj.Message[idx:]
-	if len(buf) < 64 { // if we have less than 2 YMM words left, make sure there is enough space
-		paddedBuf := [128]byte{}
-		copy(paddedBuf[:], buf)
-		buf = paddedBuf[:]
+	// Make sure that we have at least one full YMM word available after maxStringSize into the buffer
+	if len(buf) - int(maxStringSize) < 64 {
+		paddedBuf := make([]byte, len(buf) + 64)
+		copy(paddedBuf, buf)
+		buf = paddedBuf
 	}
 	if !parse_string_simd_validate_only(buf, &maxStringSize, &size, &need_copy) {
 		return false
