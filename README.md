@@ -36,20 +36,20 @@ Below is a performance comparison to Golang's standard `encoding/json` based on 
 ```
 $ benchcmp                    encoding_json.txt      simdjson-go.txt
 benchmark                     old MB/s               new MB/s         speedup
-BenchmarkApache_builds-8      106.77                 1019.94           9.55x
-BenchmarkCanada-8              54.39                  517.62           9.52x
-BenchmarkCitm_catalog-8       100.44                 1592.36          15.85x
-BenchmarkGithub_events-8      159.49                  932.13           5.84x
-BenchmarkGsoc_2018-8          152.93                 2619.45          17.13x
-BenchmarkInstruments-8         82.82                  870.94          10.52x
-BenchmarkMarine_ik-8           48.12                  419.81           8.72x
-BenchmarkMesh-8                49.38                  364.04           7.37x
-BenchmarkMesh_pretty-8         73.10                  774.81          10.60x
-BenchmarkNumbers-8            160.69                  449.56           2.80x
-BenchmarkRandom-8              66.56                  634.90           9.54x
-BenchmarkTwitter-8             79.05                 1230.11          15.56x
-BenchmarkTwitterescaped-8      83.96                  544.24           6.48x
-BenchmarkUpdate_center-8       73.92                  888.42          12.02x
+BenchmarkApache_builds-8      106.77                  948.75           8.89x
+BenchmarkCanada-8              54.39                  519.85           9.56x
+BenchmarkCitm_catalog-8       100.44                 1565.28          15.58x
+BenchmarkGithub_events-8      159.49                  848.88           5.32x
+BenchmarkGsoc_2018-8          152.93                 2515.59          16.45x
+BenchmarkInstruments-8         82.82                  811.61           9.80x
+BenchmarkMarine_ik-8           48.12                  422.43           8.78x
+BenchmarkMesh-8                49.38                  371.39           7.52x
+BenchmarkMesh_pretty-8         73.10                  784.89          10.74x
+BenchmarkNumbers-8            160.69                  434.85           2.71x
+BenchmarkRandom-8              66.56                  615.12           9.24x
+BenchmarkTwitter-8             79.05                 1193.47          15.10x
+BenchmarkTwitterescaped-8      83.96                  536.19           6.39x
+BenchmarkUpdate_center-8       73.92                  860.52          11.64x
 ```
 
 Also `simdjson-go` uses less additional memory and allocations.
