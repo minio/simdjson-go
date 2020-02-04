@@ -25,7 +25,7 @@ Additionally `simdjson-go` has the following features:
 
 Based on the same set of JSON test files, the graph belows shows a comparison.
 
-<img src="chart/simdjson-vs-simdjson-go.png">
+<img src="chart/simdjson-vs-simdjson-go.png" width="80%">
 
 These numbers were measured on a MacBook Pro equipped with a 3.1 GHz Intel Core i7.
 
