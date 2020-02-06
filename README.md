@@ -54,6 +54,48 @@ BenchmarkUpdate_center-8       73.92                  860.52          11.64x
 
 Also `simdjson-go` uses less additional memory and allocations.
 
+## Usage 
+
+Run the following command in order to install `simdjson-go`
+
+```
+$ go get github.com/minio/simdjson-go
+```
+
+In order to parse a JSON byte stream, you either call `simdjson.Parse()` or `simdjson.ParseND()` for newline delimited JSON files. Both of these functions return a `ParsedJson` object that can be used to navigate the JSON object by calling `Iter()`. 
+
+Using the type `Iter` you can call Advance() to iterate over the tape, like so:
+
+```
+for {
+    typ := iter.Advance()
+
+    switch typ {
+    case simdjson.TypeRoot:
+        if typ, tmp, err = iter.Root(tmp); err != nil {
+            return
+        }
+
+        if typ == simdjson.TypeObject {
+            if obj, err = tmp.Object(obj); err != nil {
+                return
+            }
+
+            e := obj.FindKey(key, &elem)
+            if e != nil && elem.Type == simdjson.TypeString {
+                v, _ := elem.Iter.StringBytes()
+                fmt.Println(string(v))
+            }
+        }
+
+    default:
+        return
+    }
+}
+```
+
+More examples can be found in the examples subdirectory and further documentation can be found at [godoc](https://godoc.org/github.com/fwessels/simdjson-go). 
+
 ## Design
 
 `simdjson-go` follows the same two stage design as `simdjson`. During the first stage the structural elements (`{`, `}`, `[`, `]`, `:`, and `,`) are detected and forwarded as offsets in the message buffer to the second stage. The second stage builds a tape format of the structure of the JSON document. 
@@ -92,20 +134,6 @@ Similarly to `simdjson`, `simdjson-go` parses the structure onto a 'tape' format
 - Strings are handled differently, unlike `simdjson` the string size is not prepended in the String buffer but is added as an additional element to the tape itself (much like integers and floats). Only strings that contain special characters are copied to the String buffer in which case the payload from the tape is the offset into the String buffer. For string values without special characters the tape's payload points directly into the message buffer.
 
 For more information, see `TestStage2BuildTape` in `stage2_build_tape_test.go`.
-
-## Example and how to use 
-
-`simdjson-go` parses onto a tape format that can be navigated using an iterator.
-
-```
-import (
-    "github.com/minio/simdjson-go"
-)
-
-func parse(message []buf) {
-    simdjson.Parse(buf)
-}
-```
 
 ## Requirements
 
