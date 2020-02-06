@@ -8,7 +8,7 @@
 
 This is a Golang port of [simdjson](https://github.com/lemire/simdjson), a high performance JSON parser developed by Daniel Lemire and Geoff Langdale. It makes extensive use of SIMD instructions to achieve parsing performance of gigabytes of JSON per second.
 
-Performance wise, `simdjson-go` runs on average at about 40% to 60% of the speed of simdjson. Compared to Golang's standard `encoding/json`, `simdjson-go` is about 10x faster. 
+Performance wise, `simdjson-go` runs on average at about 40% to 60% of the speed of simdjson. Compared to Golang's standard package `encoding/json`, `simdjson-go` is about 10x faster. 
 
 ## Features
 
