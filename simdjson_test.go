@@ -252,11 +252,6 @@ func TestParseFailCases(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "fail18",
-			js:      `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
-			wantErr: true,
-		},
-		{
 			name:    "fail19",
 			js:      `{"Missing colon" null}`,
 			wantErr: true,
@@ -933,6 +928,12 @@ func TestParsePassCases(t *testing.T) {
 			name:    "small-number-array-issue-49",
 			js:      `{"G":[0,5e-500,5e-50]}`,
 			want:    `{"G":[0,0,5e-50]}`,
+			wantErr: false,
+		},
+		{
+			name:    "fail18", // Not too deep for simdjson-go
+			js:      `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
+			want:	 `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
 			wantErr: false,
 		},
 	}
