@@ -330,12 +330,6 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name: "fail34",
-			// `["this string contains bad UTF-8 €"]`
-			js:      string([]byte{0x5b, 0x22, 0x74, 0x68, 0x69, 0x73, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x63, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x73, 0x20, 0x62, 0x61, 0x64, 0x20, 0x55, 0x54, 0x46, 0x2d, 0x38, 0x20, 0x80, 0x22, 0x5d, 0x0a}),
-			wantErr: true,
-		},
-		{
 			name:    "fail35",
 			js:      `{"this file" :` + string(byte(0xa0)) + `"has an unbreakable character outside the strings"}`,
 			wantErr: true,
@@ -346,10 +340,10 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "fail37",
+			name:       "fail37",
 			skipFloats: true,
-			js:      `[12a]`,
-			wantErr: true,
+			js:         `[12a]`,
+			wantErr:    true,
 		},
 		{
 			name:    "fail38",
@@ -379,46 +373,46 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:    "fail44",
+			name:       "fail44",
 			skipFloats: true,
-			js:      `[-2.]`,
-			wantErr: true,
+			js:         `[-2.]`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail45",
+			name:       "fail45",
 			skipFloats: true,
-			js:      `[0.e1]`,
-			wantErr: true,
+			js:         `[0.e1]`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail46",
+			name:       "fail46",
 			skipFloats: true,
-			js:      `[2.e+3]`,
-			wantErr: true,
+			js:         `[2.e+3]`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail47",
+			name:       "fail47",
 			skipFloats: true,
-			js:      `[2.e-3]`,
-			wantErr: true,
+			js:         `[2.e-3]`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail48",
+			name:       "fail48",
 			skipFloats: true,
-			js:      `[2.e3]`,
-			wantErr: true,
+			js:         `[2.e3]`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail49",
+			name:       "fail49",
 			skipFloats: true,
-			js:      `[-.123]`,
-			wantErr: true,
+			js:         `[-.123]`,
+			wantErr:    true,
 		},
 		{
-			name:    "fail50",
+			name:       "fail50",
 			skipFloats: true,
-			js:      `[1.]`,
-			wantErr: true,
+			js:         `[1.]`,
+			wantErr:    true,
 		},
 		{
 			name:    "fail51",
@@ -508,11 +502,6 @@ break"]`,
 		{
 			name:    "fail71",
 			js:      `"a bad string��"`,
-			wantErr: true,
-		},
-		{
-			name:    "fail72",
-			js:      `["with bad trailing space" ]`,
 			wantErr: true,
 		},
 		{
@@ -713,12 +702,19 @@ break"]`,
 func TestParsePassCases(t *testing.T) {
 
 	tests := []struct {
-		name       string
-		skipFloats bool // Skip tests that contain float64 imprecisions (see GOLANG_NUMBER_PARSING flag)
-		js         string
-		want       string
-		wantErr    bool
+		name        string
+		skipFloats  bool // Skip tests that contain float64 inprecisions (see GOLANG_NUMBER_PARSING flag)
+		onlyPrecise bool
+		js          string
+		want        string
+		wantErr     bool
 	}{
+		{
+			name:    "segfault",
+			js:      `{"F":"5\n\n\n\n\n\n\n\n\n11102230246251565404236316680908203125\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}`,
+			wantErr: false,
+			want:    `{"F":"5\n\n\n\n\n\n\n\n\n11102230246251565404236316680908203125\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"}`,
+		},
 		{
 			name: "pass01.json", skipFloats: true,
 			js: `{"a":[
@@ -921,27 +917,43 @@ func TestParsePassCases(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "big-float-inprecision-46",
-			js:      `{"":60000000000000000000}`,
-			want:    `{"":60000000000000000000}`,
-			wantErr: false,
+			name:        "big-float-inprecision-46",
+			onlyPrecise: true,
+			js:          `{"":60000000000000000000}`,
+			want:        `{"":60000000000000000000}`,
+			wantErr:     false,
 		},
 		{
-			name:    "big-integer-overflow-47",
-			js:      `{"o":30886023086020860230}`,
-			want:    `{"o":30886023086020860000}`,
-			wantErr: false,
+			name:        "big-integer-overflow-47",
+			onlyPrecise: true,
+			js:          `{"o":30886023086020860230}`,
+			want:        `{"o":30886023086020860000}`,
+			wantErr:     false,
 		},
 		{
-			name:    "small-number-array-issue-49",
-			js:      `{"G":[0,5e-500,5e-50]}`,
-			want:    `{"G":[0,0,5e-50]}`,
-			wantErr: false,
+			name:        "small-number-array-issue-49",
+			onlyPrecise: true,
+			js:          `{"G":[0,5e-500,5e-50]}`,
+			want:        `{"G":[0,0,5e-50]}`,
+			wantErr:     false,
 		},
 		{
 			name:    "fail18", // Not too deep for simdjson-go
 			js:      `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
-			want:	 `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
+			want:    `[[[[[[[[[[[[[[[[[[[["Too deep"]]]]]]]]]]]]]]]]]]]]`,
+			wantErr: false,
+		},
+		//{
+		//	name: "fail34",
+		//	// `["this string contains bad UTF-8 €"]`
+		//	js:      string([]byte{0x5b, 0x22, 0x74, 0x68, 0x69, 0x73, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x63, 0x6f, 0x6e, 0x74, 0x61, 0x69, 0x6e, 0x73, 0x20, 0x62, 0x61, 0x64, 0x20, 0x55, 0x54, 0x46, 0x2d, 0x38, 0x20, 0x80, 0x22, 0x5d, 0x0a}),
+		//	want: `["this string contains bad UTF-8 �"]`,
+		//	wantErr: false,
+		//},
+		{
+			name:    "fail72",
+			js:      `["with bad trailing space" ]`,
+			want:    `["with bad trailing space"]`,
 			wantErr: false,
 		},
 	}
@@ -951,6 +963,9 @@ func TestParsePassCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.skipFloats {
+				return
+			}
+			if tt.onlyPrecise && !GOLANG_NUMBER_PARSING {
 				return
 			}
 			var err error
