@@ -19,6 +19,7 @@ package simdjson
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 // Constants for "return address" modes
@@ -37,6 +38,22 @@ func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 		}
 	}
 	idx = idx_in + uint64(pj.indexesChan.indexes[pj.indexesChan.index])
+	pj.indexesChan.index++
+	return
+}
+
+// Handy "debug" function to see where Stage 2 fails (rename to `updateChar`)
+func updateCharDebug(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
+	if pj.indexesChan.index >= pj.indexesChan.length {
+		var ok bool
+		pj.indexesChan, ok = <-pj.index_chan // Get next element from channel
+		if !ok {
+			done = true // return done if channel closed
+			return
+		}
+	}
+	idx = idx_in + uint64(pj.indexesChan.indexes[pj.indexesChan.index])
+	fmt.Printf("At 0x%x char: %s\n", idx, string(pj.Message[idx]))
 	pj.indexesChan.index++
 	return
 }
