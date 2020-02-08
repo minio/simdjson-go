@@ -262,12 +262,13 @@ func TestDemoNdjson(t *testing.T) {
 
 func TestNdjsonCountWhere(t *testing.T) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
-
-	pj := internalParsedJson{}
-	pj.parseMessageNdjson(ndjson)
+	pj, err := ParseND(ndjson, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	const want = 110349
-	if result := countWhere("Make", "HOND", pj.ParsedJson); result != want {
+	if result := countWhere("Make", "HOND", *pj); result != want {
 		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
 	}
 }
