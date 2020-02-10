@@ -1,9 +1,5 @@
 # simdjson-go
 
-## PRE-PRODUCTION WARNING
-
-**This reposition will be moved shortly to `github.com/minio/simdjson-go`, refrain from using in production until it has been migrated.**
-
 ## Introduction
 
 This is a Golang port of [simdjson](https://github.com/lemire/simdjson), a high performance JSON parser developed by Daniel Lemire and Geoff Langdale. It makes extensive use of SIMD instructions to achieve parsing performance of gigabytes of JSON per second.
@@ -94,7 +90,7 @@ for {
 }
 ```
 
-More examples can be found in the examples subdirectory and further documentation can be found at [godoc](https://godoc.org/github.com/fwessels/simdjson-go). 
+More examples can be found in the examples subdirectory and further documentation can be found at [godoc](https://godoc.org/github.com/minio/simdjson-go). 
 
 ## Design
 
