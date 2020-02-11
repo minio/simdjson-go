@@ -22,9 +22,9 @@ import (
 )
 
 func BenchmarkSerialize(b *testing.B) {
-	bench := func(b *testing.B, s *Serializer) {
+	bench := func(b *testing.B, s *serializer) {
 		for _, tt := range testCases {
-			s := NewSerializer()
+			s := newSerializer()
 			b.Run(tt.name, func(b *testing.B) {
 				tap, sb, org := loadCompressed(b, tt.name)
 				pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
@@ -46,28 +46,28 @@ func BenchmarkSerialize(b *testing.B) {
 		}
 	}
 	b.Run("default", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		bench(b, s)
 	})
 	b.Run("none", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressNone)
 		bench(b, s)
 	})
 	b.Run("fast", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressFast)
 		bench(b, s)
 	})
 	b.Run("best", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressBest)
 		bench(b, s)
 	})
 }
 
 func BenchmarkDeSerialize(b *testing.B) {
-	bench := func(b *testing.B, s *Serializer) {
+	bench := func(b *testing.B, s *serializer) {
 		for _, tt := range testCases {
 			b.Run(tt.name, func(b *testing.B) {
 				tap, sb, org := loadCompressed(b, tt.name)
@@ -100,21 +100,21 @@ func BenchmarkDeSerialize(b *testing.B) {
 	}
 
 	b.Run("default", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		bench(b, s)
 	})
 	b.Run("none", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressNone)
 		bench(b, s)
 	})
 	b.Run("fast", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressFast)
 		bench(b, s)
 	})
 	b.Run("best", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressBest)
 		bench(b, s)
 	})
@@ -127,7 +127,7 @@ func BenchmarkSerializeNDJSON(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	bench := func(b *testing.B, s *Serializer) {
+	bench := func(b *testing.B, s *serializer) {
 		output := s.Serialize(nil, *pj)
 		if true {
 			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
@@ -141,21 +141,21 @@ func BenchmarkSerializeNDJSON(b *testing.B) {
 		}
 	}
 	b.Run("default", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		bench(b, s)
 	})
 	b.Run("none", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressNone)
 		bench(b, s)
 	})
 	b.Run("fast", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressFast)
 		bench(b, s)
 	})
 	b.Run("best", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressBest)
 		bench(b, s)
 	})
@@ -168,7 +168,7 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	bench := func(b *testing.B, s *Serializer) {
+	bench := func(b *testing.B, s *serializer) {
 		output := s.Serialize(nil, *pj)
 		if false {
 			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
@@ -189,21 +189,21 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 		}
 	}
 	b.Run("default", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		bench(b, s)
 	})
 	b.Run("none", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressNone)
 		bench(b, s)
 	})
 	b.Run("fast", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressFast)
 		bench(b, s)
 	})
 	b.Run("best", func(b *testing.B) {
-		s := NewSerializer()
+		s := newSerializer()
 		s.CompressMode(CompressBest)
 		bench(b, s)
 	})
