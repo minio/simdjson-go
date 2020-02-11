@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/fwessels/simdjson-go"
+	"github.com/minio/simdjson-go"
 	"io/ioutil"
 	"log"
 )
