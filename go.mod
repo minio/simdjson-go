@@ -1,4 +1,4 @@
-module github.com/fwessels/simdjson-go
+module github.com/minio/simdjson-go
 
 go 1.13
 
