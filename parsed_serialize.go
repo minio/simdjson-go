@@ -21,26 +21,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
-	"sync"
-	"unsafe"
-
 	"github.com/klauspost/compress/s2"
 	"github.com/klauspost/compress/zstd"
-)
-
-const (
-	stringBits = 14
-	stringSize = 1 << stringBits
-	stringmask = stringSize - 1
+	"io"
+	"sync"
 )
 
 // Serializer allows to serialize parsed json and read it back.
 // A Serializer can be reused, but not used concurrently.
 type Serializer struct {
-	// Old -> new offset
-	stringIdxLUT []uint32
-	stringBuf    []byte
+	stringBuf []byte
 
 	// Compressed strings
 	sBuf []byte
@@ -51,22 +41,18 @@ type Serializer struct {
 	valuesBuf     []byte
 	valuesCompBuf []byte
 	tagsCompBuf   []byte
-	strings2      [stringSize]uint32
 
 	compValues, compTags uint8
 	compStrings          bool
 	alwaysZstdStrings    bool
-	reIndexStrings       bool
+	neverZstdStrings     bool
 }
 
 // NewSerializer will create and initialize a serializer.
 func NewSerializer() *Serializer {
 	initSerializerOnce.Do(initSerializer)
-	s := Serializer{
-		compValues:     blockTypeS2,
-		compTags:       blockTypeS2,
-		reIndexStrings: false,
-	}
+	var s Serializer
+	s.CompressMode(CompressDefault)
 	return &s
 }
 
@@ -93,24 +79,21 @@ func (s *Serializer) CompressMode(c CompressMode) {
 		s.compValues = blockTypeUncompressed
 		s.compTags = blockTypeUncompressed
 		s.compStrings = false
-		s.reIndexStrings = false
 	case CompressFast:
 		s.compValues = blockTypeS2
 		s.compTags = blockTypeS2
 		s.compStrings = true
-		s.reIndexStrings = false
 		s.alwaysZstdStrings = false
+		s.neverZstdStrings = true
 	case CompressDefault:
 		s.compValues = blockTypeS2
 		s.compTags = blockTypeS2
 		s.compStrings = true
-		s.reIndexStrings = false
 		s.alwaysZstdStrings = false
 	case CompressBest:
 		s.compValues = blockTypeZstd
 		s.compTags = blockTypeZstd
 		s.compStrings = true
-		s.reIndexStrings = false
 		s.alwaysZstdStrings = true
 	default:
 		panic("unknown compression mode")
@@ -152,18 +135,12 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// 	 - TagString: offset
 
 	// Index strings
-	var reIndexed bool
-	if s.reIndexStrings {
-		reIndexed = s.indexStringsLazy(pj.Strings)
-		//fmt.Println("strings dedupe:", len(pj.Strings), "->", len(s.stringBuf))
-	} else {
-		s.stringBuf = pj.Strings
-	}
+	s.stringBuf = pj.Strings
 	var wg sync.WaitGroup
 
 	if s.compStrings {
 		// Choose zstd when tape is likely to take longer than strings.
-		zstdStrings := len(s.stringBuf) < len(pj.Tape)*10
+		zstdStrings := len(s.stringBuf) < len(pj.Tape)*15 && !s.neverZstdStrings
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
@@ -173,7 +150,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 				s.sBuf = encBlock(blockTypeS2, s.stringBuf, s.sBuf)
 			}
 		}()
-		zstdMsg := len(pj.Message) < len(pj.Tape)*10
+		zstdMsg := len(pj.Message) < len(pj.Tape)*15 && !s.neverZstdStrings
 		go func() {
 			defer wg.Done()
 			if zstdMsg || s.alwaysZstdStrings {
@@ -210,11 +187,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 
 		switch ntype {
 		case TagString:
-			if reIndexed {
-				binary.LittleEndian.PutUint64(tmp[:], uint64(s.stringIdxLUT[uint32(payload)/4]))
-			} else {
-				binary.LittleEndian.PutUint64(tmp[:], payload)
-			}
+			binary.LittleEndian.PutUint64(tmp[:], payload)
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			binary.LittleEndian.PutUint64(tmp[:8], pj.Tape[off])
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
@@ -241,9 +214,11 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 			// Always backward
 			binary.LittleEndian.PutUint64(tmp[:], uint64(off)-payload)
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
+		case TagEnd:
+			// Nothing to store
 		default:
 			wg.Wait()
-			panic(fmt.Errorf("unknown tag: %v", ntype))
+			panic(fmt.Errorf("unknown tag: %d", int(ntype)))
 		}
 		off++
 	}
@@ -494,7 +469,9 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			}
 			dst.Tape[off] = tagDst | val
 			off++
-
+		case TagEnd:
+			dst.Tape[off] = tagDst
+			off++
 		default:
 			return nil, fmt.Errorf("unknown tag: %v", tag)
 		}
@@ -540,11 +517,12 @@ func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			want := len(dst)
-			dst, err = s2.Decode(dst, compressed)
-			if err == nil && want != len(dst) {
-				err = errors.New("s2 decompressed size mismatch")
-			}
+			buf := bytes.NewBuffer(compressed)
+			dec := s2Readers.Get().(*s2.Reader)
+			dec.Reset(buf)
+			_, err := io.ReadFull(dec, dst)
+			dec.Reset(nil)
+			s2Readers.Put(dec)
 			*dstErr = err
 		}()
 	case blockTypeZstd:
@@ -564,64 +542,6 @@ func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, 
 	return nil
 }
 
-// indexStringsLazy will deduplicate strings and populate
-// strings, stringsMap and stringBuf.
-// Returns false if unable to deduplicate.
-// FIXME: Not feasible anymore
-func (s *Serializer) indexStringsLazy(sb []byte) bool {
-	return false
-	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
-	if uint32(len(sb)) >= math.MaxUint32 {
-		s.stringBuf = sb
-		// This would overflow our offset table.
-		return false
-	}
-
-	// Reset lookup table.
-	// Offsets are offset by 1, so 0 indicates an unfilled entry.
-	for i := range s.strings2[:] {
-		s.strings2[i] = 0
-	}
-	// There should be at least 5 bytes between each source,
-	// so it should not be possible to alias lookups.
-	if cap(s.stringIdxLUT) < len(sb)/4 {
-		s.stringIdxLUT = make([]uint32, len(sb)/4)
-	}
-	s.stringIdxLUT = s.stringIdxLUT[:len(sb)/4]
-	if cap(s.stringBuf) == 0 {
-		s.stringBuf = make([]byte, 0, len(sb))
-	}
-
-	s.stringBuf = s.stringBuf[:0]
-	var srcOff, dstOff uint32
-	for int(srcOff) < len(sb) {
-		length := binary.LittleEndian.Uint32(sb[srcOff : srcOff+4])
-		value := sb[srcOff+4 : srcOff+4+length]
-		h := memHash(value) & stringmask
-		off := s.strings2[h]
-		if off > 0 {
-			off--
-			// Does length match?
-			if length == binary.LittleEndian.Uint32(s.stringBuf[off:off+4]) {
-				// Compare content
-				bytes.Equal(value[:], s.stringBuf[off+4:off+4+length])
-				s.stringIdxLUT[srcOff/4] = off
-				srcOff += 5 + length
-				continue
-			}
-		}
-		// New value, add to dst
-		s.stringIdxLUT[srcOff/4] = dstOff
-		s.stringBuf = append(s.stringBuf, byte(length), byte(length>>8), byte(length>>16), byte(length>>24))
-		s.stringBuf = append(s.stringBuf, value...)
-		s.stringBuf = append(s.stringBuf, 0)
-		s.strings2[h] = dstOff + 1
-		srcOff += 5 + length
-		dstOff += 5 + length
-	}
-	return true
-}
-
 const (
 	blockTypeUncompressed byte = 0
 	blockTypeS2           byte = 1
@@ -630,6 +550,13 @@ const (
 
 var zDec *zstd.Decoder
 var zEncFast *zstd.Encoder
+var s2Writers = sync.Pool{New: func() interface{} {
+	return s2.NewWriter(nil)
+}}
+var s2Readers = sync.Pool{New: func() interface{} {
+	return s2.NewReader(nil)
+}}
+
 var initSerializerOnce sync.Once
 
 func initSerializer() {
@@ -653,14 +580,26 @@ func encBlock(mode byte, src, dst []byte) []byte {
 		copy(dst[1:], src)
 		return dst
 	case blockTypeS2:
-		mel := s2.MaxEncodedLen(len(src)) + 1
+		mel := s2.MaxEncodedLen(len(src)) + 16
 		if cap(dst) < mel {
 			dst = make([]byte, mel)
 		}
-		dst = dst[:mel]
+		dst = dst[:1]
 		dst[0] = mode
-		got := s2.Encode(dst[1:], src)
-		return dst[:len(got)+1]
+		buf := bytes.NewBuffer(dst[:1])
+		enc := s2Writers.Get().(*s2.Writer)
+		enc.Reset(buf)
+		err := enc.EncodeBuffer(src)
+		if err != nil {
+			panic(err)
+		}
+		err = enc.Close()
+		if err != nil {
+			panic(err)
+		}
+		enc.Reset(nil)
+		s2Writers.Put(enc)
+		return buf.Bytes()
 	case blockTypeZstd:
 		mel := len(src) + 50
 		if cap(dst) < mel {
@@ -671,21 +610,4 @@ func encBlock(mode byte, src, dst []byte) []byte {
 		return zEncFast.EncodeAll(src, dst[:1])
 	}
 	panic("unknown compression mode")
-}
-
-//go:noescape
-//go:linkname memhash runtime.memhash
-func memhash(p unsafe.Pointer, h, s uintptr) uintptr
-
-// memHash is the hash function used by go map, it utilizes available hardware instructions (behaves
-// as aeshash if aes instruction is available).
-// NOTE: The hash seed changes for every process. So, this cannot be used as a persistent hash.
-func memHash(data []byte) uint64 {
-	ss := (*stringStruct)(unsafe.Pointer(&data))
-	return uint64(memhash(ss.str, 0, uintptr(ss.len)))
-}
-
-type stringStruct struct {
-	str unsafe.Pointer
-	len int
 }

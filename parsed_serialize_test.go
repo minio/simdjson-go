@@ -17,7 +17,9 @@
 package simdjson
 
 import (
-	"bytes"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -26,8 +28,8 @@ func BenchmarkSerialize(b *testing.B) {
 		for _, tt := range testCases {
 			s := NewSerializer()
 			b.Run(tt.name, func(b *testing.B) {
-				tap, sb, org := loadCompressed(b, tt.name)
-				pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
+				org := loadCompressed(b, tt.name)
+				pj, err := Parse(org, nil)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -70,8 +72,8 @@ func BenchmarkDeSerialize(b *testing.B) {
 	bench := func(b *testing.B, s *Serializer) {
 		for _, tt := range testCases {
 			b.Run(tt.name, func(b *testing.B) {
-				tap, sb, org := loadCompressed(b, tt.name)
-				pj, err := loadTape(bytes.NewBuffer(tap), bytes.NewBuffer(sb))
+				org := loadCompressed(b, tt.name)
+				pj, err := Parse(org, nil)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -170,14 +172,14 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 	}
 	bench := func(b *testing.B, s *Serializer) {
 		output := s.Serialize(nil, *pj)
-		if false {
+		if true {
 			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
 		}
 		pj2, err := s.Deserialize(output, nil)
 		if err != nil {
 			b.Fatal(err)
 		}
-		//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
+		_ = ioutil.WriteFile(filepath.Join("testdata", filepath.Base(b.Name())+".compressed"), output, os.ModePerm)
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		b.ResetTimer()

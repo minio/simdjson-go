@@ -176,8 +176,7 @@ func TestFindStructuralIndices(t *testing.T) {
 }
 
 func BenchmarkStage1(b *testing.B) {
-
-	_, _, msg := loadCompressed(b, "twitter")
+	msg := loadCompressed(b, "twitter")
 
 	b.SetBytes(int64(len(msg)))
 	b.ReportAllocs()

@@ -75,10 +75,10 @@ func TestFindNewlineDelimiters(t *testing.T) {
 		0b0000000000000000000000000000000000000000000000000000000000000000,
 	}
 
-	for offset := 0; offset < len(demo_ndjson) - 64; offset += 64 {
+	for offset := 0; offset < len(demo_ndjson)-64; offset += 64 {
 		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:], 0)
-		if mask != want[offset >> 6] {
-			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset >> 6])
+		if mask != want[offset>>6] {
+			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset>>6])
 		}
 	}
 }
@@ -280,7 +280,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 }
 
 func TestFindStructuralBitsLoop(t *testing.T) {
-	_, _, msg := loadCompressed(t, "twitter")
+	msg := loadCompressed(t, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
 	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
@@ -480,7 +480,7 @@ func TestFlattenBitsIncremental(t *testing.T) {
 
 func BenchmarkFlattenBits(b *testing.B) {
 
-	_, _, msg := loadCompressed(b, "twitter")
+	msg := loadCompressed(b, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
 	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
@@ -516,6 +516,3 @@ func BenchmarkFlattenBits(b *testing.B) {
 		}
 	}
 }
-
-
-
