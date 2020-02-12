@@ -27,9 +27,9 @@ import (
 	"sync"
 )
 
-// Serializer allows to serialize parsed json and read it back.
-// A Serializer can be reused, but not used concurrently.
-type Serializer struct {
+// serializer allows to serialize parsed json and read it back.
+// A serializer can be reused, but not used concurrently.
+type serializer struct {
 	stringBuf []byte
 
 	// Compressed strings
@@ -48,10 +48,10 @@ type Serializer struct {
 	neverZstdStrings     bool
 }
 
-// NewSerializer will create and initialize a serializer.
-func NewSerializer() *Serializer {
+// newSerializer will create and initialize a serializer.
+func newSerializer() *serializer {
 	initSerializerOnce.Do(initSerializer)
-	var s Serializer
+	var s serializer
 	s.CompressMode(CompressDefault)
 	return &s
 }
@@ -73,7 +73,7 @@ const (
 	CompressBest
 )
 
-func (s *Serializer) CompressMode(c CompressMode) {
+func (s *serializer) CompressMode(c CompressMode) {
 	switch c {
 	case CompressNone:
 		s.compValues = blockTypeUncompressed
@@ -102,7 +102,7 @@ func (s *Serializer) CompressMode(c CompressMode) {
 
 // Serialize the data in pj and return the data.
 // An optional destination can be provided.
-func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
+func (s *serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// Header: Version byte
 	// Varuint Strings size, uncompressed
 	// Varuint Tape size, uncompressed
@@ -296,7 +296,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 // Only basic sanity checks will be performed.
 // Slight corruption will likely go through unnoticed.
 // And optional destination can be provided.
-func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, error) {
+func (s *serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, error) {
 	br := bytes.NewBuffer(src)
 
 	if v, err := br.ReadByte(); err != nil {
@@ -486,7 +486,7 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	return dst, nil
 }
 
-func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, dstErr *error) error {
+func (s *serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, dstErr *error) error {
 	size, err := binary.ReadUvarint(br)
 	if err != nil {
 		return err
