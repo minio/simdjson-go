@@ -260,6 +260,32 @@ func TestDemoNdjson(t *testing.T) {
 	verifyDemoNdjson(pj, t, 0)
 }
 
+func TestNdjsonEmptyLines(t *testing.T) {
+
+	ndjson_emptylines := []string{`{"zero":"emptylines"}
+{"c":"d"}`,
+`{"single":"emptyline"}
+
+{"c":"d"}`,
+`{"dual":"emptylines"}
+
+
+{"c":"d"}`,
+`{"triple":"emptylines"}
+
+
+
+{"c":"d"}`}
+
+	pj := internalParsedJson{}
+
+	for _, json := range ndjson_emptylines {
+		if err := pj.parseMessageNdjson([]byte(json)); err != nil {
+			t.Errorf("TestNdjsonEmptyLine: got: %v want: nil", err)
+		}
+	}
+}
+
 func TestNdjsonCountWhere(t *testing.T) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	pj, err := ParseND(ndjson, nil)

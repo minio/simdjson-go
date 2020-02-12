@@ -206,14 +206,16 @@ start_continue:
 	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	} else {
-		// For an ndjson object, wrap up current object and start new root
+		// For an ndjson object, wrap up current object, start new root and check for minimum of 1 newline
 		if buf[idx] != '\n' {
 			goto fail
 		}
 
-		// Peek into next character, if we are at the end, exit out
-		if done, idx = updateChar(pj, idx); done {
-			goto succeed
+		// Eat any empty lines
+		for buf[idx] == '\n' {
+			if done, idx = updateChar(pj, idx); done {
+				goto succeed
+			}
 		}
 
 		// Otherwise close current root
