@@ -148,12 +148,14 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 			tmp = tmp[:n]
 			// Read until Newline
 			if err != io.EOF {
-				b, err := buf.ReadBytes('\n')
-				if err != nil && err != io.EOF {
-					queueError(queue, err)
+				b, err2 := buf.ReadBytes('\n')
+				if err2 != nil && err2 != io.EOF {
+					queueError(queue, err2)
 					return
 				}
 				tmp = append(tmp, b...)
+				// Forward io.EOF
+				err = err2
 			}
 
 			if len(tmp) > 0 {
