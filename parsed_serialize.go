@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	stringBits = 15
+	stringBits = 14
 	stringSize = 1 << stringBits
 	stringmask = stringSize - 1
 )
@@ -641,12 +641,13 @@ func encBlock(mode byte, buf []byte, fast bool) (io.Writer, encodedResult) {
 		}
 	case blockTypeS2:
 		var enc *s2.Writer
+		var put *sync.Pool
 		if fast {
 			enc = s2FastWriters.Get().(*s2.Writer)
-			defer s2FastWriters.Put(enc)
+			put = &s2FastWriters
 		} else {
 			enc = s2Writers.Get().(*s2.Writer)
-			defer s2Writers.Put(enc)
+			put = &s2Writers
 		}
 		enc.Reset(dst)
 		return enc, func() (i []byte, err error) {
@@ -655,6 +656,7 @@ func encBlock(mode byte, buf []byte, fast bool) (io.Writer, encodedResult) {
 				return nil, err
 			}
 			enc.Reset(nil)
+			put.Put(enc)
 			return dst.Bytes(), nil
 		}
 	case blockTypeZstd:
