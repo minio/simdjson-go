@@ -17,9 +17,6 @@
 package simdjson
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 )
@@ -181,7 +178,7 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		_ = ioutil.WriteFile(filepath.Join("testdata", filepath.Base(b.Name())+".compressed"), output, os.ModePerm)
+		// _ = ioutil.WriteFile(filepath.Join("testdata", filepath.Base(b.Name())+".compressed"), output, os.ModePerm)
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		b.ResetTimer()
