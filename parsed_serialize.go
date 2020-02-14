@@ -326,9 +326,9 @@ func (s *serializer) indexString(sb []byte) (offset uint64) {
 	}
 
 	h := memHash(sb) & stringmask
-	off := int(s.stringsTable[h])
+	off := int(s.stringsTable[h]) - 1
 	end := off + len(sb)
-	if end <= len(s.stringBuf) {
+	if off >= 0 && end <= len(s.stringBuf) {
 		found := s.stringBuf[off:end]
 		if bytes.Equal(found, sb) {
 			return uint64(off)
@@ -337,7 +337,7 @@ func (s *serializer) indexString(sb []byte) (offset uint64) {
 	}
 	off = len(s.stringBuf)
 	s.stringBuf = append(s.stringBuf, sb...)
-	s.stringsTable[h] = uint32(off)
+	s.stringsTable[h] = uint32(off + 1)
 	s.stringWr.Write(sb)
 	return uint64(off)
 }
