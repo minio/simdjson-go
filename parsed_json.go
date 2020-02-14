@@ -58,7 +58,7 @@ type ParsedJson struct {
 }
 
 const INDEX_SLOTS = 16
-const INDEX_SIZE = 1536 							   // Seems to be a good size for the index buffering
+const INDEX_SIZE = 1536                                // Seems to be a good size for the index buffering
 const INDEX_SIZE_WITH_SAFETY_BUFFER = INDEX_SIZE - 128 // Make sure we never write beyond buffer
 
 type indexChan struct {
@@ -72,7 +72,7 @@ type internalParsedJson struct {
 	containing_scope_offset []uint64
 	isvalid                 bool
 	index_chan              chan indexChan
-	indexesChan 			indexChan
+	indexesChan             indexChan
 	buffers                 [INDEX_SLOTS][INDEX_SIZE]uint32
 	buffers_offset          uint64
 	ndjson                  uint64

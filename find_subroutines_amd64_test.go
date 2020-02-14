@@ -75,10 +75,10 @@ func TestFindNewlineDelimiters(t *testing.T) {
 		0b0000000000000000000000000000000000000000000000000000000000000000,
 	}
 
-	for offset := 0; offset < len(demo_ndjson) - 64; offset += 64 {
+	for offset := 0; offset < len(demo_ndjson)-64; offset += 64 {
 		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:], 0)
-		if mask != want[offset >> 6] {
-			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset >> 6])
+		if mask != want[offset>>6] {
+			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset>>6])
 		}
 	}
 }
@@ -516,6 +516,3 @@ func BenchmarkFlattenBits(b *testing.B) {
 		}
 	}
 }
-
-
-

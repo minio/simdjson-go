@@ -22,7 +22,6 @@ import (
 	"testing"
 )
 
-
 var tests = []struct {
 	name    string
 	str     string
@@ -247,7 +246,7 @@ func TestParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// enclose test string in quotes (as validated by stage 1)
 			buf := []byte(fmt.Sprintf(`"%s"`, tt.str))
-			dest := make([]byte, 0, len(buf) + 32 /* safety margin as parse_string writes full AVX2 words */ )
+			dest := make([]byte, 0, len(buf)+32 /* safety margin as parse_string writes full AVX2 words */)
 
 			success := parse_string_simd(buf, &dest)
 
@@ -299,7 +298,7 @@ func TestParseStringValidateOnlyBeyondBuffer(t *testing.T) {
 
 	dst_length := uint64(0)
 	need_copy := false
-	l := uint64(len(buf))+32
+	l := uint64(len(buf)) + 32
 	success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
 	if !success {
 		t.Errorf("TestParseStringValidateOnlyBeyondBuffer() got = %v, want %v", success, false)

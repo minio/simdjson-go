@@ -79,11 +79,11 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			index.indexes, &index.length, &carried, &position, pj.ndjson)
 
 		// Check if we have at most a single iteration of 64 bytes left, tag on to previous invocation
-		if uint64(len(buf)) - processed <= 64 {
+		if uint64(len(buf))-processed <= 64 {
 			// Process last 64 bytes in larger buffer (to safeguard against reading beyond the end of the buffer)
 			paddedBuf := [128]byte{}
 			copy(paddedBuf[:], buf[processed:])
-			paddedBytes := uint64(len(buf))-processed
+			paddedBytes := uint64(len(buf)) - processed
 			processed += find_structural_bits_in_slice(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
 				&prev_iter_inside_quote, &error_mask,
 				structurals,
