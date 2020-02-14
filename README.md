@@ -33,7 +33,7 @@ These numbers were measured on a MacBook Pro equipped with a 3.1 GHz Intel Core 
 Also, to make it a fair comparison, the constant `GOLANG_NUMBER_PARSING` was set to `false` (default is `true`) 
 in order to use the same number parsing function (which is faster at the expense of some precision; see more below). 
 
-## Performance vs encoding/json
+## Performance vs `encoding/json` and `json-iterator/go`
 
 Below is a performance comparison to Golang's standard package `encoding/json` based on the same set of JSON test files.
 
@@ -57,6 +57,27 @@ BenchmarkUpdate_center-8       73.92                  860.52          11.64x
 ```
 
 Also `simdjson-go` uses less additional memory and allocations.
+
+Here is another benchmark comparison to `json-iterator/go`:
+
+```
+$ benchcmp                    json-iterator.txt      simdjson-go.txt
+benchmark                     old MB/s               new MB/s         speedup
+BenchmarkApache_builds-8      154.65                  948.75           6.13x
+BenchmarkCanada-8              40.34                  519.85          12.89x
+BenchmarkCitm_catalog-8       183.69                 1565.28           8.52x
+BenchmarkGithub_events-8      170.77                  848.88           4.97x
+BenchmarkGsoc_2018-8          225.13                 2515.59          11.17x
+BenchmarkInstruments-8        120.39                  811.61           6.74x
+BenchmarkMarine_ik-8           61.71                  422.43           6.85x
+BenchmarkMesh-8                50.66                  371.39           7.33x
+BenchmarkMesh_pretty-8         90.36                  784.89           8.69x
+BenchmarkNumbers-8             52.61                  434.85           8.27x
+BenchmarkRandom-8              85.87                  615.12           7.16x
+BenchmarkTwitter-8            139.57                 1193.47           8.55x
+BenchmarkTwitterescaped-8     102.28                  536.19           5.24x
+BenchmarkUpdate_center-8      101.41                  860.52           8.49x
+```
 
 ## Usage 
 
