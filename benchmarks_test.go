@@ -56,7 +56,7 @@ func BenchmarkTwitter(b *testing.B)        { benchmarkFromFile(b, "twitter") }
 func BenchmarkTwitterescaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
 func BenchmarkUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center") }
 
-func benchmarkEncodingJson(b *testing.B, filename string) {
+func benchmarkEncodingJson(b *testing.B, filename string, array bool) {
 
 	_, _, msg := loadCompressed(b, filename)
 
@@ -66,23 +66,30 @@ func benchmarkEncodingJson(b *testing.B, filename string) {
 
 	for i := 0; i < b.N; i++ {
 
-		var parsed map[string]interface{}
+		var parsed interface{}
+		parsed = map[string]interface{}{}
+		if array {
+			parsed = []interface{}{}
+		}
 
-		json.Unmarshal(msg, &parsed)
+		err := json.Unmarshal(msg, &parsed)
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
-func BenchmarkEncodingJsonApache_builds(b *testing.B)  { benchmarkEncodingJson(b, "apache_builds") }
-func BenchmarkEncodingJsonCanada(b *testing.B)         { benchmarkEncodingJson(b, "canada") }
-func BenchmarkEncodingJsonCitm_catalog(b *testing.B)   { benchmarkEncodingJson(b, "citm_catalog") }
-func BenchmarkEncodingJsonGithub_events(b *testing.B)  { benchmarkEncodingJson(b, "github_events") }
-func BenchmarkEncodingJsonGsoc_2018(b *testing.B)      { benchmarkEncodingJson(b, "gsoc-2018") }
-func BenchmarkEncodingJsonInstruments(b *testing.B)    { benchmarkEncodingJson(b, "instruments") }
-func BenchmarkEncodingJsonMarine_ik(b *testing.B)      { benchmarkEncodingJson(b, "marine_ik") }
-func BenchmarkEncodingJsonMesh(b *testing.B)           { benchmarkEncodingJson(b, "mesh") }
-func BenchmarkEncodingJsonMesh_pretty(b *testing.B)    { benchmarkEncodingJson(b, "mesh.pretty") }
-func BenchmarkEncodingJsonNumbers(b *testing.B)        { benchmarkEncodingJson(b, "numbers") }
-func BenchmarkEncodingJsonRandom(b *testing.B)         { benchmarkEncodingJson(b, "random") }
-func BenchmarkEncodingJsonTwitter(b *testing.B)        { benchmarkEncodingJson(b, "twitter") }
-func BenchmarkEncodingJsonTwitterescaped(b *testing.B) { benchmarkEncodingJson(b, "twitterescaped") }
-func BenchmarkEncodingJsonUpdate_center(b *testing.B)  { benchmarkEncodingJson(b, "update-center") }
+func BenchmarkEncodingJsonApache_builds(b *testing.B)  { benchmarkEncodingJson(b, "apache_builds", false) }
+func BenchmarkEncodingJsonCanada(b *testing.B)         { benchmarkEncodingJson(b, "canada", false) }
+func BenchmarkEncodingJsonCitm_catalog(b *testing.B)   { benchmarkEncodingJson(b, "citm_catalog", false) }
+func BenchmarkEncodingJsonGithub_events(b *testing.B)  { benchmarkEncodingJson(b, "github_events", true) }
+func BenchmarkEncodingJsonGsoc_2018(b *testing.B)      { benchmarkEncodingJson(b, "gsoc-2018", false) }
+func BenchmarkEncodingJsonInstruments(b *testing.B)    { benchmarkEncodingJson(b, "instruments", false) }
+func BenchmarkEncodingJsonMarine_ik(b *testing.B)      { benchmarkEncodingJson(b, "marine_ik", false) }
+func BenchmarkEncodingJsonMesh(b *testing.B)           { benchmarkEncodingJson(b, "mesh", false) }
+func BenchmarkEncodingJsonMesh_pretty(b *testing.B)    { benchmarkEncodingJson(b, "mesh.pretty", false) }
+func BenchmarkEncodingJsonNumbers(b *testing.B)        { benchmarkEncodingJson(b, "numbers", true) }
+func BenchmarkEncodingJsonRandom(b *testing.B)         { benchmarkEncodingJson(b, "random", false) }
+func BenchmarkEncodingJsonTwitter(b *testing.B)        { benchmarkEncodingJson(b, "twitter", false) }
+func BenchmarkEncodingJsonTwitterescaped(b *testing.B) { benchmarkEncodingJson(b, "twitterescaped", false) }
+func BenchmarkEncodingJsonUpdate_center(b *testing.B)  { benchmarkEncodingJson(b, "update-center", false) }
