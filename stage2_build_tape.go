@@ -72,9 +72,9 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 	need_copy := false
 	buf := pj.Message[idx:]
 	// Make sure that we have at least one full YMM word available after maxStringSize into the buffer
-	if len(buf) - int(maxStringSize) < 64 {
-		if len(buf) > 512 - 64 { // only allocated if needed
-			paddedBuf := make([]byte, len(buf) + 64)
+	if len(buf)-int(maxStringSize) < 64 {
+		if len(buf) > 512-64 { // only allocated if needed
+			paddedBuf := make([]byte, len(buf)+64)
 			copy(paddedBuf, buf)
 			buf = paddedBuf
 		} else {

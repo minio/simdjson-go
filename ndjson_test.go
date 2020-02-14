@@ -35,7 +35,7 @@ const demo_ndjson = `{"Image":{"Width":800,"Height":600,"Title":"View from 15th 
 {"Image":{"Width":801,"Height":601,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}
 {"Image":{"Width":802,"Height":602,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
 
-func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int ) {
+func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int) {
 
 	const nul = '\000'
 
@@ -264,14 +264,14 @@ func TestNdjsonEmptyLines(t *testing.T) {
 
 	ndjson_emptylines := []string{`{"zero":"emptylines"}
 {"c":"d"}`,
-`{"single":"emptyline"}
+		`{"single":"emptyline"}
 
 {"c":"d"}`,
-`{"dual":"emptylines"}
+		`{"dual":"emptylines"}
 
 
 {"c":"d"}`,
-`{"triple":"emptylines"}
+		`{"triple":"emptylines"}
 
 
 

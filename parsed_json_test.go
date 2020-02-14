@@ -139,8 +139,8 @@ func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj in
 		cval, goval := ctape[cindex], gotape[goindex]
 
 		// Make sure the type is the same between the C and Go version
-		if cval >> 56 != goval >> 56 {
-			t.Errorf("TestCTapeCtoGoTapeCompare: got: %02x want: %02x", goval >> 56, cval >> 56)
+		if cval>>56 != goval>>56 {
+			t.Errorf("TestCTapeCtoGoTapeCompare: got: %02x want: %02x", goval>>56, cval>>56)
 		}
 
 		ntype := Tag(goval >> 56)
@@ -151,9 +151,9 @@ func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj in
 
 		case TagString:
 			cpayload := cval & JSONVALUEMASK
-			cstrlen := binary.LittleEndian.Uint32(csbuf[cpayload:cpayload+4])
-			cstr := string(csbuf[cpayload+4:cpayload+4+uint64(cstrlen)])
-			gostr, _ := pj.stringAt(goval & JSONVALUEMASK, gotape[goindex+1])
+			cstrlen := binary.LittleEndian.Uint32(csbuf[cpayload : cpayload+4])
+			cstr := string(csbuf[cpayload+4 : cpayload+4+uint64(cstrlen)])
+			gostr, _ := pj.stringAt(goval&JSONVALUEMASK, gotape[goindex+1])
 			if cstr != gostr {
 				t.Errorf("TestCTapeCtoGoTapeCompare: got: %s want: %s", gostr, cstr)
 			}
