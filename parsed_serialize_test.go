@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -27,6 +28,7 @@ func BenchmarkSerialize(b *testing.B) {
 	bench := func(b *testing.B, s *serializer) {
 		for _, tt := range testCases {
 			s := newSerializer()
+			var once sync.Once
 			b.Run(tt.name, func(b *testing.B) {
 				org := loadCompressed(b, tt.name)
 				pj, err := Parse(org, nil)
@@ -34,9 +36,9 @@ func BenchmarkSerialize(b *testing.B) {
 					b.Fatal(err)
 				}
 				output := s.Serialize(nil, *pj)
-				if true {
+				once.Do(func() {
 					b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
-				}
+				})
 				//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 				b.SetBytes(int64(len(org)))
 				b.ReportAllocs()
