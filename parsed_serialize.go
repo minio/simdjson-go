@@ -35,9 +35,9 @@ const (
 	stringmask = stringSize - 1
 )
 
-// serializer allows to serialize parsed json and read it back.
-// A serializer can be reused, but not used concurrently.
-type serializer struct {
+// Serializer allows to serialize parsed json and read it back.
+// A Serializer can be reused, but not used concurrently.
+type Serializer struct {
 	// Compressed strings
 	sMsg []byte
 
@@ -58,10 +58,10 @@ type serializer struct {
 	stringBuf    []byte
 }
 
-// newSerializer will create and initialize a serializer.
-func newSerializer() *serializer {
+// NewSerializer will create and initialize a Serializer.
+func NewSerializer() *Serializer {
 	initSerializerOnce.Do(initSerializer)
-	var s serializer
+	var s Serializer
 	s.CompressMode(CompressDefault)
 	return &s
 }
@@ -83,7 +83,7 @@ const (
 	CompressBest
 )
 
-func (s *serializer) CompressMode(c CompressMode) {
+func (s *Serializer) CompressMode(c CompressMode) {
 	switch c {
 	case CompressNone:
 		s.compValues = blockTypeUncompressed
@@ -109,7 +109,7 @@ func (s *serializer) CompressMode(c CompressMode) {
 
 // Serialize the data in pj and return the data.
 // An optional destination can be provided.
-func (s *serializer) Serialize(dst []byte, pj ParsedJson) []byte {
+func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// Header: Version byte
 	// Varuint Strings size, uncompressed
 	// Varuint Tape size, uncompressed
@@ -213,16 +213,16 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagUint:
-			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off])
+			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off+1])
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagInteger:
-			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off])
+			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off+1])
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagFloat:
-			binary.LittleEndian.PutUint64(tmp[:8], pj.Tape[off])
-			s.valuesBuf = append(s.valuesBuf, tmp[:8]...)
+			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off+1])
+			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagNull, TagBoolTrue, TagBoolFalse:
 			// No value.
@@ -230,12 +230,8 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 			// Always forward
 			binary.LittleEndian.PutUint64(tmp[:], payload-uint64(off))
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
-		case TagObjectEnd, TagArrayEnd:
-			// Always backward
-			binary.LittleEndian.PutUint64(tmp[:], uint64(off)-payload)
-			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
-		case TagEnd:
-			// Nothing to store
+		case TagObjectEnd, TagArrayEnd, TagEnd:
+			// Value can be deducted from start tag or no value.
 		default:
 			wg.Wait()
 			panic(fmt.Errorf("unknown tag: %d", int(ntype)))
@@ -319,7 +315,7 @@ func (s *serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 }
 
 // indexString will deduplicate strings and populate
-func (s *serializer) indexString(sb []byte) (offset uint64) {
+func (s *Serializer) indexString(sb []byte) (offset uint64) {
 	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
 	if uint32(len(sb)) >= math.MaxUint32 {
 		panic("string too long")
@@ -346,7 +342,7 @@ func (s *serializer) indexString(sb []byte) (offset uint64) {
 // Only basic sanity checks will be performed.
 // Slight corruption will likely go through unnoticed.
 // And optional destination can be provided.
-func (s *serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, error) {
+func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, error) {
 	br := bytes.NewBuffer(src)
 
 	if v, err := br.ReadByte(); err != nil {
@@ -473,10 +469,6 @@ func (s *serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			sOffset := binary.LittleEndian.Uint64(values[:8])
 			sLen := binary.LittleEndian.Uint64(values[8:16])
 			values = values[16:]
-			if false && sOffset+sLen > uint64(len(dst.Strings)) {
-				// TODO: Maybe validate
-				return dst, fmt.Errorf("%v extends beyond stringbuf (%d). offset:%d", tag, len(dst.Strings), sOffset)
-			}
 
 			dst.Tape[off] = tagDst | sOffset
 			dst.Tape[off+1] = sLen
@@ -489,10 +481,10 @@ func (s *serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			dst.Tape[off+1] = binary.LittleEndian.Uint64(values[:8])
 			values = values[8:]
 			off += 2
-		case TagNull, TagBoolTrue, TagBoolFalse:
+		case TagNull, TagBoolTrue, TagBoolFalse, TagEnd:
 			dst.Tape[off] = tagDst
 			off++
-		case TagObjectStart, TagArrayStart, TagRoot:
+		case TagObjectStart, TagArrayStart:
 			if len(values) < 8 {
 				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
@@ -505,22 +497,30 @@ func (s *serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			}
 
 			dst.Tape[off] = tagDst | val
+			// Write closing...
+			dst.Tape[val-1] = uint64(tagOpenToClose[tag])<<56 | uint64(off)
+
 			off++
-		case TagObjectEnd, TagArrayEnd:
+		case TagRoot:
 			if len(values) < 8 {
 				return dst, fmt.Errorf("reading %v: no values left", tag)
 			}
-			// Always backward
+			// Always forward
 			val := binary.LittleEndian.Uint64(values[:8])
 			values = values[8:]
-			val = uint64(off) - val
+			val += uint64(off)
 			if val > uint64(len(dst.Tape)) {
 				return dst, fmt.Errorf("%v extends beyond tape (%d). offset:%d", tag, len(dst.Tape), val)
 			}
+
 			dst.Tape[off] = tagDst | val
+
 			off++
-		case TagEnd:
-			dst.Tape[off] = tagDst
+		case TagObjectEnd, TagArrayEnd:
+			// This should already have been written.
+			if dst.Tape[off]&JSONTAGMASK != tagDst {
+				return dst, fmt.Errorf("reading %v, offset:%d, start tag did not match %x != %x", tag, off, dst.Tape[off]>>56, uint8(tag))
+			}
 			off++
 		default:
 			return nil, fmt.Errorf("unknown tag: %v", tag)
@@ -536,7 +536,7 @@ func (s *serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	return dst, nil
 }
 
-func (s *serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, dstErr *error) error {
+func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, dstErr *error) error {
 	size, err := binary.ReadUvarint(br)
 	if err != nil {
 		return err

@@ -43,6 +43,7 @@ import (
 const GOLANG_NUMBER_PARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
+const JSONTAGMASK = 0xff << 56
 const STRINGBUFBIT = 0x80000000000000
 const STRINGBUFMASK = 0x7fffffffffffff
 
@@ -58,7 +59,7 @@ type ParsedJson struct {
 }
 
 const INDEX_SLOTS = 16
-const INDEX_SIZE = 1536 							   // Seems to be a good size for the index buffering
+const INDEX_SIZE = 1536                                // Seems to be a good size for the index buffering
 const INDEX_SIZE_WITH_SAFETY_BUFFER = INDEX_SIZE - 128 // Make sure we never write beyond buffer
 
 type indexChan struct {
@@ -72,7 +73,7 @@ type internalParsedJson struct {
 	containing_scope_offset []uint64
 	isvalid                 bool
 	index_chan              chan indexChan
-	indexesChan 			indexChan
+	indexesChan             indexChan
 	buffers                 [INDEX_SLOTS][INDEX_SIZE]uint32
 	buffers_offset          uint64
 	ndjson                  uint64
@@ -881,6 +882,12 @@ const (
 	TagRoot        = Tag('r')
 	TagEnd         = Tag(0)
 )
+
+var tagOpenToClose = [256]Tag{
+	TagObjectStart: TagObjectEnd,
+	TagArrayStart:  TagArrayEnd,
+	TagRoot:        TagRoot,
+}
 
 func (t Tag) String() string {
 	return string([]byte{byte(t)})

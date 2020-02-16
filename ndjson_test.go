@@ -35,7 +35,7 @@ const demo_ndjson = `{"Image":{"Width":800,"Height":600,"Title":"View from 15th 
 {"Image":{"Width":801,"Height":601,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}
 {"Image":{"Width":802,"Height":602,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
 
-func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int ) {
+func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int) {
 
 	const nul = '\000'
 
@@ -358,7 +358,10 @@ func BenchmarkNdjsonStage2(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		pj.parseMessage(ndjson)
+		err := pj.parseMessageNdjson(ndjson)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -384,7 +387,7 @@ func BenchmarkNdjsonColdCountStar(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		pj.parseMessage(ndjson)
+		pj.parseMessageNdjson(ndjson)
 		count_raw_tape(pj.Tape)
 	}
 }
