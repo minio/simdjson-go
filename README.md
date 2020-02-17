@@ -149,7 +149,7 @@ both stages run concurrently as separate go routines and a go channel is used to
 ### Stage 1
 
 Stage 1 has been converted from the original C code (containing the SIMD intrinsics) to Golang assembly using [c2goasm](https://github.com/minio/c2goasm). 
-It essentially consists of five seperate steps, being: 
+It essentially consists of five separate steps, being: 
 
 - `find_odd_backslash_sequences`: detect backslash characters used to escape quotes
 - `find_quote_mask_and_bits`: generate a mask with bits turned on for characters between quotes
