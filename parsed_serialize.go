@@ -203,10 +203,10 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// Serialized format:
 	// - Header: Version (byte)
 	// - Compressed size of remaining data (varuint). Excludes previous and size of this.
-	// - Strings size, uncompressed (varuint)
-	// - Message size, uncompressed (varuint)
 	// - Tape size, uncompressed (varuint)
+	// - Strings size, uncompressed (varuint)
 	// - Strings Block: Compressed block. See above.
+	// - Message size, uncompressed (varuint)
 	// - Message Block: Compressed block. See above.
 	// - Uncompressed size of tags (varuint)
 	// - Tags Block: Compressed block. See above.
@@ -374,16 +374,18 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	n := binary.PutUvarint(tmp[:], uint64(1+len(s.sMsg)+len(s.tagsCompBuf)+len(s.valuesCompBuf)+varInts))
 	dst = append(dst, tmp[:n]...)
 
-	// Strings uncompressed size
-	dst = append(dst, 0)
-	// Messages uncompressed size
-	n = binary.PutUvarint(tmp[:], uint64(len(s.stringBuf)))
-	dst = append(dst, tmp[:n]...)
 	// Tape elements, uncompressed.
 	n = binary.PutUvarint(tmp[:], uint64(len(pj.Tape)))
 	dst = append(dst, tmp[:n]...)
+
+	// Strings uncompressed size
+	dst = append(dst, 0)
 	// Strings
 	dst = append(dst, 0)
+
+	// Messages uncompressed size
+	n = binary.PutUvarint(tmp[:], uint64(len(s.stringBuf)))
+	dst = append(dst, tmp[:n]...)
 	// Message
 	n = binary.PutUvarint(tmp[:], uint64(len(s.sMsg)))
 	dst = append(dst, tmp[:n]...)
@@ -467,24 +469,6 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		}
 	}
 
-	// String size
-	if ss, err := binary.ReadUvarint(br); err != nil {
-		return dst, err
-	} else {
-		if uint64(cap(dst.Strings)) < ss || dst.Strings == nil {
-			dst.Strings = make([]byte, ss)
-		}
-		dst.Strings = dst.Strings[:ss]
-	}
-	// Message size
-	if ss, err := binary.ReadUvarint(br); err != nil {
-		return dst, err
-	} else {
-		if uint64(cap(dst.Message)) < ss || dst.Message == nil {
-			dst.Message = make([]byte, ss)
-		}
-		dst.Message = dst.Message[:ss]
-	}
 	// Tape size
 	if ts, err := binary.ReadUvarint(br); err != nil {
 		return dst, err
@@ -495,6 +479,16 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		dst.Tape = dst.Tape[:ts]
 	}
 
+	// String size
+	if ss, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(dst.Strings)) < ss || dst.Strings == nil {
+			dst.Strings = make([]byte, ss)
+		}
+		dst.Strings = dst.Strings[:ss]
+	}
+
 	// Decompress strings
 	var sWG sync.WaitGroup
 	var stringsErr, msgErr error
@@ -502,6 +496,17 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	if err != nil {
 		return dst, err
 	}
+
+	// Message size
+	if ss, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if uint64(cap(dst.Message)) < ss || dst.Message == nil {
+			dst.Message = make([]byte, ss)
+		}
+		dst.Message = dst.Message[:ss]
+	}
+
 	// Messages
 	err = s.decBlock(br, dst.Message, &sWG, &msgErr)
 	if err != nil {
