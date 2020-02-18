@@ -604,15 +604,6 @@ func BenchmarkNdjsonWarmCountStarWithWhere(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	b.Run("raw", func(b *testing.B) {
-		b.Skip("@fwessels - this crashes...")
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			countRawTapeWhere("Make", "HOND", *pj)
-		}
-	})
 	b.Run("iter", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
