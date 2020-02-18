@@ -148,27 +148,32 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 			tmp = tmp[:n]
 			// Read until Newline
 			if err != io.EOF {
-				b, err := buf.ReadBytes('\n')
-				if err != nil && err != io.EOF {
-					queueError(queue, err)
+				b, err2 := buf.ReadBytes('\n')
+				if err2 != nil && err2 != io.EOF {
+					queueError(queue, err2)
 					return
 				}
 				tmp = append(tmp, b...)
+				// Forward io.EOF
+				err = err2
 			}
 
-			trimmed := bytes.TrimSpace(tmp)
-			if len(trimmed) > 0 {
+			if len(tmp) > 0 {
 				result := make(chan Stream, 0)
 				queue <- result
 				go func() {
-					defer tmpPool.Put(tmp)
 					var pj internalParsedJson
 					select {
 					case v := <-reuse:
+						if cap(v.Message) >= tmpSize+1024 {
+							tmpPool.Put(v.Message)
+							v.Message = nil
+						}
 						pj.ParsedJson = *v
+
 					default:
 					}
-					parseErr := pj.parseMessageNdjson(trimmed)
+					parseErr := pj.parseMessageNdjson(tmp)
 					if parseErr != nil {
 						result <- Stream{
 							Value: nil,
