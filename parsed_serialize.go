@@ -17,6 +17,7 @@
 package simdjson
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -25,6 +26,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"io"
 	"math"
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -56,6 +58,8 @@ type Serializer struct {
 	stringWr     io.Writer
 	stringsTable [stringSize]uint32
 	stringBuf    []byte
+
+	maxBlockSize uint64
 }
 
 // NewSerializer will create and initialize a Serializer.
@@ -63,6 +67,7 @@ func NewSerializer() *Serializer {
 	initSerializerOnce.Do(initSerializer)
 	var s Serializer
 	s.CompressMode(CompressDefault)
+	s.maxBlockSize = 1 << 31
 	return &s
 }
 
@@ -107,41 +112,118 @@ func (s *Serializer) CompressMode(c CompressMode) {
 	}
 }
 
+func serializeNDStream(dst io.Writer, in <-chan Stream, reuse chan<- *ParsedJson, concurrency int, comp CompressMode) error {
+	if concurrency <= 0 {
+		concurrency = (runtime.GOMAXPROCS(0) + 1) / 2
+	}
+	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	type workload struct {
+		pj  *ParsedJson
+		dst chan []byte
+	}
+	var readCh = make(chan workload, concurrency)
+	var writeCh = make(chan chan []byte, concurrency)
+	dstPool := sync.Pool{
+		New: func() interface{} {
+			return make([]byte, 0, 64<<10)
+		},
+	}
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			s := NewSerializer()
+			s.CompressMode(comp)
+			defer wg.Done()
+			for input := range readCh {
+				res := s.Serialize(dstPool.Get().([]byte)[:0], *input.pj)
+				input.dst <- res
+				select {
+				case reuse <- input.pj:
+				default:
+				}
+			}
+		}()
+	}
+	var writeErr error
+	var wwg sync.WaitGroup
+	wwg.Add(1)
+	go func() {
+		defer wwg.Done()
+		for block := range writeCh {
+			b := <-block
+			var n int
+			n, writeErr = dst.Write(b)
+			if n != len(b) {
+				writeErr = io.ErrShortWrite
+			}
+		}
+	}()
+	var readErr error
+	var rwg sync.WaitGroup
+	rwg.Add(1)
+	go func() {
+		defer rwg.Done()
+		defer close(readCh)
+		for block := range in {
+			if block.Error != nil {
+				readErr = block.Error
+			}
+			readCh <- workload{
+				pj:  block.Value,
+				dst: make(chan []byte, 0),
+			}
+		}
+	}()
+	rwg.Wait()
+	if readErr != nil {
+		wg.Wait()
+		close(writeCh)
+		wwg.Wait()
+		return readErr
+	}
+	// Read done, wait for workers...
+	wg.Wait()
+	close(writeCh)
+	// Wait for writer...
+	wwg.Wait()
+	return writeErr
+}
+
 // Serialize the data in pj and return the data.
 // An optional destination can be provided.
 func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
-	// Header: Version byte
-	// Varuint Strings size, uncompressed
-	// Varuint Tape size, uncompressed
-	// Varuint Compressed size of remaining data.
-	// Strings:
-	// - Varint: Compressed bytes total.
-	//  Compressed Blocks:
-	//     - Varint: Block compressed bytes excluding this varint.
-	//     - Block type:
-	//     		0: uncompressed, rest is data.
-	// 			1: S2 block.
-	// 			2: Zstd block.
-	// 	   - block data.
-	// 	   Ends when total is reached.
-	// Varuint: Tape length, Unique Elements
-	// Tags: Compressed block
-	// - Byte type:
-	// 		- 0: Uncompressed.
-	//      - 3: zstd compressed block.
-	// 		- 4: S2 compressed block.
-	// - Varuint compressed size.
-	// - Table + data.
+	// Blocks:
+	//  - Compressed size of entire block following. Can be 0 if empty. (varuint)
+	//  - Block type, byte:
+	//     0: uncompressed, rest is data.
+	// 	   1: S2 compressed stream.
+	// 	   2: Zstd block.
+	//  - Compressed data.
+	//
+	// Serialized format:
+	// - Header: Version (byte)
+	// - Compressed size of remaining data (varuint). Excludes previous and size of this.
+	// - Strings size, uncompressed (varuint)
+	// - Message size, uncompressed (varuint)
+	// - Tape size, uncompressed (varuint)
+	// - Strings Block: Compressed block. See above.
+	// - Message Block: Compressed block. See above.
+	// - Uncompressed size of tags (varuint)
+	// - Tags Block: Compressed block. See above.
+	// - Uncompressed values size (varuint)
+	// - Values Block: Compressed block. See above.
+	//
+	// Reconstruction:
+	//
+	// Read next tag. Depending on the tag, read a number of values:
 	// Values:
-	// - Varint total compressed size.
-	//  S2 block.
-	// 	 - Null, BoolTrue/BoolFalse: Nothing added.
-	//   - TagObjectStart, TagArrayStart, TagRoot: Offset - Current offset
-	//   - TagObjectEnd, TagArrayEnd: Current offset - Offset
+	// 	 - Null, BoolTrue/BoolFalse: No value.
+	//   - TagObjectStart, TagArrayStart, TagRoot: (Offset - Current offset). Write end tag for object and array.
+	//   - TagObjectEnd, TagArrayEnd: No value stored, derived from start.
 	//   - TagInteger, TagUint, TagFloat: 64 bits
-	// 	 - TagString: offset
-
-	// Index strings
+	// 	 - TagString: offset, length stored.
+	//
+	// If there are any values left as tag or value, it is considered invalid.
 
 	var wg sync.WaitGroup
 
@@ -278,14 +360,6 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 
 	// Version
 	dst = append(dst, 1)
-	// Strings uncompressed size
-	dst = append(dst, 0)
-	// Messages uncompressed size
-	n := binary.PutUvarint(tmp[:], uint64(len(s.stringBuf)))
-	dst = append(dst, tmp[:n]...)
-	// Tape elements, uncompressed.
-	n = binary.PutUvarint(tmp[:], uint64(len(pj.Tape)))
-	dst = append(dst, tmp[:n]...)
 
 	// Size of varints...
 	varInts := binary.PutUvarint(tmp[:], uint64(0)) +
@@ -293,15 +367,23 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 		binary.PutUvarint(tmp[:], uint64(rawTags)) +
 		binary.PutUvarint(tmp[:], uint64(len(s.tagsCompBuf))) +
 		binary.PutUvarint(tmp[:], uint64(rawValues)) +
-		binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf)))
+		binary.PutUvarint(tmp[:], uint64(len(s.valuesCompBuf))) +
+		binary.PutUvarint(tmp[:], uint64(len(s.stringBuf))) +
+		binary.PutUvarint(tmp[:], uint64(len(pj.Tape)))
 
-	n = binary.PutUvarint(tmp[:], uint64(0+len(s.sMsg)+len(s.tagsCompBuf)+len(s.valuesCompBuf)+varInts))
+	n := binary.PutUvarint(tmp[:], uint64(1+len(s.sMsg)+len(s.tagsCompBuf)+len(s.valuesCompBuf)+varInts))
 	dst = append(dst, tmp[:n]...)
 
+	// Strings uncompressed size
+	dst = append(dst, 0)
+	// Messages uncompressed size
+	n = binary.PutUvarint(tmp[:], uint64(len(s.stringBuf)))
+	dst = append(dst, tmp[:n]...)
+	// Tape elements, uncompressed.
+	n = binary.PutUvarint(tmp[:], uint64(len(pj.Tape)))
+	dst = append(dst, tmp[:n]...)
 	// Strings
 	dst = append(dst, 0)
-	// dst = append(dst, s.sBuf...)
-
 	// Message
 	n = binary.PutUvarint(tmp[:], uint64(len(s.sMsg)))
 	dst = append(dst, tmp[:n]...)
@@ -327,28 +409,33 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	return dst
 }
 
-// indexString will deduplicate strings and populate
-func (s *Serializer) indexString(sb []byte) (offset uint64) {
-	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
-	if uint32(len(sb)) >= math.MaxUint32 {
-		panic("string too long")
-	}
-
-	h := memHash(sb) & stringmask
-	off := int(s.stringsTable[h]) - 1
-	end := off + len(sb)
-	if off >= 0 && end <= len(s.stringBuf) {
-		found := s.stringBuf[off:end]
-		if bytes.Equal(found, sb) {
-			return uint64(off)
+func (s *Serializer) splitBlocks(r io.Reader, out chan []byte) error {
+	br := bufio.NewReader(r)
+	defer close(out)
+	for {
+		if v, err := br.ReadByte(); err != nil {
+			return err
+		} else if v != 1 {
+			return errors.New("unknown version")
 		}
-		// It didn't match :(
+
+		// Comp size
+		c, err := binary.ReadUvarint(br)
+		if err != nil {
+			return err
+		}
+		if c > s.maxBlockSize {
+			return errors.New("compressed block too big")
+		}
+		block := make([]byte, c)
+		n, err := io.ReadFull(br, block)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			out <- block
+		}
 	}
-	off = len(s.stringBuf)
-	s.stringBuf = append(s.stringBuf, sb...)
-	s.stringsTable[h] = uint32(off + 1)
-	s.stringWr.Write(sb)
-	return uint64(off)
 }
 
 // Deserialize the content in src.
@@ -367,6 +454,19 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	if dst == nil {
 		dst = &ParsedJson{}
 	}
+
+	// Comp size
+	if c, err := binary.ReadUvarint(br); err != nil {
+		return dst, err
+	} else {
+		if int(c) > br.Len() {
+			return dst, fmt.Errorf("stream too short, want %d, only have %d left", c, br.Len())
+		}
+		if int(c) > br.Len() {
+			fmt.Println("extra length:", int(c), br.Len())
+		}
+	}
+
 	// String size
 	if ss, err := binary.ReadUvarint(br); err != nil {
 		return dst, err
@@ -393,18 +493,6 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			dst.Tape = make([]uint64, ts)
 		}
 		dst.Tape = dst.Tape[:ts]
-	}
-
-	// Comp size
-	if c, err := binary.ReadUvarint(br); err != nil {
-		return dst, err
-	} else {
-		if int(c) > br.Len() {
-			return dst, fmt.Errorf("stream too short, want %d, only have %d left", c, br.Len())
-		}
-		if int(c) > br.Len() {
-			fmt.Println("extra length:", int(c), br.Len())
-		}
 	}
 
 	// Decompress strings
@@ -539,10 +627,13 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			return nil, fmt.Errorf("unknown tag: %v", tag)
 		}
 	}
+	sWG.Wait()
 	if off != len(dst.Tape) {
 		return dst, fmt.Errorf("tags did not fill tape, want %d, got %d", len(dst.Tape), off)
 	}
-	sWG.Wait()
+	if len(values) > 0 {
+		return dst, fmt.Errorf("values did not fill tape, want %d, got %d", len(dst.Tape), off)
+	}
 	if stringsErr != nil {
 		return dst, fmt.Errorf("reading strings: %w", stringsErr)
 	}
@@ -686,6 +777,30 @@ func encBlock(mode byte, buf []byte, fast bool) (io.Writer, encodedResult) {
 		}
 	}
 	panic("unknown compression mode")
+}
+
+// indexString will deduplicate strings and populate
+func (s *Serializer) indexString(sb []byte) (offset uint64) {
+	// Only possible on 64 bit platforms, so it will never trigger on 32 bit platforms.
+	if uint32(len(sb)) >= math.MaxUint32 {
+		panic("string too long")
+	}
+
+	h := memHash(sb) & stringmask
+	off := int(s.stringsTable[h]) - 1
+	end := off + len(sb)
+	if off >= 0 && end <= len(s.stringBuf) {
+		found := s.stringBuf[off:end]
+		if bytes.Equal(found, sb) {
+			return uint64(off)
+		}
+		// It didn't match :(
+	}
+	off = len(s.stringBuf)
+	s.stringBuf = append(s.stringBuf, sb...)
+	s.stringsTable[h] = uint32(off + 1)
+	s.stringWr.Write(sb)
+	return uint64(off)
 }
 
 //go:noescape

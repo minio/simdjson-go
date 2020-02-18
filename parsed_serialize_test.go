@@ -17,6 +17,7 @@
 package simdjson
 
 import (
+	"bytes"
 	"sync"
 	"testing"
 )
@@ -207,5 +208,116 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 		s := NewSerializer()
 		s.CompressMode(CompressBest)
 		bench(b, s)
+	})
+}
+
+func TestDeSerializeNDJSON(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping... too long")
+	}
+	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
+
+	pj, err := ParseND(ndjson, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	test := func(t *testing.T, s *Serializer) {
+		i := pj.Iter()
+		want, err := i.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		output := s.Serialize(nil, *pj)
+		if testing.Verbose() {
+			t.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
+		}
+		pj2, err := s.Deserialize(output, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		i = pj2.Iter()
+		got, err := i.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(want, got) {
+			t.Fatal("output mismatch")
+		}
+	}
+	t.Run("default", func(b *testing.T) {
+		s := NewSerializer()
+		test(b, s)
+	})
+	t.Run("none", func(b *testing.T) {
+		s := NewSerializer()
+		s.CompressMode(CompressNone)
+		test(b, s)
+	})
+	t.Run("fast", func(b *testing.T) {
+		s := NewSerializer()
+		s.CompressMode(CompressFast)
+		test(b, s)
+	})
+	t.Run("best", func(b *testing.T) {
+		s := NewSerializer()
+		s.CompressMode(CompressBest)
+		test(b, s)
+	})
+}
+
+func TestDeSerializeJSON(t *testing.T) {
+	test := func(t *testing.T, s *Serializer) {
+		for _, tt := range testCases {
+			org := loadCompressed(t, tt.name)
+			pj, err := Parse(org, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var once sync.Once
+			t.Run(tt.name, func(t *testing.T) {
+				i := pj.Iter()
+				want, err := i.MarshalJSON()
+				if err != nil {
+					t.Fatal(err)
+				}
+				output := s.Serialize(nil, *pj)
+				if testing.Verbose() {
+					once.Do(func() {
+						t.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
+					})
+				}
+				pj2, err := s.Deserialize(output, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				i = pj2.Iter()
+				got, err := i.MarshalJSON()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(want, got) {
+					t.Fatal("output mismatch")
+				}
+			})
+		}
+	}
+	t.Run("default", func(b *testing.T) {
+		s := NewSerializer()
+		test(b, s)
+	})
+	t.Run("none", func(b *testing.T) {
+		s := NewSerializer()
+		s.CompressMode(CompressNone)
+		test(b, s)
+	})
+	t.Run("fast", func(b *testing.T) {
+		s := NewSerializer()
+		s.CompressMode(CompressFast)
+		test(b, s)
+	})
+	t.Run("best", func(b *testing.T) {
+		s := NewSerializer()
+		s.CompressMode(CompressBest)
+		test(b, s)
 	})
 }
