@@ -95,32 +95,43 @@ func (o *Object) Parse(dst *Elements) (*Elements, error) {
 // This should only be used to locate a single key where the object is no longer needed.
 // The object will not be advanced.
 func (o *Object) FindKey(key string, dst *Element) *Element {
-	var tmp Iter
-	obj := *o
+	tmp := o.tape.Iter()
+	tmp.off = o.off
 	for {
-		name, t, err := obj.NextElementBytes(&tmp)
+		typ := tmp.Advance()
+		// We want name and at least one value.
+		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			return nil
+		}
+		// Advance must be string or end of object
+		offset := tmp.cur
+		length := tmp.tape.Tape[tmp.off]
+		if int(length) != len(key) {
+			// Skip the value.
+			t := tmp.Advance()
+			if t == TypeNone {
+				return nil
+			}
+			continue
+		}
+		// Read name
+		name, err := tmp.tape.stringByteAt(offset, length)
 		if err != nil {
 			return nil
 		}
-		if t == TypeNone {
-			// Done
-			break
+
+		if string(name) != key {
+			// Skip the value
+			tmp.Advance()
+			continue
 		}
-		if string(name) == key {
-			if dst == nil {
-				return &Element{
-					Name: key,
-					Type: t,
-					Iter: tmp,
-				}
-			}
-			dst.Name = key
-			dst.Iter = tmp
-			dst.Type = t
-			return dst
+		dst.Name = key
+		dst.Type, err = tmp.AdvanceIter(&dst.Iter)
+		if err != nil {
+			return nil
 		}
+		return dst
 	}
-	return nil
 }
 
 // NextElement sets dst to the next element and returns the name.

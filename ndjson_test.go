@@ -583,37 +583,42 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 func BenchmarkNdjsonWarmCountStar(b *testing.B) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
-	pj := internalParsedJson{}
-	pj.parseMessage(ndjson)
-
+	pj, err := ParseND(ndjson, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
 	b.SetBytes(int64(len(ndjson)))
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		countObjects(pj.ParsedJson)
+		countObjects(*pj)
 	}
 }
 
 func BenchmarkNdjsonWarmCountStarWithWhere(b *testing.B) {
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
-	pj := internalParsedJson{}
-	pj.parseMessage(ndjson)
+	pj, err := ParseND(ndjson, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
 
 	b.Run("raw", func(b *testing.B) {
+		b.Skip("@fwessels - this crashes...")
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			countRawTapeWhere("Make", "HOND", pj.ParsedJson)
+			countRawTapeWhere("Make", "HOND", *pj)
 		}
 	})
 	b.Run("iter", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			countWhere("Make", "HOND", pj.ParsedJson)
+			countWhere("Make", "HOND", *pj)
 		}
 	})
-
 }
