@@ -61,6 +61,16 @@ func find_odd_backslash_sequences(buf []byte, prev_iter_ends_odd_backslash *uint
 }
 
 //go:noescape
+func __find_odd_backslash_sequences_avx512()
+
+//go:noescape
+func _find_odd_backslash_sequences_avx512(p1, p3 unsafe.Pointer) (result uint64)
+
+func find_odd_backslash_sequences_avx512(buf []byte, prev_iter_ends_odd_backslash *uint64) uint64 {
+	return _find_odd_backslash_sequences_avx512(unsafe.Pointer(&buf[0]), unsafe.Pointer(prev_iter_ends_odd_backslash))
+}
+
+//go:noescape
 func _find_structural_bits(p1, p3 unsafe.Pointer, /* for: find_odd_backslash_sequences() */
 	prev_iter_inside_quote, quote_bits, error_mask unsafe.Pointer, /* for: find_quote_mask_and_bits() */
 	whitespace, structurals_in unsafe.Pointer, /* for: find_whitespace_and_structurals() */

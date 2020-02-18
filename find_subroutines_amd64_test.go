@@ -17,6 +17,7 @@
 package simdjson
 
 import (
+	"github.com/klauspost/cpuid"
 	"reflect"
 	"strings"
 	"testing"
@@ -102,7 +103,7 @@ func TestExcludeNewlineDelimitersWithinQuotes(t *testing.T) {
 	}
 }
 
-func TestFindOddBackslashSequences(t *testing.T) {
+func testFindOddBackslashSequences(t *testing.T, f func([]byte, *uint64) uint64) {
 
 	testCases := []struct {
 		prev_ends_odd      uint64
@@ -127,14 +128,14 @@ func TestFindOddBackslashSequences(t *testing.T) {
 
 	for i, tc := range testCases {
 		prev_iter_ends_odd_backslash := tc.prev_ends_odd
-		mask := find_odd_backslash_sequences([]byte(tc.input), &prev_iter_ends_odd_backslash)
+		mask := f([]byte(tc.input), &prev_iter_ends_odd_backslash)
 
 		if mask != tc.expected {
-			t.Errorf("TestFindOddBackslashSequences(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
+			t.Errorf("testFindOddBackslashSequences(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
 		}
 
 		if prev_iter_ends_odd_backslash != tc.ends_odd_backslash {
-			t.Errorf("TestFindOddBackslashSequences(%d): got: %v want: %v", i, prev_iter_ends_odd_backslash, tc.ends_odd_backslash)
+			t.Errorf("testFindOddBackslashSequences(%d): got: %v want: %v", i, prev_iter_ends_odd_backslash, tc.ends_odd_backslash)
 		}
 	}
 
@@ -143,18 +144,29 @@ func TestFindOddBackslashSequences(t *testing.T) {
 		test := strings.Repeat(" ", int(i-1)) + `\"` + strings.Repeat(" ", 62+64)
 
 		prev_iter_ends_odd_backslash := uint64(0)
-		mask_lo := find_odd_backslash_sequences([]byte(test), &prev_iter_ends_odd_backslash)
-		mask_hi := find_odd_backslash_sequences([]byte(test[64:]), &prev_iter_ends_odd_backslash)
+		mask_lo := f([]byte(test), &prev_iter_ends_odd_backslash)
+		mask_hi := f([]byte(test[64:]), &prev_iter_ends_odd_backslash)
 
 		if i < 64 {
 			if mask_lo != 1<<i || mask_hi != 0 {
-				t.Errorf("TestFindOddBackslashSequences(%d): got: lo = 0x%x; hi = 0x%x  want: 0x%x 0x0", i, mask_lo, mask_hi, 1<<i)
+				t.Errorf("testFindOddBackslashSequences(%d): got: lo = 0x%x; hi = 0x%x  want: 0x%x 0x0", i, mask_lo, mask_hi, 1<<i)
 			}
 		} else {
 			if mask_lo != 0 || mask_hi != 1<<(i-64) {
-				t.Errorf("TestFindOddBackslashSequences(%d): got: lo = 0x%x; hi = 0x%x  want:  0x0 0x%x", i, mask_lo, mask_hi, 1<<(i-64))
+				t.Errorf("testFindOddBackslashSequences(%d): got: lo = 0x%x; hi = 0x%x  want:  0x0 0x%x", i, mask_lo, mask_hi, 1<<(i-64))
 			}
 		}
+	}
+}
+
+func TestFindOddBackslashSequences(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindOddBackslashSequences(t, find_odd_backslash_sequences)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindOddBackslashSequences(t, find_odd_backslash_sequences_avx512)
+		})
 	}
 }
 
