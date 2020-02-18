@@ -62,7 +62,7 @@ func BenchmarkUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center
 
 func benchmarkJsoniter(b *testing.B, filename string) {
 
-  _, _, msg := loadCompressed(b, filename)
+	msg := loadCompressed(b, filename)
 
 	b.SetBytes(int64(len(msg)))
 	b.ReportAllocs()
