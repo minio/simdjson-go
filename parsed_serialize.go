@@ -227,7 +227,8 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 		case TagNull, TagBoolTrue, TagBoolFalse:
 			// No value.
 		case TagObjectStart, TagArrayStart, TagRoot:
-			// Always forward
+			// TagObjectStart TagArrayStart always points forward.
+			// TagRoot can point either direction so we rely on under/overflow.
 			binary.LittleEndian.PutUint64(tmp[:], payload-uint64(off))
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 		case TagObjectEnd, TagArrayEnd, TagEnd:
@@ -248,15 +249,27 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	}
 	wg.Add(3)
 	go func() {
-		s.tagsCompBuf, _ = tagDone()
+		var err error
+		s.tagsCompBuf, err = tagDone()
+		if err != nil {
+			panic(err)
+		}
 		wg.Done()
 	}()
 	go func() {
-		s.valuesCompBuf, _ = valDone()
+		var err error
+		s.valuesCompBuf, err = valDone()
+		if err != nil {
+			panic(err)
+		}
 		wg.Done()
 	}()
 	go func() {
-		s.sMsg, _ = msgDone()
+		var err error
+		s.sMsg, err = msgDone()
+		if err != nil {
+			panic(err)
+		}
 		wg.Done()
 	}()
 
