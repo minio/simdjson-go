@@ -384,7 +384,10 @@ func BenchmarkNdjsonStage2(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		pj.parseMessage(ndjson)
+		err := pj.parseMessageNdjson(ndjson)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -410,7 +413,7 @@ func BenchmarkNdjsonColdCountStar(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		pj.parseMessage(ndjson)
+		pj.parseMessageNdjson(ndjson)
 		count_raw_tape(pj.Tape)
 	}
 }

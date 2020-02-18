@@ -315,7 +315,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 }
 
 func TestFindStructuralBitsLoop(t *testing.T) {
-	_, _, msg := loadCompressed(t, "twitter")
+	msg := loadCompressed(t, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
 	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
@@ -515,7 +515,7 @@ func TestFlattenBitsIncremental(t *testing.T) {
 
 func BenchmarkFlattenBits(b *testing.B) {
 
-	_, _, msg := loadCompressed(b, "twitter")
+	msg := loadCompressed(b, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
 	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
