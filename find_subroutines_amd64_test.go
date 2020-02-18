@@ -62,7 +62,7 @@ func TestFinalizeStructurals(t *testing.T) {
 	}
 }
 
-func TestFindNewlineDelimiters(t *testing.T) {
+func testFindNewlineDelimiters(t *testing.T, f func([]byte, uint64) uint64) {
 
 	want := []uint64{
 		0b0000000000000000000000000000000000000000000000000000000000000000,
@@ -77,14 +77,25 @@ func TestFindNewlineDelimiters(t *testing.T) {
 	}
 
 	for offset := 0; offset < len(demo_ndjson)-64; offset += 64 {
-		mask := _find_newline_delimiters([]byte(demo_ndjson)[offset:], 0)
+		mask := f([]byte(demo_ndjson)[offset:], 0)
 		if mask != want[offset>>6] {
-			t.Errorf("TestFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset>>6])
+			t.Errorf("testFindNewlineDelimiters: got: %064b want: %064b", mask, want[offset>>6])
 		}
 	}
 }
 
-func TestExcludeNewlineDelimitersWithinQuotes(t *testing.T) {
+func TestFindNewlineDelimiters(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindNewlineDelimiters(t, _find_newline_delimiters)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindNewlineDelimiters(t, _find_newline_delimiters_avx512)
+		})
+	}
+}
+
+func testExcludeNewlineDelimitersWithinQuotes(t *testing.T, f func([]byte, uint64) uint64) {
 
 	input := []byte(`  "-------------------------------------"                       `)
 	input[10] = 0x0a // within quoted string, so should be ignored
@@ -95,12 +106,24 @@ func TestExcludeNewlineDelimitersWithinQuotes(t *testing.T) {
 	odd_ends := uint64(0)
 	quotemask := find_quote_mask_and_bits(input, odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
 
-	mask := _find_newline_delimiters(input, quotemask)
+	mask := f(input, quotemask)
 	want := uint64(1 << 50)
 
 	if mask != want {
-		t.Errorf("TestExcludeNewlineDelimitersWithinQuotes: got: %064b want: %064b", mask, want)
+		t.Errorf("testExcludeNewlineDelimitersWithinQuotes: got: %064b want: %064b", mask, want)
 	}
+}
+
+func TestExcludeNewlineDelimitersWithinQuotes(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testExcludeNewlineDelimitersWithinQuotes(t, _find_newline_delimiters)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testExcludeNewlineDelimitersWithinQuotes(t, _find_newline_delimiters_avx512)
+		})
+	}
+
 }
 
 func testFindOddBackslashSequences(t *testing.T, f func([]byte, *uint64) uint64) {
