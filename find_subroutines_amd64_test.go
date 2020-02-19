@@ -400,7 +400,7 @@ func find_structural_bits_multiple_calls(buf []byte, prev_iter_ends_odd_backslas
 	return finalize_structurals(structurals, whitespace_mask, quote_mask, quote_bits, prev_iter_ends_pseudo_pred)
 }
 
-func TestFindWhitespaceAndStructurals(t *testing.T) {
+func testFindWhitespaceAndStructurals(t *testing.T, f func([]byte, *uint64, *uint64)) {
 
 	testCases := []struct {
 		input          string
@@ -435,15 +435,26 @@ func TestFindWhitespaceAndStructurals(t *testing.T) {
 		whitespace := uint64(0)
 		structurals := uint64(0)
 
-		find_whitespace_and_structurals([]byte(tc.input), &whitespace, &structurals)
+		f([]byte(tc.input), &whitespace, &structurals)
 
 		if whitespace != tc.expected_ws {
-			t.Errorf("TestFindWhitespaceAndStructurals(%d): got: 0x%x want: 0x%x", i, whitespace, tc.expected_ws)
+			t.Errorf("testFindWhitespaceAndStructurals(%d): got: 0x%x want: 0x%x", i, whitespace, tc.expected_ws)
 		}
 
 		if structurals != tc.expected_strls {
-			t.Errorf("TestFindWhitespaceAndStructurals(%d): got: 0x%x want: 0x%x", i, structurals, tc.expected_strls)
+			t.Errorf("testFindWhitespaceAndStructurals(%d): got: 0x%x want: 0x%x", i, structurals, tc.expected_strls)
 		}
+	}
+}
+
+func TestFindWhitespaceAndStructurals(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindWhitespaceAndStructurals(t, find_whitespace_and_structurals)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindWhitespaceAndStructurals(t, find_whitespace_and_structurals_avx512)
+		})
 	}
 }
 

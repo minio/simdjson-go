@@ -140,6 +140,16 @@ func find_whitespace_and_structurals(buf []byte, whitespace, structurals *uint64
 }
 
 //go:noescape
+func __find_whitespace_and_structurals_avx512()
+
+//go:noescape
+func _find_whitespace_and_structurals_avx512(input, whitespace, structurals unsafe.Pointer)
+
+func find_whitespace_and_structurals_avx512(buf []byte, whitespace, structurals *uint64) {
+	_find_whitespace_and_structurals_avx512(unsafe.Pointer(&buf[0]), unsafe.Pointer(whitespace), unsafe.Pointer(structurals))
+}
+
+//go:noescape
 func __flatten_bits_incremental()
 
 //go:noescape
