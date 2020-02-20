@@ -155,7 +155,7 @@ masking_done:
     // Merge Y9 into upper half of Z8
     VPXORD    Z10, Z10, Z10
     VALIGND   $8, Z10, Z9, Z9
-    VPXORD    Z9, Z8, Z8
+    VPORD     Z9, Z8, Z8
 
     JMP   loop_after_load // Rejoin loop after regular loading
 
