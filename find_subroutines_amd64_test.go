@@ -193,7 +193,7 @@ func TestFindOddBackslashSequences(t *testing.T) {
 	}
 }
 
-func TestFindQuoteMaskAndBits(t *testing.T) {
+func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uint64, *uint64) uint64) {
 
 	testCases := []struct {
 		input    string
@@ -213,11 +213,22 @@ func TestFindQuoteMaskAndBits(t *testing.T) {
 		odd_ends := uint64(0)
 		prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
 
-		mask := find_quote_mask_and_bits([]byte(tc.input), odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
+		mask := f([]byte(tc.input), odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
 
 		if mask != tc.expected {
-			t.Errorf("TestFindOddBackslashSequences(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
+			t.Errorf("testFindOddBackslashSequences(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
 		}
+	}
+}
+
+func TestFindQuoteMaskAndBits(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindQuoteMaskAndBits(t, find_quote_mask_and_bits)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindQuoteMaskAndBits(t, find_quote_mask_and_bits_avx512)
+		})
 	}
 }
 
