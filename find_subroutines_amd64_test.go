@@ -287,7 +287,7 @@ func TestFindStructuralBits(t *testing.T) {
 	}
 }
 
-func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
+func testFindStructuralBitsWhitespacePadding(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
 
 	// Test whitespace padding (for partial load of last 64 bytes) with
 	// string full of structural characters
@@ -313,10 +313,10 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 			index.indexes, &index.length, &carried, &position, 0)
 
 		if processed != uint64(l) {
-			t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, processed, l)
+			t.Errorf("testFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, processed, l)
 		}
 		if index.length != l {
-			t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, index.length, l)
+			t.Errorf("testFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, index.length, l)
 		}
 
 		// Compute offset of last (structural) character and verify it points to the end of the message
@@ -326,13 +326,24 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 		}
 		if l > 0 {
 			if lastChar != uint64(l-1) {
-				t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, lastChar, uint64(l-1))
+				t.Errorf("testFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, lastChar, uint64(l-1))
 			}
 		} else {
 			if lastChar != uint64(l-1)-carried {
-				t.Errorf("TestFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, lastChar, uint64(l-1)-carried)
+				t.Errorf("testFindStructuralBitsWhitespacePadding(%d): got: %d want: %d", l, lastChar, uint64(l-1)-carried)
 			}
 		}
+	}
+}
+
+func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindStructuralBitsWhitespacePadding(t, find_structural_bits_in_slice)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindStructuralBitsWhitespacePadding(t, find_structural_bits_in_slice_avx512)
+		})
 	}
 }
 
