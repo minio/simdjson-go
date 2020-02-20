@@ -232,7 +232,7 @@ func TestFindQuoteMaskAndBits(t *testing.T) {
 	}
 }
 
-func TestFindStructuralBits(t *testing.T) {
+func testFindStructuralBits(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, uint64, *uint64) uint64) {
 
 	testCases := []struct {
 		input string
@@ -258,7 +258,7 @@ func TestFindStructuralBits(t *testing.T) {
 	for i, tc := range testCases {
 
 		// Call assembly routines as a single method
-		structurals := find_structural_bits([]byte(tc.input), &prev_iter_ends_odd_backslash,
+		structurals := f([]byte(tc.input), &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred)
@@ -273,6 +273,17 @@ func TestFindStructuralBits(t *testing.T) {
 		if structurals != structurals_MC {
 			t.Errorf("TestFindStructuralBits(%d): got: 0x%x want: 0x%x", i, structurals, structurals_MC)
 		}
+	}
+}
+
+func TestFindStructuralBits(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindStructuralBits(t, find_structural_bits)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindStructuralBits(t, find_structural_bits_avx512)
+		})
 	}
 }
 
