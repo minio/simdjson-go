@@ -336,7 +336,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 	}
 }
 
-func TestFindStructuralBitsLoop(t *testing.T) {
+func testFindStructuralBitsLoop(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
 	msg := loadCompressed(t, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
@@ -353,7 +353,7 @@ func TestFindStructuralBitsLoop(t *testing.T) {
 		index := indexChan{}
 		index.indexes = &[INDEX_SIZE]uint32{}
 
-		processed += find_structural_bits_in_slice(msg[processed:], &prev_iter_ends_odd_backslash,
+		processed += f(msg[processed:], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
@@ -379,6 +379,17 @@ func TestFindStructuralBitsLoop(t *testing.T) {
 
 		pos -= int(indexes[i])
 		j++
+	}
+}
+
+func TestFindStructuralBitsLoop(t *testing.T) {
+	t.Run("avx2", func(t *testing.T) {
+		testFindStructuralBitsLoop(t, find_structural_bits_in_slice)
+	})
+	if cpuid.CPU.AVX512F() {
+		t.Run("avx512", func(t *testing.T) {
+			testFindStructuralBitsLoop(t, find_structural_bits_in_slice_avx512)
+		})
 	}
 }
 
