@@ -404,7 +404,7 @@ func TestFindStructuralBitsLoop(t *testing.T) {
 	}
 }
 
-func BenchmarkFindStructuralBits(b *testing.B) {
+func benchmarkFindStructuralBits(b *testing.B, f func([]byte, *uint64, *uint64, *uint64, uint64, *uint64) uint64) {
 
 	const msg = "                                                                "
 	b.SetBytes(int64(len(msg)))
@@ -418,12 +418,24 @@ func BenchmarkFindStructuralBits(b *testing.B) {
 	structurals := uint64(0)
 
 	for i := 0; i < b.N; i++ {
-		find_structural_bits([]byte(msg), &prev_iter_ends_odd_backslash,
+		f([]byte(msg), &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred)
 	}
 }
+
+func BenchmarkFindStructuralBits(b *testing.B) {
+	b.Run("avx2", func(b *testing.B) {
+		benchmarkFindStructuralBits(b, find_structural_bits)
+	})
+	if cpuid.CPU.AVX512F() {
+		b.Run("avx512", func(b *testing.B) {
+			benchmarkFindStructuralBits(b, find_structural_bits_avx512)
+		})
+	}
+}
+
 
 // find_structural_bits version that calls the individual assembly routines individually
 func find_structural_bits_multiple_calls(buf []byte, prev_iter_ends_odd_backslash *uint64,
