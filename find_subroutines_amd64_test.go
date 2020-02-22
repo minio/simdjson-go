@@ -436,6 +436,48 @@ func BenchmarkFindStructuralBits(b *testing.B) {
 	}
 }
 
+func benchmarkFindStructuralBitsLoop(b *testing.B, f func([]byte, *uint64, *uint64, *uint64, uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
+
+	msg := loadCompressed(b, "twitter")
+
+	prev_iter_ends_odd_backslash := uint64(0)
+	prev_iter_inside_quote := uint64(0) // either all zeros or all ones
+	prev_iter_ends_pseudo_pred := uint64(1)
+	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
+	structurals := uint64(0)
+	carried := ^uint64(0)
+	position := ^uint64(0)
+
+	b.SetBytes(int64(len(msg)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+
+		for processed := uint64(0); processed < uint64(len(msg)); {
+			index := indexChan{}
+			index.indexes = &[INDEX_SIZE]uint32{}
+
+			processed += f(msg[processed:], &prev_iter_ends_odd_backslash,
+				&prev_iter_inside_quote, &error_mask,
+				structurals,
+				&prev_iter_ends_pseudo_pred,
+				index.indexes, &index.length, &carried, &position, 0)
+		}
+	}
+}
+
+func BenchmarkFindStructuralBitsLoop(b *testing.B) {
+	b.Run("avx2", func(b *testing.B) {
+		benchmarkFindStructuralBitsLoop(b, find_structural_bits_in_slice)
+	})
+	if cpuid.CPU.AVX512F() {
+		b.Run("avx512", func(b *testing.B) {
+			benchmarkFindStructuralBitsLoop(b, find_structural_bits_in_slice_avx512)
+		})
+	}
+
+}
 
 // find_structural_bits version that calls the individual assembly routines individually
 func find_structural_bits_multiple_calls(buf []byte, prev_iter_ends_odd_backslash *uint64,
