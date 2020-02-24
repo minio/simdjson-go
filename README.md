@@ -79,6 +79,15 @@ BenchmarkTwitterescaped-8     102.28                  536.19           5.24x
 BenchmarkUpdate_center-8      101.41                  860.52           8.49x
 ```
 
+## AVX512 Acceleration
+
+Stage 1 has been optimized using AVX512 instructions. Under full CPU load (8 threads) the AVX512 code is about 1 GB/sec (15%) faster as compared to the AVX2 code. 
+
+```
+benchmark                                   AVX2 MB/s    AVX512 MB/s     speedup
+BenchmarkFindStructuralBitsParallelLoop      7225.24      8302.96         1.15x
+```
+
 ## Usage 
 
 Run the following command in order to install `simdjson-go`
