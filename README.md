@@ -88,6 +88,8 @@ benchmark                                   AVX2 MB/s    AVX512 MB/s     speedup
 BenchmarkFindStructuralBitsParallelLoop      7225.24      8302.96         1.15x
 ```
 
+These benchmarks were generated on a c5.2xlarge EC2 instance with a Xeon Platinum 8124M CPU at 3.0 GHz.
+
 ## Usage 
 
 Run the following command in order to install `simdjson-go`
