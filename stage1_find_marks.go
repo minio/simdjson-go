@@ -17,6 +17,7 @@
 package simdjson
 
 import (
+	"github.com/klauspost/cpuid"
 	"sync/atomic"
 )
 
@@ -25,6 +26,11 @@ func json_markup(b byte) bool {
 }
 
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
+
+	f := find_structural_bits_in_slice
+	if cpuid.CPU.AVX512F() {
+		f = find_structural_bits_in_slice_avx512
+	}
 
 	// persistent state across loop
 	// does the last iteration end with an odd-length sequence of backslashes?
@@ -72,7 +78,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			stripped_index = ^uint64(0)
 		}
 
-		processed := find_structural_bits_in_slice(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
+		processed := f(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
 			structurals,
 			&prev_iter_ends_pseudo_pred,
@@ -84,7 +90,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			paddedBuf := [128]byte{}
 			copy(paddedBuf[:], buf[processed:])
 			paddedBytes := uint64(len(buf)) - processed
-			processed += find_structural_bits_in_slice(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
+			processed += f(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
 				&prev_iter_inside_quote, &error_mask,
 				structurals,
 				&prev_iter_ends_pseudo_pred,
