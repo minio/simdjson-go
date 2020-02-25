@@ -28,6 +28,15 @@ func find_structural_bits_in_slice(buf []byte, prev_iter_ends_odd_backslash *uin
 	return
 }
 
+func find_structural_bits_in_slice_avx512(buf []byte, prev_iter_ends_odd_backslash *uint64,
+	prev_iter_inside_quote, error_mask *uint64,
+	structurals uint64,
+	prev_iter_ends_pseudo_pred *uint64,
+	indexes *[INDEX_SIZE]uint32, index *int, carried *uint64, position *uint64,
+	ndjson uint64) (processed uint64) {
+	return
+}
+
 func parse_string_simd_validate_only(buf []byte, maxStringSize, dst_length *uint64, need_copy *bool) bool {
 	return false
 }
