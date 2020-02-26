@@ -287,6 +287,9 @@ func TestNdjsonEmptyLines(t *testing.T) {
 }
 
 func TestNdjsonCountWhere(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping... too long")
+	}
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	pj, err := ParseND(ndjson, nil)
 	if err != nil {
@@ -300,6 +303,9 @@ func TestNdjsonCountWhere(t *testing.T) {
 }
 
 func TestNdjsonCountWhere2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping... too long")
+	}
 	ndjson := loadFile("testdata/RC_2009-01.json.zst")
 	// Test trimming
 	b := make([]byte, 0, len(ndjson)+4)
