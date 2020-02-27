@@ -78,6 +78,9 @@ func find_odd_backslash_sequences(buf []byte, prev_iter_ends_odd_backslash *uint
 }
 
 //go:noescape
+func __init_odd_backslash_sequences_avx512()
+
+//go:noescape
 func __find_odd_backslash_sequences_avx512()
 
 //go:noescape

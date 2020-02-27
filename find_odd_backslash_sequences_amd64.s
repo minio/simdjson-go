@@ -61,6 +61,7 @@ TEXT ·__find_odd_backslash_sequences(SB), $0
     FIND_ODD_BACKSLASH_SEQUENCES
     RET
 
+#define OBSS_CONST Z16
 
 TEXT ·_find_odd_backslash_sequences_avx512(SB), $0-24
 
@@ -69,17 +70,20 @@ TEXT ·_find_odd_backslash_sequences_avx512(SB), $0-24
 
     VMOVDQU32    (DI), Z8
 
+    CALL ·__init_odd_backslash_sequences_avx512(SB)
     CALL ·__find_odd_backslash_sequences_avx512(SB)
 
     VZEROUPPER
     MOVQ AX, result+16(FP)
     RET
 
+TEXT ·__init_odd_backslash_sequences_avx512(SB), $0
+    MOVQ         $0x5c, AX
+    VPBROADCASTB AX, OBSS_CONST
+    RET
 
 TEXT ·__find_odd_backslash_sequences_avx512(SB), $0
-    MOVQ         $0x5c, AX
-    VPBROADCASTB AX, Z0
-    VPCMPEQB     Z8, Z0, K1
+    VPCMPEQB     Z8, OBSS_CONST, K1
     KMOVQ        K1, AX
     FIND_ODD_BACKSLASH_SEQUENCES
     RET
