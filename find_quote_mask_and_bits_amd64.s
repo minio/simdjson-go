@@ -93,19 +93,26 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
 
     VMOVDQU32    (DI), Z8
 
+    CALL ·__init_quote_mask_and_bits_avx512(SB)
     CALL ·__find_quote_mask_and_bits_avx512(SB)
 
     VZEROUPPER
     MOVQ AX, quote_mask+40(FP)
     RET
 
+#define QMAB_CONST1 Z17
+#define QMAB_CONST2 Z18
+#define QMAB_CONST3 Z19
+
+TEXT ·__init_quote_mask_and_bits_avx512(SB), $0
+    LEAQ LCDATA1<>(SB), BP
+    VMOVDQU32  0x00(BP), QMAB_CONST1
+    VMOVDQU32  0x40(BP), QMAB_CONST2
+    VMOVDQU32  0x80(BP), QMAB_CONST3
+    RET
 
 TEXT ·__find_quote_mask_and_bits_avx512(SB), $0
-    LEAQ LCDATA1<>(SB), BP
-
-    VMOVDQA32  Z8, Z0
-    VMOVDQU32  (BP), Z2
-    VPCMPEQB   Z2, Z0, K1
+    VPCMPEQB   QMAB_CONST1, Z8, K1
     KMOVQ      K1, SI
     NOTQ       DX                // not    rdx
     ANDQ       SI, DX            // and    rdx, rsi
@@ -115,10 +122,8 @@ TEXT ·__find_quote_mask_and_bits_avx512(SB), $0
     VPCLMULQDQ $0, X3, X2, X2    // vpclmulqdq    xmm2, xmm2, xmm3, 0
     VMOVQ      X2, AX            // vmovq    rax, xmm2
     XORQ       (CX), AX          // xor    rax, qword [rcx]
-    VMOVDQU32  0x40(BP), Z2
-    VPXORD     Z2, Z0, Z0
-    VMOVDQU32  0x80(BP), Z3
-    VPCMPGTB   Z0, Z3, K1        // vpcmpgtb    ymm0, ymm3, ymm0
+    VPXORD     QMAB_CONST2, Z8, Z0
+    VPCMPGTB   Z0, QMAB_CONST3, K1        // vpcmpgtb    ymm0, ymm3, ymm0
     KMOVQ      K1, SI            // or    rsi, rdx
     ANDQ       AX, SI            // and    rsi, rax
     ORQ        SI, (R9)          // or    qword [r9], rsi

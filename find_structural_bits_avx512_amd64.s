@@ -3,6 +3,7 @@
 TEXT ·_find_structural_bits_avx512(SB), $0-72
 
     CALL ·__init_odd_backslash_sequences_avx512(SB)
+    CALL ·__init_quote_mask_and_bits_avx512(SB)
 
     MOVQ p1+0(FP), DI
     MOVQ p3+8(FP), DX
@@ -51,6 +52,7 @@ TEXT ·_find_structural_bits_avx512(SB), $0-72
 TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-128
 
     CALL ·__init_odd_backslash_sequences_avx512(SB)
+    CALL ·__init_quote_mask_and_bits_avx512(SB)
 
     XORQ AX, AX
     MOVQ len+8(FP), CX

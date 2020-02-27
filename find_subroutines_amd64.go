@@ -57,6 +57,9 @@ func find_quote_mask_and_bits(buf []byte, odd_ends uint64, prev_iter_inside_quot
 }
 
 //go:noescape
+func __init_quote_mask_and_bits_avx512()
+
+//go:noescape
 func __find_quote_mask_and_bits_avx512()
 
 //go:noescape
