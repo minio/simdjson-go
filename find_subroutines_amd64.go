@@ -66,11 +66,12 @@ func __init_quote_mask_and_bits_avx512()
 func __find_quote_mask_and_bits_avx512()
 
 //go:noescape
-func _find_quote_mask_and_bits_avx512(input unsafe.Pointer, odd_ends uint64, prev_iter_inside_quote, quote_bits, error_mask unsafe.Pointer) (quote_mask uint64)
+func _find_quote_mask_and_bits_avx512(input unsafe.Pointer, odd_ends uint64, prev_iter_inside_quote, error_mask unsafe.Pointer) (quote_bits, quote_mask uint64)
 
 func find_quote_mask_and_bits_avx512(buf []byte, odd_ends uint64, prev_iter_inside_quote, quote_bits, error_mask *uint64) (quote_mask uint64) {
 
-	return _find_quote_mask_and_bits_avx512(unsafe.Pointer(&buf[0]), odd_ends, unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(quote_bits), unsafe.Pointer(error_mask))
+	*quote_bits, quote_mask = _find_quote_mask_and_bits_avx512(unsafe.Pointer(&buf[0]), odd_ends, unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(error_mask))
+	return
 }
 
 //go:noescape
@@ -119,8 +120,8 @@ func find_structural_bits(buf []byte, prev_iter_ends_odd_backslash *uint64,
 
 //go:noescape
 func _find_structural_bits_avx512(p1, p3 unsafe.Pointer, /* for: find_odd_backslash_sequences() */
-	prev_iter_inside_quote, quote_bits, error_mask unsafe.Pointer, /* for: find_quote_mask_and_bits() */
-	whitespace, structurals_in unsafe.Pointer, /* for: find_whitespace_and_structurals() */
+	prev_iter_inside_quote, error_mask unsafe.Pointer, /* for: find_quote_mask_and_bits() */
+	structurals_in unsafe.Pointer, /* for: find_whitespace_and_structurals() */
 	prev_iter_ends_pseudo_pred unsafe.Pointer, /* for: finalize_structurals() */
 ) (structurals uint64)
 
@@ -129,12 +130,9 @@ func find_structural_bits_avx512(buf []byte, prev_iter_ends_odd_backslash *uint6
 	structurals uint64,
 	prev_iter_ends_pseudo_pred *uint64) uint64 {
 
-	quote_bits := uint64(0)
-	whitespace := uint64(0)
-
 	return _find_structural_bits_avx512(unsafe.Pointer(&buf[0]), unsafe.Pointer(prev_iter_ends_odd_backslash),
-		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(&quote_bits), unsafe.Pointer(error_mask),
-		unsafe.Pointer(&whitespace), unsafe.Pointer(&structurals),
+		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(error_mask),
+		unsafe.Pointer(&structurals),
 		unsafe.Pointer(prev_iter_ends_pseudo_pred))
 }
 
@@ -172,8 +170,8 @@ func find_structural_bits_in_slice(buf []byte, prev_iter_ends_odd_backslash *uin
 
 //go:noescape
 func _find_structural_bits_in_slice_avx512(buf unsafe.Pointer, len uint64, p3 unsafe.Pointer, /* for: find_odd_backslash_sequences() */
-	prev_iter_inside_quote, quote_bits, error_mask unsafe.Pointer, /* for: find_quote_mask_and_bits() */
-	whitespace, structurals_in unsafe.Pointer, /* for: find_whitespace_and_structurals() */
+	prev_iter_inside_quote, error_mask unsafe.Pointer, /* for: find_quote_mask_and_bits() */
+	structurals_in unsafe.Pointer, /* for: find_whitespace_and_structurals() */
 	prev_iter_ends_pseudo_pred unsafe.Pointer, /* for: finalize_structurals()  */
 	indexes, index unsafe.Pointer, indexes_len uint64,
 	carried unsafe.Pointer, position unsafe.Pointer,
@@ -190,12 +188,9 @@ func find_structural_bits_in_slice_avx512(buf []byte, prev_iter_ends_odd_backsla
 		return 0
 	}
 
-	quote_bits := uint64(0)
-	whitespace := uint64(0)
-
 	return _find_structural_bits_in_slice_avx512(unsafe.Pointer(&buf[0]), uint64(len(buf)), unsafe.Pointer(prev_iter_ends_odd_backslash),
-		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(&quote_bits), unsafe.Pointer(error_mask),
-		unsafe.Pointer(&whitespace), unsafe.Pointer(&structurals),
+		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(error_mask),
+		unsafe.Pointer(&structurals),
 		unsafe.Pointer(prev_iter_ends_pseudo_pred),
 		unsafe.Pointer(&(*indexes)[0]), unsafe.Pointer(index), INDEX_SIZE_WITH_SAFETY_BUFFER,
 		unsafe.Pointer(carried), unsafe.Pointer(position),
@@ -219,10 +214,10 @@ func __init_whitespace_and_structurals_avx512()
 func __find_whitespace_and_structurals_avx512()
 
 //go:noescape
-func _find_whitespace_and_structurals_avx512(input, whitespace, structurals unsafe.Pointer)
+func _find_whitespace_and_structurals_avx512(input, structurals unsafe.Pointer) (whitespace uint64)
 
 func find_whitespace_and_structurals_avx512(buf []byte, whitespace, structurals *uint64) {
-	_find_whitespace_and_structurals_avx512(unsafe.Pointer(&buf[0]), unsafe.Pointer(whitespace), unsafe.Pointer(structurals))
+	*whitespace = _find_whitespace_and_structurals_avx512(unsafe.Pointer(&buf[0]), unsafe.Pointer(structurals))
 }
 
 //go:noescape

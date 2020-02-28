@@ -88,8 +88,7 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
     MOVQ input+0(FP), DI
     MOVQ odd_ends+8(FP), DX
     MOVQ prev_iter_inside_quote+16(FP), CX
-    MOVQ quote_bits+24(FP), R8
-    MOVQ error_mask+32(FP), R9
+    MOVQ error_mask+24(FP), R9
 
     VMOVDQU32    (DI), Z8
 
@@ -97,6 +96,7 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
     CALL ·__find_quote_mask_and_bits_avx512(SB)
 
     VZEROUPPER
+    MOVQ R8, quote_bits+32(FP)
     MOVQ AX, quote_mask+40(FP)
     RET
 
@@ -116,7 +116,7 @@ TEXT ·__find_quote_mask_and_bits_avx512(SB), $0
     KMOVQ      K1, SI
     NOTQ       DX                // not    rdx
     ANDQ       SI, DX            // and    rdx, rsi
-    MOVQ       DX, (R8)          // mov    qword [r8], rdx
+    MOVQ       DX, R8            //
     VMOVQ      DX, X2            // vmovq    xmm2, rdx
     VPCMPEQD   X3, X3, X3        // vpcmpeqd    xmm3, xmm3, xmm3
     VPCLMULQDQ $0, X3, X2, X2    // vpclmulqdq    xmm2, xmm2, xmm3, 0

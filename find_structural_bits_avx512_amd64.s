@@ -1,6 +1,6 @@
 //+build !noasm !appengine
 
-TEXT ·_find_structural_bits_avx512(SB), $0-72
+TEXT ·_find_structural_bits_avx512(SB), $0-56
 
     CALL ·__init_odd_backslash_sequences_avx512(SB)
     CALL ·__init_quote_mask_and_bits_avx512(SB)
@@ -16,25 +16,23 @@ TEXT ·_find_structural_bits_avx512(SB), $0-72
 
     MOVQ AX, DX                  // odd_ends + 16
     MOVQ prev_iter_inside_quote+16(FP), CX
-    MOVQ quote_bits+24(FP), R8
-    MOVQ error_mask+32(FP), R9
+    MOVQ error_mask+24(FP), R9
 
     CALL ·__find_quote_mask_and_bits_avx512(SB)
     PUSHQ AX                     //  MOVQ AX, quote_mask + 64
 
-    MOVQ whitespace+40(FP), DX
-    MOVQ structurals_in+48(FP), CX
+    MOVQ structurals_in+32(FP), CX
 
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
-    MOVQ structurals_in+48(FP), DI; MOVQ (DI), DI // DI = structurals
-    MOVQ whitespace+40(FP), SI; MOVQ (SI), SI     // SI = whitespace
+    MOVQ structurals_in+32(FP), DI; MOVQ (DI), DI // DI = structurals
+    MOVQ DX, SI                                   // SI = whitespace
     POPQ DX                                       // DX = quote_mask
-    MOVQ quote_bits+24(FP), CX; MOVQ (CX), CX     // CX = quote_bits
-    MOVQ prev_iter_ends_pseudo_pred+56(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
+    MOVQ R8, CX                                   // CX = quote_bits
+    MOVQ prev_iter_ends_pseudo_pred+40(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals(SB)
-    MOVQ AX, structurals+64(FP)
+    MOVQ AX, structurals+48(FP)
 
     VZEROUPPER
     RET
@@ -51,7 +49,7 @@ TEXT ·_find_structural_bits_avx512(SB), $0-72
     VPOR     Y12, Y,   Y          // Combine together
 
 
-TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-128
+TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-112
 
     CALL ·__init_odd_backslash_sequences_avx512(SB)
     CALL ·__init_quote_mask_and_bits_avx512(SB)
@@ -78,38 +76,35 @@ loop_after_load:
 
     MOVQ AX, DX                  // odd_ends + 16
     MOVQ prev_iter_inside_quote+24(FP), CX
-    MOVQ quote_bits+32(FP), R8
-    MOVQ error_mask+40(FP), R9
+    MOVQ error_mask+32(FP), R9
 
     CALL ·__find_quote_mask_and_bits_avx512(SB)
     PUSHQ AX                     //  MOVQ AX, quote_mask + 64
 
-    MOVQ whitespace+48(FP), DX
-    MOVQ structurals_in+56(FP), CX
+    MOVQ structurals_in+40(FP), CX
 
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
-    MOVQ structurals_in+56(FP), DI; MOVQ (DI), DI // DI = structurals
-    MOVQ whitespace+48(FP), SI; MOVQ (SI), SI     // SI = whitespace
+    MOVQ structurals_in+40(FP), DI; MOVQ (DI), DI // DI = structurals
+    MOVQ DX, SI                                   // SI = whitespace
     POPQ DX                                       // DX = quote_mask
     PUSHQ DX                                      // Save again for newline determination
-
-    MOVQ quote_bits+32(FP), CX; MOVQ (CX), CX     // CX = quote_bits
-    MOVQ prev_iter_ends_pseudo_pred+64(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
+    MOVQ R8, CX                                   // CX = quote_bits
+    MOVQ prev_iter_ends_pseudo_pred+48(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals(SB)
 
     POPQ DX                                       // DX = quote_mask
-    CMPQ ndjson+112(FP), $0
+    CMPQ ndjson+96(FP), $0
     JZ   skip_ndjson_detection
     CALL ·__find_newline_delimiters_avx512(SB)
     ORQ  BX, AX
 
 skip_ndjson_detection:
-    MOVQ indexes+72(FP), DI
-    MOVQ index+80(FP), SI; MOVQ (SI), BX        // BX = index
-    MOVQ carried+96(FP), R11; MOVQ (R11), DX    // DX = carried
-    MOVQ position+104(FP), R12; MOVQ (R12), R10 // R10 = position
+    MOVQ indexes+56(FP), DI
+    MOVQ index+64(FP), SI; MOVQ (SI), BX        // BX = index
+    MOVQ carried+80(FP), R11; MOVQ (R11), DX    // DX = carried
+    MOVQ position+88(FP), R12; MOVQ (R12), R10 // R10 = position
     CALL ·__flatten_bits_incremental(SB)
     MOVQ BX, (SI)                               // *index = BX
     MOVQ DX, (R11)                              // *carried = DX
@@ -118,7 +113,7 @@ skip_ndjson_detection:
     POPQ AX
     POPQ CX
 
-    CMPQ BX, indexes_len+88(FP)
+    CMPQ BX, indexes_len+72(FP)
     JGE  done
 
     CMPQ AX, CX
@@ -137,7 +132,7 @@ check_partial_load:
     JNE  masking // end of message is not aligned on 64-byte boundary, so mask the remaining bytes
 
 done:
-    MOVQ AX, processed+120(FP)
+    MOVQ AX, processed+104(FP)
     VZEROUPPER
     RET
 
