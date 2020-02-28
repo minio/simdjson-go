@@ -113,7 +113,8 @@ TEXT ·_find_whitespace_and_structurals_avx512(SB), $0-24
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
     VZEROUPPER
-    MOVQ DX, whitespace+16(FP)
+    KMOVQ K1, DX
+    MOVQ  DX, whitespace+16(FP)
     RET
 
 #define ZERO_CONST   Z20
@@ -146,6 +147,5 @@ TEXT ·__find_whitespace_and_structurals_avx512(SB), $0
     MOVQ        SI, (CX)
     VPANDD      WSAS_CONST_5, Z0, Z0
     VPCMPEQB    ZERO_CONST, Z0, K1
-    KMOVQ       K1, DX
-    NOTQ        DX
+    KNOTQ       K1, K1
     RET
