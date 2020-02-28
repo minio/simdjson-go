@@ -110,33 +110,42 @@ TEXT ·_find_whitespace_and_structurals_avx512(SB), $0-24
 
     VMOVDQU32    (DI), Z8
 
+    CALL ·__init_whitespace_and_structurals_avx512(SB)
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
     VZEROUPPER
     RET
 
-TEXT ·__find_whitespace_and_structurals_avx512(SB), $0
-    LEAQ LCDATA1<>(SB), BP
+#define ZERO_CONST   Z20
+#define WSAS_CONST_1 Z21
+#define WSAS_CONST_2 Z22
+#define WSAS_CONST_3 Z23
+#define WSAS_CONST_4 Z24
+#define WSAS_CONST_5 Z25
 
-    VMOVDQA32   Z8, Z0
-    VMOVDQU32   (BP), Z2
-    VPSHUFB     Z0, Z2, Z3
-    VPSRLD      $4, Z0, Z0
-    VMOVDQU32   0x40(BP), Z4
-    VPANDD      Z4, Z0, Z0
-    VMOVDQU32   0x80(BP), Z5
-    VPSHUFB     Z0, Z5, Z0
+TEXT ·__init_whitespace_and_structurals_avx512(SB), $0
+    LEAQ        LCDATA1<>(SB), BP
+    VPXORD      ZERO_CONST, ZERO_CONST, ZERO_CONST
+    VMOVDQU32   0x000(BP), WSAS_CONST_1
+    VMOVDQU32   0x040(BP), WSAS_CONST_2
+    VMOVDQU32   0x080(BP), WSAS_CONST_3
+    VMOVDQU32   0x0c0(BP), WSAS_CONST_4
+    VMOVDQU32   0x100(BP), WSAS_CONST_5
+    RET
+
+TEXT ·__find_whitespace_and_structurals_avx512(SB), $0
+    VPSHUFB     Z8, WSAS_CONST_1, Z3
+    VPSRLD      $4, Z8, Z0
+    VPANDD      WSAS_CONST_2, Z0, Z0
+    VPSHUFB     Z0, WSAS_CONST_3, Z0
     VPANDD      Z3, Z0, Z0
-    VMOVDQU32   0xc0(BP), Z2
-    VPANDD      Z2, Z0, Z3
-    VPXORD      Z4, Z4, Z4
-    VPCMPEQB    Z4, Z3, K1
+    VPANDD      WSAS_CONST_4, Z0, Z3
+    VPCMPEQB    ZERO_CONST, Z3, K1
     KMOVQ       K1, SI
     NOTQ        SI
     MOVQ        SI, (CX)
-    VMOVDQU32   0x100(BP), Z2
-    VPANDD      Z2, Z0, Z0
-    VPCMPEQB    Z4, Z0, K1
+    VPANDD      WSAS_CONST_5, Z0, Z0
+    VPCMPEQB    ZERO_CONST, Z0, K1
     KMOVQ       K1, CX
     NOTQ        CX
     MOVQ        CX, (DX)

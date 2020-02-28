@@ -210,6 +210,9 @@ func find_whitespace_and_structurals(buf []byte, whitespace, structurals *uint64
 }
 
 //go:noescape
+func __init_whitespace_and_structurals_avx512()
+
+//go:noescape
 func __find_whitespace_and_structurals_avx512()
 
 //go:noescape
