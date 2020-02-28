@@ -43,6 +43,9 @@ func __find_newline_delimiters()
 func _find_newline_delimiters_avx512(raw []byte, quoteMask uint64) (mask uint64)
 
 //go:noescape
+func __init_newline_delimiters_avx512()
+
+//go:noescape
 func __find_newline_delimiters_avx512()
 
 //go:noescape

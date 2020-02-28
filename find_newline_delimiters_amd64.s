@@ -34,17 +34,22 @@ TEXT ·_find_newline_delimiters_avx512(SB), 7, $0
 	MOVQ      quoteMask+24(FP), DX  // get quotemask
     VMOVDQU32 (SI), Z8              // load 64 bytes
 
+    CALL ·__init_newline_delimiters_avx512(SB)
     CALL ·__find_newline_delimiters_avx512(SB)
 
 	MOVQ    BX, mask+32(FP)       // store result
 	VZEROUPPER
     RET
 
-TEXT ·__find_newline_delimiters_avx512(SB), 7, $0
-	MOVQ         $0x0a, BX // get newline
-	VPBROADCASTB BX, Z11
+#define NLD_CONST Z26
 
-	VPCMPEQB  Z8, Z11, K1
+TEXT ·__init_newline_delimiters_avx512(SB), 7, $0
+	MOVQ         $0x0a, BX // get newline
+	VPBROADCASTB BX, NLD_CONST
+	RET
+
+TEXT ·__find_newline_delimiters_avx512(SB), 7, $0
+	VPCMPEQB  Z8, NLD_CONST, K1
 	KMOVQ     K1, BX
 	ANDNQ     BX, DX, BX      // clear out newline delimiters enclosed in quotes
     RET
