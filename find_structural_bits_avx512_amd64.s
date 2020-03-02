@@ -1,5 +1,7 @@
 //+build !noasm !appengine gc
 
+#include "common.h"
+
 TEXT ·_find_structural_bits_avx512(SB), $0-56
 
     CALL ·__init_odd_backslash_sequences_avx512(SB)
@@ -21,11 +23,8 @@ TEXT ·_find_structural_bits_avx512(SB), $0-56
     CALL ·__find_quote_mask_and_bits_avx512(SB)
     PUSHQ AX                     //  MOVQ AX, quote_mask + 64
 
-    MOVQ structurals_in+32(FP), CX
-
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
-    MOVQ structurals_in+32(FP), DI; MOVQ (DI), DI // DI = structurals
     POPQ DX                                       // DX = quote_mask
     MOVQ prev_iter_ends_pseudo_pred+40(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
@@ -79,11 +78,8 @@ loop_after_load:
     CALL ·__find_quote_mask_and_bits_avx512(SB)
     PUSHQ AX                     //  MOVQ AX, quote_mask + 64
 
-    MOVQ structurals_in+40(FP), CX
-
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
-    MOVQ structurals_in+40(FP), DI; MOVQ (DI), DI // DI = structurals
     POPQ DX                                       // DX = quote_mask
     PUSHQ DX                                      // Save again for newline determination
     MOVQ prev_iter_ends_pseudo_pred+48(FP), R8    // R8 = &prev_iter_ends_pseudo_pred

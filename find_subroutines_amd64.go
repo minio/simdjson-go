@@ -218,10 +218,10 @@ func __init_whitespace_and_structurals_avx512()
 func __find_whitespace_and_structurals_avx512()
 
 //go:noescape
-func _find_whitespace_and_structurals_avx512(input, structurals unsafe.Pointer) (whitespace uint64)
+func _find_whitespace_and_structurals_avx512(input unsafe.Pointer) (whitespace, structurals uint64)
 
 func find_whitespace_and_structurals_avx512(buf []byte, whitespace, structurals *uint64) {
-	*whitespace = _find_whitespace_and_structurals_avx512(unsafe.Pointer(&buf[0]), unsafe.Pointer(structurals))
+	*whitespace, *structurals = _find_whitespace_and_structurals_avx512(unsafe.Pointer(&buf[0]))
 }
 
 //go:noescape
