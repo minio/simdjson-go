@@ -1,4 +1,4 @@
-//+build !noasm !appengine
+//+build !noasm !appengine gc
 
 TEXT ·_find_structural_bits_avx512(SB), $0-56
 

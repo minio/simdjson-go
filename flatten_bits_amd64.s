@@ -1,4 +1,4 @@
-//+build !noasm !appengine
+//+build !noasm !appengine gc
 
 #define MASK    AX
 #define INDEX   BX

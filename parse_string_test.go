@@ -16,12 +16,6 @@
 
 package simdjson
 
-import (
-	"bytes"
-	"fmt"
-	"testing"
-)
-
 var tests = []struct {
 	name    string
 	str     string
@@ -238,69 +232,4 @@ var tests = []struct {
 		str:     `---------9---------9---------\u20a`,
 		success: false,
 	},
-}
-
-func TestParseString(t *testing.T) {
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// enclose test string in quotes (as validated by stage 1)
-			buf := []byte(fmt.Sprintf(`"%s"`, tt.str))
-			dest := make([]byte, 0, len(buf)+32 /* safety margin as parse_string writes full AVX2 words */)
-
-			success := parse_string_simd(buf, &dest)
-
-			if success != tt.success {
-				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)
-			}
-			if success {
-				size := len(dest)
-				if size != len(tt.want) {
-					t.Errorf("TestParseString() got = %d, want %d", size, len(tt.want))
-				}
-				if bytes.Compare(dest[:size], tt.want) != 0 {
-					t.Errorf("TestParseString() got = %v, want %v", dest[:size], tt.want)
-				}
-			}
-		})
-	}
-}
-
-func TestParseStringValidateOnly(t *testing.T) {
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// enclose test string in quotes (as validated by stage 1)
-			buf := []byte(fmt.Sprintf(`"%s"`, tt.str))
-
-			dst_length := uint64(0)
-			need_copy := false
-			l := uint64(len(buf))
-			success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
-
-			if success != tt.success {
-				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)
-			}
-			if success && !need_copy {
-				if dst_length != uint64(len(tt.want)) {
-					t.Errorf("TestParseString() got = %d, want %d", dst_length, len(tt.want))
-				}
-			}
-		})
-	}
-}
-
-func TestParseStringValidateOnlyBeyondBuffer(t *testing.T) {
-
-	t.Skip()
-
-	buf := []byte(fmt.Sprintf(`"%s`, "   "))
-
-	dst_length := uint64(0)
-	need_copy := false
-	l := uint64(len(buf)) + 32
-	success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
-	if !success {
-		t.Errorf("TestParseStringValidateOnlyBeyondBuffer() got = %v, want %v", success, false)
-	}
 }

@@ -24,22 +24,22 @@ import (
 )
 
 func benchmarkFromFile(b *testing.B, filename string) {
-
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	msg := loadCompressed(b, filename)
 
 	b.SetBytes(int64(len(msg)))
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	pj := internalParsedJson{}
+	pj := &ParsedJson{}
 
 	for i := 0; i < b.N; i++ {
-
 		// Reset tape
-		pj.Tape = pj.Tape[:0]
-		pj.Strings = pj.Strings[:0]
-
-		if err := pj.parseMessage(msg); err != nil {
+		var err error
+		pj, err = Parse(msg, pj)
+		if err != nil {
 			b.Fatal(err)
 		}
 	}
