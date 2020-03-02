@@ -1,3 +1,7 @@
+//+build !noasm
+//+build !appengine
+//+build gc
+
 /*
  * MinIO Cloud Storage, (C) 2020 MinIO, Inc.
  *
@@ -24,6 +28,9 @@ import (
 )
 
 func TestParseND(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	tests := []struct {
 		name       string
 		skipFloats bool // Skip tests that contain float64 inprecisions (see GOLANG_NUMBER_PARSING flag)
@@ -157,6 +164,10 @@ func TestParseND(t *testing.T) {
 }
 
 func TestParseFailCases(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+
 	tests := []struct {
 		name       string
 		skipFloats bool // Skip tests that contain float64 inprecisions (see GOLANG_NUMBER_PARSING flag)
@@ -700,6 +711,9 @@ break"]`,
 }
 
 func TestParsePassCases(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 
 	tests := []struct {
 		name        string

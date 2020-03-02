@@ -23,6 +23,10 @@ import (
 )
 
 func BenchmarkSerialize(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	bench := func(b *testing.B, s *Serializer) {
 		for _, tt := range testCases {
 			s := NewSerializer()
@@ -69,6 +73,10 @@ func BenchmarkSerialize(b *testing.B) {
 }
 
 func BenchmarkDeSerialize(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	bench := func(b *testing.B, s *Serializer) {
 		for _, tt := range testCases {
 			b.Run(tt.name, func(b *testing.B) {
@@ -123,6 +131,10 @@ func BenchmarkDeSerialize(b *testing.B) {
 }
 
 func BenchmarkSerializeNDJSON(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj, err := ParseND(ndjson, nil)
@@ -164,6 +176,10 @@ func BenchmarkSerializeNDJSON(b *testing.B) {
 }
 
 func BenchmarkDeSerializeNDJSON(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj, err := ParseND(ndjson, nil)
@@ -212,6 +228,9 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 }
 
 func TestDeSerializeNDJSON(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	if testing.Short() {
 		t.Skip("skipping... too long")
 	}
@@ -266,6 +285,9 @@ func TestDeSerializeNDJSON(t *testing.T) {
 }
 
 func TestDeSerializeJSON(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	test := func(t *testing.T, s *Serializer) {
 		for _, tt := range testCases {
 			org := loadCompressed(t, tt.name)

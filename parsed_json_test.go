@@ -26,6 +26,8 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+const demo_json = `{"Image":{"Width":800,"Height":600,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
+
 type tester interface {
 	Fatal(args ...interface{})
 }
@@ -164,27 +166,10 @@ func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj in
 	}
 }
 
-func TestVerifyTape(t *testing.T) {
-	// FIXME: Does not have tapes any more.
-	for _, tt := range testCases {
-
-		t.Run(tt.name, func(t *testing.T) {
-			ref := loadCompressed(t, tt.name)
-
-			pj := internalParsedJson{}
-			if err := pj.parseMessage(ref); err != nil {
-				t.Errorf("parseMessage failed: %v\n", err)
-				return
-			}
-
-			//ctape := bytesToUint64(cbuf)
-
-			//testCTapeCtoGoTapeCompare(t, ctape, csbuf, pj)
-		})
-	}
-}
-
 func BenchmarkIter_MarshalJSONBuffer(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	for _, tt := range testCases {
 		b.Run(tt.name, func(b *testing.B) {
 			ref := loadCompressed(b, tt.name)
@@ -243,13 +228,15 @@ func BenchmarkGoMarshalJSON(b *testing.B) {
 }
 
 func TestPrintJson(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	msg := []byte(demo_json)
 	expected := `{"Image":{"Width":800,"Height":600,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`
 
-	pj := internalParsedJson{}
+	pj, err := Parse(msg, nil)
 
-	if err := pj.parseMessage(msg); err != nil {
+	if err != nil {
 		t.Errorf("parseMessage failed\n")
 	}
 

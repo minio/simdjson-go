@@ -1,3 +1,7 @@
+//+build !noasm
+//+build !appengine
+//+build gc
+
 /*
  * MinIO Cloud Storage, (C) 2020 MinIO, Inc.
  *
@@ -17,8 +21,9 @@
 package simdjson
 
 import (
-	"github.com/klauspost/cpuid"
 	"sync/atomic"
+
+	"github.com/klauspost/cpuid"
 )
 
 func json_markup(b byte) bool {

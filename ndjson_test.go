@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -249,44 +248,10 @@ func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int) {
 	}
 }
 
-func TestDemoNdjson(t *testing.T) {
-
-	pj := internalParsedJson{}
-
-	if err := pj.parseMessageNdjson([]byte(demo_ndjson)); err != nil {
-		t.Errorf("TestDemoNdjson: got: %v want: nil", err)
-	}
-
-	verifyDemoNdjson(pj, t, 0)
-}
-
-func TestNdjsonEmptyLines(t *testing.T) {
-
-	ndjson_emptylines := []string{`{"zero":"emptylines"}
-{"c":"d"}`,
-		`{"single":"emptyline"}
-
-{"c":"d"}`,
-		`{"dual":"emptylines"}
-
-
-{"c":"d"}`,
-		`{"triple":"emptylines"}
-
-
-
-{"c":"d"}`}
-
-	pj := internalParsedJson{}
-
-	for _, json := range ndjson_emptylines {
-		if err := pj.parseMessageNdjson([]byte(json)); err != nil {
-			t.Errorf("TestNdjsonEmptyLine: got: %v want: nil", err)
-		}
-	}
-}
-
 func TestNdjsonCountWhere(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	if testing.Short() {
 		t.Skip("skipping... too long")
 	}
@@ -303,6 +268,9 @@ func TestNdjsonCountWhere(t *testing.T) {
 }
 
 func TestNdjsonCountWhere2(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	if testing.Short() {
 		t.Skip("skipping... too long")
 	}
@@ -365,38 +333,6 @@ func loadFile(filename string) []byte {
 	return ndjson
 }
 
-func BenchmarkNdjsonStage1(b *testing.B) {
-
-	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
-
-	pj := internalParsedJson{}
-
-	b.SetBytes(int64(len(ndjson)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		// Create new channel (large enough so we won't block)
-		pj.index_chan = make(chan indexChan, 128*10240)
-		find_structural_indices([]byte(ndjson), &pj)
-	}
-}
-
-func BenchmarkNdjsonStage2(b *testing.B) {
-	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
-	pj := internalParsedJson{}
-
-	b.SetBytes(int64(len(ndjson)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		err := pj.parseMessageNdjson(ndjson)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 func count_raw_tape(tape []uint64) (count int) {
 
 	for tapeidx := uint64(0); tapeidx < uint64(len(tape)); count++ {
@@ -405,23 +341,6 @@ func count_raw_tape(tape []uint64) (count int) {
 	}
 
 	return
-}
-
-func BenchmarkNdjsonColdCountStar(b *testing.B) {
-
-	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
-
-	b.SetBytes(int64(len(ndjson)))
-	b.ReportAllocs()
-	// Allocate stuff
-	pj := internalParsedJson{}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		pj.parseMessageNdjson(ndjson)
-		count_raw_tape(pj.Tape)
-	}
 }
 
 func countWhere(key, value string, data ParsedJson) (count int) {
@@ -553,43 +472,11 @@ func countObjects(data ParsedJson) (count int) {
 	}
 }
 
-func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
-	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
-	const want = 110349
-	runtime.GC()
-	pj := internalParsedJson{}
-
-	b.Run("raw", func(b *testing.B) {
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			err := pj.parseMessage(ndjson)
-			if err != nil {
-				b.Fatal(err)
-			}
-			got := countRawTapeWhere("Make", "HOND", pj.ParsedJson)
-			if got != want {
-				b.Fatal(got, "!=", want)
-			}
-		}
-	})
-	b.Run("iter", func(b *testing.B) {
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			err := pj.parseMessage(ndjson)
-			if err != nil {
-				b.Fatal(err)
-			}
-			got := countWhere("Make", "HOND", pj.ParsedJson)
-			if got != want {
-				b.Fatal(got, "!=", want)
-			}
-		}
-	})
-}
-
 func BenchmarkNdjsonWarmCountStar(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj, err := ParseND(ndjson, nil)
@@ -606,6 +493,10 @@ func BenchmarkNdjsonWarmCountStar(b *testing.B) {
 }
 
 func BenchmarkNdjsonWarmCountStarWithWhere(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj, err := ParseND(ndjson, nil)

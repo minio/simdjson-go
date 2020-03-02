@@ -1,3 +1,7 @@
+//+build !noasm
+//+build !appengine
+//+build gc
+
 /*
  * MinIO Cloud Storage, (C) 2020 MinIO, Inc.
  *
@@ -17,12 +21,13 @@
 package simdjson
 
 import (
-	"github.com/klauspost/cpuid"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/klauspost/cpuid"
 )
 
 func TestFinalizeStructurals(t *testing.T) {

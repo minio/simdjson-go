@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/minio/simdjson-go"
 	"io/ioutil"
 	"log"
+
+	"github.com/minio/simdjson-go"
 )
 
 func printKey(iter simdjson.Iter, key string) (err error) {
 
-	obj, tmp, elem := &simdjson.Object{}, &simdjson.Iter{},  simdjson.Element{}
+	obj, tmp, elem := &simdjson.Object{}, &simdjson.Iter{}, simdjson.Element{}
 
 	for {
 		typ := iter.Advance()
@@ -39,7 +40,9 @@ func printKey(iter simdjson.Iter, key string) (err error) {
 }
 
 func main() {
-
+	if !simdjson.SupportedCPU() {
+		log.Fatal("Unsupported CPU")
+	}
 	msg, err := ioutil.ReadFile("parking-citations.json")
 	if err != nil {
 		log.Fatalf("Failed to load file: %v", err)
