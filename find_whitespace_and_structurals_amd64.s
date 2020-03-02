@@ -101,6 +101,7 @@ TEXT ·__find_whitespace_and_structurals(SB), $0
     MOVQ      CX, (DX)           // mov    qword [rdx], rcx
     RET
 
+#define K_WHITESPACE K7
 
 TEXT ·_find_whitespace_and_structurals_avx512(SB), $0-24
 
@@ -113,7 +114,7 @@ TEXT ·_find_whitespace_and_structurals_avx512(SB), $0-24
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
     VZEROUPPER
-    KMOVQ K1, DX
+    KMOVQ K_WHITESPACE, DX
     MOVQ  DX, whitespace+16(FP)
     RET
 
@@ -146,6 +147,6 @@ TEXT ·__find_whitespace_and_structurals_avx512(SB), $0
     NOTQ        SI
     MOVQ        SI, (CX)
     VPANDD      WSAS_CONST_5, Z0, Z0
-    VPCMPEQB    ZERO_CONST, Z0, K1
-    KNOTQ       K1, K1
+    VPCMPEQB    ZERO_CONST, Z0, K_WHITESPACE
+    KNOTQ       K_WHITESPACE, K_WHITESPACE
     RET

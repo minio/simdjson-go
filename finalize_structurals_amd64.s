@@ -32,3 +32,25 @@ TEXT ·__finalize_structurals(SB), $0
     ORQ  DX, CX                  // or    rcx, rdx
     ANDQ CX, AX                  // and    rax, rcx
     RET
+
+#define K_WHITESPACE K7
+
+TEXT ·__finalize_structurals_avx512(SB), $0
+
+    KMOVQ K_WHITESPACE, SI
+    ANDNQ DI, DX, DI             // andn    rdi, rdx, rdi
+    ORQ  CX, DI                  // or    rdi, rcx
+    MOVQ DI, AX                  // mov    rax, rdi
+    ORQ  SI, AX                  // or    rax, rsi
+    LEAQ (AX)(AX*1), R9          // lea    r9, [rax + rax]
+    ORQ  (R8), R9                // or    r9, qword [r8]
+    SHRQ $63, AX                 // shr    rax, 63
+    MOVQ AX, (R8)                // mov    qword [r8], rax
+    NOTQ SI                      // not    rsi
+    ANDNQ SI, DX, AX             // andn    rax, rdx, rsi
+    ANDQ R9, AX                  // and    rax, r9
+    ORQ  DI, AX                  // or    rax, rdi
+    NOTQ CX                      // not    rcx
+    ORQ  DX, CX                  // or    rcx, rdx
+    ANDQ CX, AX                  // and    rax, rcx
+    RET
