@@ -82,6 +82,7 @@ TEXT ·__find_quote_mask_and_bits(SB), $0
     MOVQ       DX, (CX)          // mov    qword [rcx], rdx
     RET
 
+#define K_QUOTEBITS K6
 
 TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
 
@@ -96,6 +97,7 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
     CALL ·__find_quote_mask_and_bits_avx512(SB)
 
     VZEROUPPER
+    KMOVQ  K_QUOTEBITS, R8
     MOVQ R8, quote_bits+32(FP)
     MOVQ AX, quote_mask+40(FP)
     RET
@@ -112,11 +114,11 @@ TEXT ·__init_quote_mask_and_bits_avx512(SB), $0
     RET
 
 TEXT ·__find_quote_mask_and_bits_avx512(SB), $0
-    VPCMPEQB   QMAB_CONST1, Z8, K1
-    KMOVQ      K1, SI
-    NOTQ       DX                // not    rdx
-    ANDQ       SI, DX            // and    rdx, rsi
-    MOVQ       DX, R8            //
+    VPCMPEQB   QMAB_CONST1, Z8, K_QUOTEBITS
+    KMOVQ      DX, K1
+    KNOTQ      K1, K1
+    KANDQ      K1, K_QUOTEBITS, K_QUOTEBITS
+    KMOVQ      K_QUOTEBITS, DX
     VMOVQ      DX, X2            // vmovq    xmm2, rdx
     VPCMPEQD   X3, X3, X3        // vpcmpeqd    xmm3, xmm3, xmm3
     VPCLMULQDQ $0, X3, X2, X2    // vpclmulqdq    xmm2, xmm2, xmm3, 0

@@ -34,10 +34,12 @@ TEXT ·__finalize_structurals(SB), $0
     RET
 
 #define K_WHITESPACE K7
+#define K_QUOTEBITS  K6
 
 TEXT ·__finalize_structurals_avx512(SB), $0
 
     KMOVQ K_WHITESPACE, SI
+    KMOVQ K_QUOTEBITS, CX
     ANDNQ DI, DX, DI             // andn    rdi, rdx, rdi
     ORQ  CX, DI                  // or    rdi, rcx
     MOVQ DI, AX                  // mov    rax, rdi

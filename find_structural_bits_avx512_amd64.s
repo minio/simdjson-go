@@ -27,7 +27,6 @@ TEXT ·_find_structural_bits_avx512(SB), $0-56
 
     MOVQ structurals_in+32(FP), DI; MOVQ (DI), DI // DI = structurals
     POPQ DX                                       // DX = quote_mask
-    MOVQ R8, CX                                   // CX = quote_bits
     MOVQ prev_iter_ends_pseudo_pred+40(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals_avx512(SB)
@@ -87,7 +86,6 @@ loop_after_load:
     MOVQ structurals_in+40(FP), DI; MOVQ (DI), DI // DI = structurals
     POPQ DX                                       // DX = quote_mask
     PUSHQ DX                                      // Save again for newline determination
-    MOVQ R8, CX                                   // CX = quote_bits
     MOVQ prev_iter_ends_pseudo_pred+48(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals_avx512(SB)
