@@ -102,7 +102,7 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 		}
 		start := len(pj.Strings)
 		_ = parse_string_simd(buf, &pj.Strings) // We can safely ignore the result since we validate above
-		pj.write_tape(uint64(STRINGBUFBIT+start), '"')
+		pj.write_tape(STRINGBUFBIT+uint64(start), '"')
 		size = uint64(len(pj.Strings) - start)
 	}
 	// put length onto the tape

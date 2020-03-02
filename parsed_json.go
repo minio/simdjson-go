@@ -44,8 +44,8 @@ const GOLANG_NUMBER_PARSING = true
 
 const JSONVALUEMASK = 0xffffffffffffff
 const JSONTAGMASK = 0xff << 56
-const STRINGBUFBIT = 0x80000000000000
-const STRINGBUFMASK = 0x7fffffffffffff
+const STRINGBUFBIT = uint64(0x80000000000000)
+const STRINGBUFMASK = uint64(0x7fffffffffffff)
 
 const DEFAULTDEPTH = 128
 
