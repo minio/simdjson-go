@@ -98,10 +98,8 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
     CALL ·__find_quote_mask_and_bits_avx512(SB)
 
     VZEROUPPER
-    KMOVQ K_ERRORMASK, R9
-    MOVQ  R9, error_mask+24(FP)
-    KMOVQ  K_QUOTEBITS, R8
-    MOVQ R8, quote_bits+32(FP)
+    KMOVQ K_ERRORMASK, error_mask+24(FP)
+    KMOVQ  K_QUOTEBITS, quote_bits+32(FP)
     MOVQ AX, quote_mask+40(FP)
     RET
 
@@ -118,9 +116,9 @@ TEXT ·__init_quote_mask_and_bits_avx512(SB), $0
 
 TEXT ·__find_quote_mask_and_bits_avx512(SB), $0
     VPCMPEQB   QMAB_CONST1, Z8, K_QUOTEBITS
-    KMOVQ      DX, K1
-    KNOTQ      K1, K1
-    KANDQ      K1, K_QUOTEBITS, K_QUOTEBITS
+    KMOVQ      DX, K_TEMP1
+    KNOTQ      K_TEMP1, K_TEMP1
+    KANDQ      K_TEMP1, K_QUOTEBITS, K_QUOTEBITS
     KMOVQ      K_QUOTEBITS, DX
     VMOVQ      DX, X2            // vmovq    xmm2, rdx
     VPCMPEQD   X3, X3, X3        // vpcmpeqd    xmm3, xmm3, xmm3

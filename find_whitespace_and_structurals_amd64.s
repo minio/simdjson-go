@@ -113,10 +113,8 @@ TEXT ·_find_whitespace_and_structurals_avx512(SB), $0-24
     CALL ·__find_whitespace_and_structurals_avx512(SB)
 
     VZEROUPPER
-    KMOVQ K_WHITESPACE, DX
-    MOVQ  DX, whitespace+8(FP)
-    KMOVQ K_STRUCTURALS, CX
-    MOVQ  CX, structurals+16(FP)
+    KMOVQ K_WHITESPACE, whitespace+8(FP)
+    KMOVQ K_STRUCTURALS, structurals+16(FP)
     RET
 
 #define ZERO_CONST   Z20

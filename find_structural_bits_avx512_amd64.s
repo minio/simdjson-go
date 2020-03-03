@@ -33,8 +33,7 @@ TEXT ·_find_structural_bits_avx512(SB), $0-56
 
     VZEROUPPER
     MOVQ  error_mask+24(FP), R9
-    KMOVQ K_ERRORMASK, BX
-    MOVQ  BX, (R9)
+    KMOVQ K_ERRORMASK, (R9)
     MOVQ  AX, structurals+48(FP)
     RET
 
@@ -58,8 +57,7 @@ TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-104
     CALL ·__init_newline_delimiters_avx512(SB)
 
     MOVQ  error_mask+32(FP), R9
-    MOVQ  (R9), R9
-    KMOVQ R9, K_ERRORMASK
+    KMOVQ (R9), K_ERRORMASK
 
     XORQ AX, AX
     MOVQ len+8(FP), CX
@@ -133,8 +131,7 @@ check_partial_load:
 done:
     VZEROUPPER
     MOVQ  error_mask+32(FP), R9
-    KMOVQ K_ERRORMASK, BX
-    MOVQ  BX, (R9)
+    KMOVQ K_ERRORMASK, (R9)
     MOVQ  AX, processed+96(FP)
     RET
 
