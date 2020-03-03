@@ -70,11 +70,11 @@ func __init_quote_mask_and_bits_avx512()
 func __find_quote_mask_and_bits_avx512()
 
 //go:noescape
-func _find_quote_mask_and_bits_avx512(input unsafe.Pointer, odd_ends uint64, prev_iter_inside_quote, error_mask unsafe.Pointer) (quote_bits, quote_mask uint64)
+func _find_quote_mask_and_bits_avx512(input unsafe.Pointer, odd_ends uint64, prev_iter_inside_quote unsafe.Pointer) (error_mask, quote_bits, quote_mask uint64)
 
 func find_quote_mask_and_bits_avx512(buf []byte, odd_ends uint64, prev_iter_inside_quote, quote_bits, error_mask *uint64) (quote_mask uint64) {
 
-	*quote_bits, quote_mask = _find_quote_mask_and_bits_avx512(unsafe.Pointer(&buf[0]), odd_ends, unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(error_mask))
+	*error_mask, *quote_bits, quote_mask = _find_quote_mask_and_bits_avx512(unsafe.Pointer(&buf[0]), odd_ends, unsafe.Pointer(prev_iter_inside_quote))
 	return
 }
 

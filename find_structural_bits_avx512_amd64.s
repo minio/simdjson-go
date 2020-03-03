@@ -12,13 +12,14 @@ TEXT ·_find_structural_bits_avx512(SB), $0-56
     MOVQ p1+0(FP), DI
     MOVQ p3+8(FP), DX
 
+    KORQ K_ERRORMASK, K_ERRORMASK, K_ERRORMASK
+
     VMOVDQU32 (DI), Z8
 
     CALL ·__find_odd_backslash_sequences_avx512(SB)
 
     MOVQ AX, DX                  // odd_ends + 16
     MOVQ prev_iter_inside_quote+16(FP), CX
-    MOVQ error_mask+24(FP), R9
 
     CALL ·__find_quote_mask_and_bits_avx512(SB)
     PUSHQ AX                     //  MOVQ AX, quote_mask + 64
@@ -29,9 +30,12 @@ TEXT ·_find_structural_bits_avx512(SB), $0-56
     MOVQ prev_iter_ends_pseudo_pred+40(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals_avx512(SB)
-    MOVQ AX, structurals+48(FP)
 
     VZEROUPPER
+    MOVQ  error_mask+24(FP), R9
+    KMOVQ K_ERRORMASK, BX
+    MOVQ  BX, (R9)
+    MOVQ  AX, structurals+48(FP)
     RET
 
 #define MASK_WHITESPACE(MAX, Y) \
@@ -53,6 +57,10 @@ TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-104
     CALL ·__init_whitespace_and_structurals_avx512(SB)
     CALL ·__init_newline_delimiters_avx512(SB)
 
+    MOVQ  error_mask+32(FP), R9
+    MOVQ  (R9), R9
+    KMOVQ R9, K_ERRORMASK
+
     XORQ AX, AX
     MOVQ len+8(FP), CX
     ANDQ $0xffffffffffffffc0, CX
@@ -73,7 +81,6 @@ loop_after_load:
 
     MOVQ AX, DX                  // odd_ends + 16
     MOVQ prev_iter_inside_quote+24(FP), CX
-    MOVQ error_mask+32(FP), R9
 
     CALL ·__find_quote_mask_and_bits_avx512(SB)
     PUSHQ AX                     //  MOVQ AX, quote_mask + 64
@@ -124,8 +131,11 @@ check_partial_load:
     JNE  masking // end of message is not aligned on 64-byte boundary, so mask the remaining bytes
 
 done:
-    MOVQ AX, processed+96(FP)
     VZEROUPPER
+    MOVQ  error_mask+32(FP), R9
+    KMOVQ K_ERRORMASK, BX
+    MOVQ  BX, (R9)
+    MOVQ  AX, processed+96(FP)
     RET
 
 masking:
