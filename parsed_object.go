@@ -125,6 +125,9 @@ func (o *Object) FindKey(key string, dst *Element) *Element {
 			tmp.Advance()
 			continue
 		}
+		if dst == nil {
+			dst = &Element{}
+		}
 		dst.Name = key
 		dst.Type, err = tmp.AdvanceIter(&dst.Iter)
 		if err != nil {
