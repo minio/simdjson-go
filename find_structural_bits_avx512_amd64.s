@@ -46,7 +46,7 @@ TEXT ·_find_structural_bits_avx512(SB), $0-56
     VPOR     Y12, Y,   Y          // Combine together
 
 
-TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-112
+TEXT ·_find_structural_bits_in_slice_avx512(SB), $0-104
 
     CALL ·__init_odd_backslash_sequences_avx512(SB)
     CALL ·__init_quote_mask_and_bits_avx512(SB)
@@ -82,21 +82,21 @@ loop_after_load:
 
     POPQ DX                                       // DX = quote_mask
     PUSHQ DX                                      // Save again for newline determination
-    MOVQ prev_iter_ends_pseudo_pred+48(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
+    MOVQ prev_iter_ends_pseudo_pred+40(FP), R8    // R8 = &prev_iter_ends_pseudo_pred
 
     CALL ·__finalize_structurals_avx512(SB)
 
     POPQ DX                                       // DX = quote_mask
-    CMPQ ndjson+96(FP), $0
+    CMPQ ndjson+88(FP), $0
     JZ   skip_ndjson_detection
     CALL ·__find_newline_delimiters_avx512(SB)
     ORQ  BX, AX
 
 skip_ndjson_detection:
-    MOVQ indexes+56(FP), DI
-    MOVQ index+64(FP), SI; MOVQ (SI), BX        // BX = index
-    MOVQ carried+80(FP), R11; MOVQ (R11), DX    // DX = carried
-    MOVQ position+88(FP), R12; MOVQ (R12), R10 // R10 = position
+    MOVQ indexes+48(FP), DI
+    MOVQ index+56(FP), SI; MOVQ (SI), BX        // BX = index
+    MOVQ carried+72(FP), R11; MOVQ (R11), DX    // DX = carried
+    MOVQ position+80(FP), R12; MOVQ (R12), R10 // R10 = position
     CALL ·__flatten_bits_incremental(SB)
     MOVQ BX, (SI)                               // *index = BX
     MOVQ DX, (R11)                              // *carried = DX
@@ -105,7 +105,7 @@ skip_ndjson_detection:
     POPQ AX
     POPQ CX
 
-    CMPQ BX, indexes_len+72(FP)
+    CMPQ BX, indexes_len+64(FP)
     JGE  done
 
     CMPQ AX, CX
@@ -124,7 +124,7 @@ check_partial_load:
     JNE  masking // end of message is not aligned on 64-byte boundary, so mask the remaining bytes
 
 done:
-    MOVQ AX, processed+104(FP)
+    MOVQ AX, processed+96(FP)
     VZEROUPPER
     RET
 

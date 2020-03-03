@@ -51,13 +51,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 	// purposes of pseudo-structural character detection so we initialize to 1
 	prev_iter_ends_pseudo_pred := uint64(1)
 
-	// structurals are persistent state across loop as we flatten them on the
-	// subsequent iteration into our array.
-	// This is harmless on the first iteration as structurals == 0
-	// and is done for performance reasons; we can hide some of the latency of the
-	// expensive carryless multiply in the previous step with this work
-	structurals := uint64(0)
-
 	error_mask := uint64(0) // for unescaped characters within strings (ASCII code points < 0x20)
 
 	indexTotal := 0
@@ -85,7 +78,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 		processed := f(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
-			structurals,
 			&prev_iter_ends_pseudo_pred,
 			index.indexes, &index.length, &carried, &position, pj.ndjson)
 
@@ -97,7 +89,6 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 			paddedBytes := uint64(len(buf)) - processed
 			processed += f(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
 				&prev_iter_inside_quote, &error_mask,
-				structurals,
 				&prev_iter_ends_pseudo_pred,
 				index.indexes, &index.length, &carried, &position, pj.ndjson)
 		}
