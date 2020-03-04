@@ -205,14 +205,23 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 	testCases := []struct {
 		input    string
 		expected uint64
+		expectedPIIQ uint64 // prev_iter_inside_quote
 	}{
-		{`  ""                                                              `, 0x4},
-		{`  "-"                                                             `, 0xc},
-		{`  "--"                                                            `, 0x1c},
-		{`  "---"                                                           `, 0x3c},
-		{`  "-------------"                                                 `, 0xfffc},
-		{`  "---------------------------------------"                       `, 0x3fffffffffc},
-		{`"----------------------------------------------------------------"`, 0xffffffffffffffff},
+		{`  ""                                                            `, 0x4, 0},
+		{`  "-"                                                           `, 0xc, 0},
+		{`  "--"                                                          `, 0x1c, 0},
+		{`  "---"                                                         `, 0x3c, 0},
+		{`  "-------------"                                               `, 0xfffc, 0},
+		{`  "---------------------------------------"                     `, 0x3fffffffffc, 0},
+		{`"--------------------------------------------------------------"`, 0x7fffffffffffffff, 0},
+
+		// quote is not closed --> prev_iter_inside_quote should be set
+		{`                                                            "---`, 0xf000000000000000, ^uint64(0)},
+		{`                                                            "", `, 0x1000000000000000, 0},
+		{`                                                            "-",`, 0x3000000000000000, 0},
+		{`                                                            "--"`, 0x7000000000000000, 0},
+		{`                                                            "---`, 0xf000000000000000, ^uint64(0)},
+
 	}
 
 	for i, tc := range testCases {
@@ -223,7 +232,11 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 		mask := f([]byte(tc.input), odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
 
 		if mask != tc.expected {
-			t.Errorf("testFindOddBackslashSequences(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
+			t.Errorf("testFindQuoteMaskAndBits(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
+		}
+
+		if prev_iter_inside_quote != tc.expectedPIIQ {
+			t.Errorf("testFindQuoteMaskAndBits(%d): got prev_iter_inside_quote: 0x%x want: 0x%x", i, prev_iter_inside_quote, tc.expectedPIIQ)
 		}
 	}
 }
