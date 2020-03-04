@@ -206,28 +206,29 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 		inputOE      uint64 // odd_ends
 		input        string
 		expected     uint64
+		expectedQB   uint64 // quote_bits
 		expectedPIIQ uint64 // prev_iter_inside_quote
 	}{
-		{0x0, `  ""                                                            `, 0x4, 0},
-		{0x0, `  "-"                                                           `, 0xc, 0},
-		{0x0, `  "--"                                                          `, 0x1c, 0},
-		{0x0, `  "---"                                                         `, 0x3c, 0},
-		{0x0, `  "-------------"                                               `, 0xfffc, 0},
-		{0x0, `  "---------------------------------------"                     `, 0x3fffffffffc, 0},
-		{0x0, `"--------------------------------------------------------------"`, 0x7fffffffffffffff, 0},
+		{0x0, `  ""                                                            `, 0x4, 0xc, 0},
+		{0x0, `  "-"                                                           `, 0xc, 0x14, 0},
+		{0x0, `  "--"                                                          `, 0x1c, 0x24, 0},
+		{0x0, `  "---"                                                         `, 0x3c, 0x44, 0},
+		{0x0, `  "-------------"                                               `, 0xfffc, 0x10004, 0},
+		{0x0, `  "---------------------------------------"                     `, 0x3fffffffffc, 0x40000000004, 0},
+		{0x0, `"--------------------------------------------------------------"`, 0x7fffffffffffffff, 0x8000000000000001, 0},
 
 		// quote is not closed --> prev_iter_inside_quote should be set
-		{0x0, `                                                            "---`, 0xf000000000000000, ^uint64(0)},
-		{0x0, `                                                            "", `, 0x1000000000000000, 0},
-		{0x0, `                                                            "-",`, 0x3000000000000000, 0},
-		{0x0, `                                                            "--"`, 0x7000000000000000, 0},
-		{0x0, `                                                            "---`, 0xf000000000000000, ^uint64(0)},
+		{0x0, `                                                            "---`, 0xf000000000000000, 0x1000000000000000, ^uint64(0)},
+		{0x0, `                                                            "", `, 0x1000000000000000, 0x3000000000000000, 0},
+		{0x0, `                                                            "-",`, 0x3000000000000000, 0x5000000000000000, 0},
+		{0x0, `                                                            "--"`, 0x7000000000000000, 0x9000000000000000, 0},
+		{0x0, `                                                            "---`, 0xf000000000000000, 0x1000000000000000, ^uint64(0)},
 
 		// test previous mask ending in backslash
-		{0x1, `"                                                               `, 0x0, 0x0},
-		{0x1, `"""                                                             `, 0x2, 0x0},
-		{0x0, `"                                                               `, 0xffffffffffffffff, ^uint64(0)},
-		{0x0, `"""                                                             `, 0xfffffffffffffffd, ^uint64(0)},
+		{0x1, `"                                                               `, 0x0, 0x0, 0x0},
+		{0x1, `"""                                                             `, 0x2, 0x6, 0x0},
+		{0x0, `"                                                               `, 0xffffffffffffffff, 0x1, ^uint64(0)},
+		{0x0, `"""                                                             `, 0xfffffffffffffffd, 0x7, ^uint64(0)},
 	}
 
 	for i, tc := range testCases {
@@ -238,6 +239,10 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 
 		if mask != tc.expected {
 			t.Errorf("testFindQuoteMaskAndBits(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
+		}
+
+		if quote_bits != tc.expectedQB {
+			t.Errorf("testFindQuoteMaskAndBits(%d): got quote_bits: 0x%x want: 0x%x", i, quote_bits, tc.expectedQB)
 		}
 
 		if prev_iter_inside_quote != tc.expectedPIIQ {
