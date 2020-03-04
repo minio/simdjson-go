@@ -203,32 +203,38 @@ func TestFindOddBackslashSequences(t *testing.T) {
 func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uint64, *uint64) uint64) {
 
 	testCases := []struct {
+		inputOE      uint64 // odd_ends
 		input        string
 		expected     uint64
 		expectedPIIQ uint64 // prev_iter_inside_quote
 	}{
-		{`  ""                                                            `, 0x4, 0},
-		{`  "-"                                                           `, 0xc, 0},
-		{`  "--"                                                          `, 0x1c, 0},
-		{`  "---"                                                         `, 0x3c, 0},
-		{`  "-------------"                                               `, 0xfffc, 0},
-		{`  "---------------------------------------"                     `, 0x3fffffffffc, 0},
-		{`"--------------------------------------------------------------"`, 0x7fffffffffffffff, 0},
+		{0x0, `  ""                                                            `, 0x4, 0},
+		{0x0, `  "-"                                                           `, 0xc, 0},
+		{0x0, `  "--"                                                          `, 0x1c, 0},
+		{0x0, `  "---"                                                         `, 0x3c, 0},
+		{0x0, `  "-------------"                                               `, 0xfffc, 0},
+		{0x0, `  "---------------------------------------"                     `, 0x3fffffffffc, 0},
+		{0x0, `"--------------------------------------------------------------"`, 0x7fffffffffffffff, 0},
 
 		// quote is not closed --> prev_iter_inside_quote should be set
-		{`                                                            "---`, 0xf000000000000000, ^uint64(0)},
-		{`                                                            "", `, 0x1000000000000000, 0},
-		{`                                                            "-",`, 0x3000000000000000, 0},
-		{`                                                            "--"`, 0x7000000000000000, 0},
-		{`                                                            "---`, 0xf000000000000000, ^uint64(0)},
+		{0x0, `                                                            "---`, 0xf000000000000000, ^uint64(0)},
+		{0x0, `                                                            "", `, 0x1000000000000000, 0},
+		{0x0, `                                                            "-",`, 0x3000000000000000, 0},
+		{0x0, `                                                            "--"`, 0x7000000000000000, 0},
+		{0x0, `                                                            "---`, 0xf000000000000000, ^uint64(0)},
+
+		// test previous mask ending in backslash
+		{0x1, `"                                                               `, 0x0, 0x0},
+		{0x1, `"""                                                             `, 0x2, 0x0},
+		{0x0, `"                                                               `, 0xffffffffffffffff, ^uint64(0)},
+		{0x0, `"""                                                             `, 0xfffffffffffffffd, ^uint64(0)},
 	}
 
 	for i, tc := range testCases {
 
-		odd_ends := uint64(0)
 		prev_iter_inside_quote, quote_bits, error_mask := uint64(0), uint64(0), uint64(0)
 
-		mask := f([]byte(tc.input), odd_ends, &prev_iter_inside_quote, &quote_bits, &error_mask)
+		mask := f([]byte(tc.input), tc.inputOE, &prev_iter_inside_quote, &quote_bits, &error_mask)
 
 		if mask != tc.expected {
 			t.Errorf("testFindQuoteMaskAndBits(%d): got: 0x%x want: 0x%x", i, mask, tc.expected)
