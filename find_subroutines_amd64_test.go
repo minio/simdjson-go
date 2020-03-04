@@ -259,6 +259,35 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 			t.Errorf("testFindQuoteMaskAndBits(%d): got error_mask: 0x%x want: 0x%x", i, error_mask, tc.expectedEM)
 		}
 	}
+
+	testCasesPIIQ := []struct {
+		inputPIIQ    uint64
+		input        string
+		expectedPIIQ uint64
+	}{
+		// prev_iter_inside_quote state remains unchanged
+		{ uint64(0), `----------------------------------------------------------------`, uint64(0)},
+		{ ^uint64(0), `----------------------------------------------------------------`, ^uint64(0)},
+
+		// prev_iter_inside_quote state remains flips
+		{ uint64(0), `---------------------------"------------------------------------`, ^uint64(0)},
+		{ ^uint64(0), `---------------------------"------------------------------------`, uint64(0)},
+
+		// prev_iter_inside_quote state remains flips twice (thus unchanged)
+		{ uint64(0), `----------------"------------------------"----------------------`, uint64(0)},
+		{ ^uint64(0), `----------------"------------------------"----------------------`, ^uint64(0)},
+	}
+
+	for i, tc := range testCasesPIIQ {
+
+		prev_iter_inside_quote, quote_bits, error_mask := tc.inputPIIQ, uint64(0), uint64(0)
+
+		f([]byte(tc.input), 0, &prev_iter_inside_quote, &quote_bits, &error_mask)
+
+		if prev_iter_inside_quote != tc.expectedPIIQ {
+			t.Errorf("testFindQuoteMaskAndBits(%d): got prev_iter_inside_quote: 0x%x want: 0x%x", i, prev_iter_inside_quote, tc.expectedPIIQ)
+		}
+	}
 }
 
 func TestFindQuoteMaskAndBits(t *testing.T) {
