@@ -203,8 +203,8 @@ func TestFindOddBackslashSequences(t *testing.T) {
 func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uint64, *uint64) uint64) {
 
 	testCases := []struct {
-		input    string
-		expected uint64
+		input        string
+		expected     uint64
 		expectedPIIQ uint64 // prev_iter_inside_quote
 	}{
 		{`  ""                                                            `, 0x4, 0},
@@ -221,7 +221,6 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 		{`                                                            "-",`, 0x3000000000000000, 0},
 		{`                                                            "--"`, 0x7000000000000000, 0},
 		{`                                                            "---`, 0xf000000000000000, ^uint64(0)},
-
 	}
 
 	for i, tc := range testCases {
