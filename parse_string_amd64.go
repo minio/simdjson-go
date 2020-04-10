@@ -31,6 +31,8 @@ func _parse_string_validate_only(src, maxStringSize, str_length, dst_length unsa
 //go:noescape
 func _parse_string(src, dst, pcurrent_string_buf_loc unsafe.Pointer) (res uint64)
 
+// Disable new -d=checkptr behaviour for Go 1.14
+//go:nocheckptr
 func parse_string_simd_validate_only(buf []byte, maxStringSize, dst_length *uint64, need_copy *bool) bool {
 
 	src := uintptr(unsafe.Pointer(&buf[0])) + 1 // Advance buffer by one in order to skip opening quote
@@ -42,6 +44,8 @@ func parse_string_simd_validate_only(buf []byte, maxStringSize, dst_length *uint
 	return success != 0
 }
 
+// Disable new -d=checkptr behaviour for Go 1.14
+//go:nocheckptr
 func parse_string_simd(buf []byte, stringbuf *[]byte) bool {
 
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(stringbuf))
