@@ -35,7 +35,7 @@ func _parse_string(src, dst, pcurrent_string_buf_loc unsafe.Pointer) (res uint64
 //go:nocheckptr
 func parse_string_simd_validate_only(buf []byte, maxStringSize, dst_length *uint64, need_copy *bool) bool {
 
-	src := uintptr(unsafe.Pointer(&buf[0])) + 1 // Advance buffer by one in order to skip opening quote
+	src := uintptr(unsafe.Pointer(&buf[1])) // Use buf[1] in order to skip opening quote
 	src_length := uint64(0)
 
 	success := _parse_string_validate_only(unsafe.Pointer(src), unsafe.Pointer(&maxStringSize), unsafe.Pointer(&src_length), unsafe.Pointer(dst_length))
@@ -50,7 +50,7 @@ func parse_string_simd(buf []byte, stringbuf *[]byte) bool {
 
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(stringbuf))
 
-	src := uintptr(unsafe.Pointer(&buf[0])) + 1 // Advance buffer by one in order to skip opening quote
+	src := uintptr(unsafe.Pointer(&buf[1])) // Use buf[1] in order to skip opening quote
 	string_buf_loc := uintptr(unsafe.Pointer(sh.Data)) + uintptr(sh.Len)
 	dst := string_buf_loc
 
