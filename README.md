@@ -31,7 +31,10 @@ Based on the same set of JSON test files, the graph below shows a comparison bet
 
 These numbers were measured on a MacBook Pro equipped with a 3.1 GHz Intel Core i7. 
 Also, to make it a fair comparison, the constant `GOLANG_NUMBER_PARSING` was set to `false` (default is `true`) 
-in order to use the same number parsing function (which is faster at the expense of some precision; see more below). 
+in order to use the same number parsing function (which is faster at the expense of some precision; see more below).
+
+In addition the constant `ALWAYS_COPY_STRINGS` was set to `false` (default is `true`) for non-streaming use case
+ scenarios where the full JSON message is kept in memory (similar to the `simdjson` behaviour).
 
 ## Performance vs `encoding/json` and `json-iterator/go`
 
@@ -191,15 +194,16 @@ With this format it is possible to skip over arrays and (sub)objects as the size
 `simdjson-go` format is exactly the same as the `simdjson` [tape](https://github.com/lemire/simdjson/blob/master/doc/tape.md) 
 format with the following 2 exceptions:
 
-In order to support ndjson, it is possible to have many root elements on the tape. 
-Also, to allow for fast navigation over root elements, 
-a root points to the next root element (and as such the last root element points 1 index past the length of the tape).
+- In order to support ndjson, it is possible to have more than one root element on the tape. 
+Also, to allow for fast navigation over root elements, a root points to the next root element
+(and as such the last root element points 1 index past the length of the tape).
 
-Strings are handled differently, unlike `simdjson` the string size is not prepended in the String buffer 
+- Strings are handled differently, unlike `simdjson` the string size is not prepended in the String buffer 
 but is added as an additional element to the tape itself (much like integers and floats). 
-Only strings that contain special characters are copied to the String buffer 
+  - In case `ALWAYS_COPY_STRINGS` is `false`: Only strings that contain special characters are copied to the String buffer 
 in which case the payload from the tape is the offset into the String buffer. 
 For string values without special characters the tape's payload points directly into the message buffer.
+  - In case `ALWAYS_COPY_STRINGS` is `true` (default): Strings are always copied to the String buffer.
 
 For more information, see `TestStage2BuildTape` in `stage2_build_tape_test.go`.
 
