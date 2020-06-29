@@ -40,7 +40,7 @@ func parse_string_simd_validate_only(buf []byte, maxStringSize, dst_length *uint
 
 	success := _parse_string_validate_only(unsafe.Pointer(src), unsafe.Pointer(&maxStringSize), unsafe.Pointer(&src_length), unsafe.Pointer(dst_length))
 
-	*need_copy = src_length != *dst_length
+	*need_copy = ALWAYS_COPY_STRINGS || src_length != *dst_length
 	return success != 0
 }
 

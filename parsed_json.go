@@ -37,8 +37,19 @@ import (
 //
 // There is a slower code path that uses Golang's Atoi() and ParseFloat()
 //
-// For benchmarking GOLANG_NUMBER_PARSING is set to false
+// For **benchmarking** both GOLANG_NUMBER_PARSING and ALWAYS_COPY_STRINGS are set to false
+//
 const GOLANG_NUMBER_PARSING = true
+
+//
+//
+// For enhanced performance, simdjson-go can point back into the original JSON buffer for strings,
+// however this can lead to issues in streaming use cases scenarios, or scenarios in which
+// the underlying JSON buffer is reused. So the default behaviour is to create copies of all
+// strings (not just those transformed anyway for unicode escape charactes) into the separate
+// Strings buffer (at the expense of using more memory and less performance).
+//
+const ALWAYS_COPY_STRINGS = true
 
 const JSONVALUEMASK = 0xffffffffffffff
 const JSONTAGMASK = 0xff << 56
