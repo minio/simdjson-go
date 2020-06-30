@@ -214,6 +214,16 @@ There is constant `GOLANG_NUMBER_PARSING` (on by default) that uses Go's
 parsing functionality at the expense of giving up some performance. 
 Note that the performance metrics mentioned above have been measured by setting the `GOLANG_NUMBER_PARSING` to `false`.
 
+## Non streaming use cases
+
+The best performance is obtained by keeping the JSON message fully mapped in memory and setting the
+`ALWAYS_COPY_STRINGS` constant to `false`. This prevents duplicate copies of string values being made 
+but mandates that the original JSON buffer is kept alive until the `ParsedJson` object is no longer needed
+ (ie iteration over the tape format has been completed).
+ 
+ In case the JSON message buffer is freed earlier (or for streaming use cases where memory is reused) 
+ `ALWAYS_COPY_STRINGS` should be set to `true` (which is the default behaviour).
+
 ## Fuzz Tests
 
 `simdjson-go` has been extensively fuzz tested to ensure that input cannot generate crashes and that output matches
