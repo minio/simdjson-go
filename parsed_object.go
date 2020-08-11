@@ -170,7 +170,7 @@ func (o *Object) NextElementBytes(dst *Iter) (name []byte, t Type, err error) {
 	case TagObjectEnd:
 		return nil, TypeNone, nil
 	default:
-		return nil, TypeNone, fmt.Errorf("object: unexpected tag %v", string(v>>56))
+		return nil, TypeNone, fmt.Errorf("object: unexpected tag %c", byte(v>>56))
 	}
 
 	// Read element type

@@ -899,8 +899,8 @@ func (pj *internalParsedJson) dump_raw_tape() bool {
 	for tapeidx := uint64(0); tapeidx < uint64(len(pj.Tape)); tapeidx++ {
 		howmany := uint64(0)
 		tape_val := pj.Tape[tapeidx]
-		ntype := tape_val >> 56
-		fmt.Printf("%d : %s", tapeidx, string(ntype))
+		ntype := byte(tape_val >> 56)
+		fmt.Printf("%d : %c", tapeidx, ntype)
 
 		if ntype == 'r' {
 			howmany = tape_val & JSONVALUEMASK
@@ -981,8 +981,8 @@ func (pj *internalParsedJson) dump_raw_tape() bool {
 
 		tape_val = pj.Tape[tapeidx]
 		payload := tape_val & JSONVALUEMASK
-		ntype = tape_val >> 56
-		fmt.Printf("%d : %s\t// pointing to %d (start root)\n", tapeidx, string(ntype), payload)
+		ntype = byte(tape_val >> 56)
+		fmt.Printf("%d : %c\t// pointing to %d (start root)\n", tapeidx, ntype, payload)
 	}
 
 	return true
