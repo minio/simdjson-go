@@ -219,7 +219,7 @@ func (a *Array) AsString() ([]string, error) {
 		case TypeString:
 			s, err := elem.String()
 			if err != nil {
-
+				return nil, err
 			}
 			dst = append(dst, s)
 		default:
