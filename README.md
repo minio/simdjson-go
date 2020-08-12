@@ -143,7 +143,7 @@ More examples can be found in the examples subdirectory and further documentatio
 
 `simdjson-go` has the following requirements:
 
-- A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPIC CPU (Q1 2017) should be sufficient). 
+- A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPYC CPU (Q1 2017) should be sufficient). 
 This can be checked using the provided [`SupportedCPU()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#SupportedCPU`) function.
 
 ## Design
