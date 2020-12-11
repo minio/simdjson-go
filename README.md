@@ -109,7 +109,7 @@ struct that can be used to navigate the JSON object by calling [`Iter()`](https:
 Using the type [`Iter`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#Iter) you can call 
 [`Advance()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#Iter.Advance) to iterate over the tape, like so:
 
-```
+```golang
 for {
     typ := iter.Advance()
 
