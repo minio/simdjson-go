@@ -31,106 +31,105 @@ GLOBL LCDATA1<>(SB), 8, $192
 
 TEXT ·_find_quote_mask_and_bits(SB), $0-48
 
-    MOVQ input+0(FP), DI
-    MOVQ odd_ends+8(FP), DX
-    MOVQ prev_iter_inside_quote+16(FP), CX
-    MOVQ quote_bits+24(FP), R8
-    MOVQ error_mask+32(FP), R9
+	MOVQ input+0(FP), DI
+	MOVQ odd_ends+8(FP), DX
+	MOVQ prev_iter_inside_quote+16(FP), CX
+	MOVQ quote_bits+24(FP), R8
+	MOVQ error_mask+32(FP), R9
 
-    VMOVDQU    (DI), Y8          // load low 32-bytes
-    VMOVDQU    0x20(DI), Y9      // load high 32-bytes
+	VMOVDQU (DI), Y8     // load low 32-bytes
+	VMOVDQU 0x20(DI), Y9 // load high 32-bytes
 
-    CALL ·__find_quote_mask_and_bits(SB)
+	CALL ·__find_quote_mask_and_bits(SB)
 
-    VZEROUPPER
-    MOVQ AX, quote_mask+40(FP)
-    RET
-
+	VZEROUPPER
+	MOVQ AX, quote_mask+40(FP)
+	RET
 
 TEXT ·__find_quote_mask_and_bits(SB), $0
-    LEAQ LCDATA1<>(SB), BP
+	LEAQ LCDATA1<>(SB), BP
 
-    VMOVDQA    Y8, Y0            // vmovdqu    ymm0, yword [rdi]
-    VMOVDQA    Y9, Y1            // vmovdqu    ymm1, yword [rsi]
-    VMOVDQA    (BP), Y2          // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
-    VPCMPEQB   Y2, Y0, Y3        // vpcmpeqb    ymm3, ymm0, ymm2
-    VPMOVMSKB  Y3, AX            // vpmovmskb    eax, ymm3
-    VPCMPEQB   Y2, Y1, Y2        // vpcmpeqb    ymm2, ymm1, ymm2
-    VPMOVMSKB  Y2, SI            // vpmovmskb    esi, ymm2
-    SHLQ       $32, SI           // shl    rsi, 32
-    ORQ        AX, SI            // or    rsi, rax
-    NOTQ       DX                // not    rdx
-    ANDQ       SI, DX            // and    rdx, rsi
-    MOVQ       DX, (R8)          // mov    qword [r8], rdx
-    VMOVQ      DX, X2            // vmovq    xmm2, rdx
-    VPCMPEQD   X3, X3, X3        // vpcmpeqd    xmm3, xmm3, xmm3
-    VPCLMULQDQ $0, X3, X2, X2    // vpclmulqdq    xmm2, xmm2, xmm3, 0
-    VMOVQ      X2, AX            // vmovq    rax, xmm2
-    XORQ       (CX), AX          // xor    rax, qword [rcx]
-    VMOVDQA    0x40(BP), Y2      // vmovdqa    ymm2, yword 32[rbp] /* [rip + LCPI0_1] */
-    VPXOR      Y2, Y0, Y0        // vpxor    ymm0, ymm0, ymm2
-    VMOVDQA    0x80(BP), Y3      // vmovdqa    ymm3, yword 64[rbp] /* [rip + LCPI0_2] */
-    VPCMPGTB   Y0, Y3, Y0        // vpcmpgtb    ymm0, ymm3, ymm0
-    VPMOVMSKB  Y0, DX            // vpmovmskb    edx, ymm0
-    VPXOR      Y2, Y1, Y0        // vpxor    ymm0, ymm1, ymm2
-    VPCMPGTB   Y0, Y3, Y0        // vpcmpgtb    ymm0, ymm3, ymm0
-    VPMOVMSKB  Y0, SI            // vpmovmskb    esi, ymm0
-    SHLQ       $32, SI           // shl    rsi, 32
-    ORQ        DX, SI            // or    rsi, rdx
-    ANDQ       AX, SI            // and    rsi, rax
-    ORQ        SI, (R9)          // or    qword [r9], rsi
-    MOVQ       AX, DX            // mov    rdx, rax
-    SARQ       $63, DX           // sar    rdx, 63
-    MOVQ       DX, (CX)          // mov    qword [rcx], rdx
-    RET
+	VMOVDQA    Y8, Y0         // vmovdqu    ymm0, yword [rdi]
+	VMOVDQA    Y9, Y1         // vmovdqu    ymm1, yword [rsi]
+	VMOVDQA    (BP), Y2       // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
+	VPCMPEQB   Y2, Y0, Y3     // vpcmpeqb    ymm3, ymm0, ymm2
+	VPMOVMSKB  Y3, AX         // vpmovmskb    eax, ymm3
+	VPCMPEQB   Y2, Y1, Y2     // vpcmpeqb    ymm2, ymm1, ymm2
+	VPMOVMSKB  Y2, SI         // vpmovmskb    esi, ymm2
+	SHLQ       $32, SI        // shl    rsi, 32
+	ORQ        AX, SI         // or    rsi, rax
+	NOTQ       DX             // not    rdx
+	ANDQ       SI, DX         // and    rdx, rsi
+	MOVQ       DX, (R8)       // mov    qword [r8], rdx
+	VMOVQ      DX, X2         // vmovq    xmm2, rdx
+	VPCMPEQD   X3, X3, X3     // vpcmpeqd    xmm3, xmm3, xmm3
+	VPCLMULQDQ $0, X3, X2, X2 // vpclmulqdq    xmm2, xmm2, xmm3, 0
+	VMOVQ      X2, AX         // vmovq    rax, xmm2
+	XORQ       (CX), AX       // xor    rax, qword [rcx]
+	VMOVDQA    0x40(BP), Y2   // vmovdqa    ymm2, yword 32[rbp] /* [rip + LCPI0_1] */
+	VPXOR      Y2, Y0, Y0     // vpxor    ymm0, ymm0, ymm2
+	VMOVDQA    0x80(BP), Y3   // vmovdqa    ymm3, yword 64[rbp] /* [rip + LCPI0_2] */
+	VPCMPGTB   Y0, Y3, Y0     // vpcmpgtb    ymm0, ymm3, ymm0
+	VPMOVMSKB  Y0, DX         // vpmovmskb    edx, ymm0
+	VPXOR      Y2, Y1, Y0     // vpxor    ymm0, ymm1, ymm2
+	VPCMPGTB   Y0, Y3, Y0     // vpcmpgtb    ymm0, ymm3, ymm0
+	VPMOVMSKB  Y0, SI         // vpmovmskb    esi, ymm0
+	SHLQ       $32, SI        // shl    rsi, 32
+	ORQ        DX, SI         // or    rsi, rdx
+	ANDQ       AX, SI         // and    rsi, rax
+	ORQ        SI, (R9)       // or    qword [r9], rsi
+	MOVQ       AX, DX         // mov    rdx, rax
+	SARQ       $63, DX        // sar    rdx, 63
+	MOVQ       DX, (CX)       // mov    qword [rcx], rdx
+	RET
 
 TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
 
-    MOVQ input+0(FP), DI
-    MOVQ odd_ends+8(FP), DX
-    MOVQ prev_iter_inside_quote+16(FP), CX
+	MOVQ input+0(FP), DI
+	MOVQ odd_ends+8(FP), DX
+	MOVQ prev_iter_inside_quote+16(FP), CX
 
-    KORQ K_ERRORMASK, K_ERRORMASK, K_ERRORMASK
+	KORQ K_ERRORMASK, K_ERRORMASK, K_ERRORMASK
 
-    VMOVDQU32    (DI), Z8
+	VMOVDQU32 (DI), Z8
 
-    CALL ·__init_quote_mask_and_bits_avx512(SB)
-    CALL ·__find_quote_mask_and_bits_avx512(SB)
+	CALL ·__init_quote_mask_and_bits_avx512(SB)
+	CALL ·__find_quote_mask_and_bits_avx512(SB)
 
-    VZEROUPPER
-    KMOVQ K_ERRORMASK, error_mask+24(FP)
-    KMOVQ  K_QUOTEBITS, quote_bits+32(FP)
-    MOVQ AX, quote_mask+40(FP)
-    RET
+	VZEROUPPER
+	KMOVQ K_ERRORMASK, error_mask+24(FP)
+	KMOVQ K_QUOTEBITS, quote_bits+32(FP)
+	MOVQ  AX, quote_mask+40(FP)
+	RET
 
 #define QMAB_CONST1 Z17
 #define QMAB_CONST2 Z18
 #define QMAB_CONST3 Z19
 
 TEXT ·__init_quote_mask_and_bits_avx512(SB), $0
-    LEAQ LCDATA1<>(SB), BP
-    VMOVDQU32  0x00(BP), QMAB_CONST1
-    VMOVDQU32  0x40(BP), QMAB_CONST2
-    VMOVDQU32  0x80(BP), QMAB_CONST3
-    RET
+	LEAQ      LCDATA1<>(SB), BP
+	VMOVDQU32 0x00(BP), QMAB_CONST1
+	VMOVDQU32 0x40(BP), QMAB_CONST2
+	VMOVDQU32 0x80(BP), QMAB_CONST3
+	RET
 
 TEXT ·__find_quote_mask_and_bits_avx512(SB), $0
-    VPCMPEQB   QMAB_CONST1, Z8, K_QUOTEBITS
-    KMOVQ      DX, K_TEMP1
-    KNOTQ      K_TEMP1, K_TEMP1
-    KANDQ      K_TEMP1, K_QUOTEBITS, K_QUOTEBITS
-    KMOVQ      K_QUOTEBITS, DX
-    VMOVQ      DX, X2            // vmovq    xmm2, rdx
-    VPCMPEQD   X3, X3, X3        // vpcmpeqd    xmm3, xmm3, xmm3
-    VPCLMULQDQ $0, X3, X2, X2    // vpclmulqdq    xmm2, xmm2, xmm3, 0
-    VMOVQ      X2, AX            // vmovq    rax, xmm2
-    XORQ       (CX), AX          // xor    rax, qword [rcx]
-    VPXORD     QMAB_CONST2, Z8, Z0
-    VPCMPGTB   Z0, QMAB_CONST3, K_TEMP1 // vpcmpgtb    ymm0, ymm3, ymm0
-    KMOVQ      AX, K_TEMP2
-    KANDQ      K_TEMP2, K_TEMP1, K_TEMP1
-    KORQ       K_TEMP1, K_ERRORMASK, K_ERRORMASK
-    MOVQ       AX, DX            // mov    rdx, rax
-    SARQ       $63, DX           // sar    rdx, 63
-    MOVQ       DX, (CX)          // mov    qword [rcx], rdx
-    RET
+	VPCMPEQB   QMAB_CONST1, Z8, K_QUOTEBITS
+	KMOVQ      DX, K_TEMP1
+	KNOTQ      K_TEMP1, K_TEMP1
+	KANDQ      K_TEMP1, K_QUOTEBITS, K_QUOTEBITS
+	KMOVQ      K_QUOTEBITS, DX
+	VMOVQ      DX, X2                            // vmovq    xmm2, rdx
+	VPCMPEQD   X3, X3, X3                        // vpcmpeqd    xmm3, xmm3, xmm3
+	VPCLMULQDQ $0, X3, X2, X2                    // vpclmulqdq    xmm2, xmm2, xmm3, 0
+	VMOVQ      X2, AX                            // vmovq    rax, xmm2
+	XORQ       (CX), AX                          // xor    rax, qword [rcx]
+	VPXORD     QMAB_CONST2, Z8, Z0
+	VPCMPGTB   Z0, QMAB_CONST3, K_TEMP1          // vpcmpgtb    ymm0, ymm3, ymm0
+	KMOVQ      AX, K_TEMP2
+	KANDQ      K_TEMP2, K_TEMP1, K_TEMP1
+	KORQ       K_TEMP1, K_ERRORMASK, K_ERRORMASK
+	MOVQ       AX, DX                            // mov    rdx, rax
+	SARQ       $63, DX                           // sar    rdx, 63
+	MOVQ       DX, (CX)                          // mov    qword [rcx], rdx
+	RET
