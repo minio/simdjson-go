@@ -23,13 +23,13 @@ TEXT ·_find_odd_backslash_sequences(SB), $0-24
 
 TEXT ·__find_odd_backslash_sequences(SB), $0
 	LEAQ      LCDATA1<>(SB), BP
-	VMOVDQA   (BP), Y0            // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
-	VPCMPEQB  Y8/*(DI)*/, Y0, Y1  // vpcmpeqb    ymm1, ymm0, yword [rdi]
-	VPMOVMSKB Y1, CX              // vpmovmskb    ecx, ymm1
-	VPCMPEQB  Y9/*(SI)*/, Y0, Y0  // vpcmpeqb    ymm0, ymm0, yword [rsi]
-	VPMOVMSKB Y0, AX              // vpmovmskb    eax, ymm0
-	SHLQ      $32, AX             // shl    rax, 32
-	ORQ       CX, AX              // or    rax, rcx
+	VMOVDQA   (BP), Y0           // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
+	VPCMPEQB  Y8/*(DI)*/, Y0, Y1 // vpcmpeqb    ymm1, ymm0, yword [rdi]
+	VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
+	VPCMPEQB  Y9/*(SI)*/, Y0, Y0 // vpcmpeqb    ymm0, ymm0, yword [rsi]
+	VPMOVMSKB Y0, AX             // vpmovmskb    eax, ymm0
+	SHLQ      $32, AX            // shl    rax, 32
+	ORQ       CX, AX             // or    rax, rcx
 
 #define FIND_ODD_BACKSLASH_SEQUENCES \
 	LEAQ  (AX)(AX*1), CX           \ // lea    rcx, [rax + rax]
