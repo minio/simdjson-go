@@ -9,81 +9,80 @@ GLOBL LCDATA1<>(SB), 8, $32
 
 TEXT ·_find_odd_backslash_sequences(SB), $0-24
 
-    MOVQ p1+0(FP), DI
-    MOVQ p3+8(FP), DX
+	MOVQ p1+0(FP), DI
+	MOVQ p3+8(FP), DX
 
-    VMOVDQU    (DI), Y8          // load low 32-bytes
-    VMOVDQU    0x20(DI), Y9      // load high 32-bytes
+	VMOVDQU (DI), Y8     // load low 32-bytes
+	VMOVDQU 0x20(DI), Y9 // load high 32-bytes
 
-    CALL ·__find_odd_backslash_sequences(SB)
+	CALL ·__find_odd_backslash_sequences(SB)
 
-    VZEROUPPER
-    MOVQ AX, result+16(FP)
-    RET
-
+	VZEROUPPER
+	MOVQ AX, result+16(FP)
+	RET
 
 TEXT ·__find_odd_backslash_sequences(SB), $0
-    LEAQ LCDATA1<>(SB), BP
-    VMOVDQA (BP), Y0             // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
-    VPCMPEQB Y8/*(DI)*/, Y0, Y1  // vpcmpeqb    ymm1, ymm0, yword [rdi]
-    VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
-    VPCMPEQB Y9/*(SI)*/, Y0, Y0  // vpcmpeqb    ymm0, ymm0, yword [rsi]
-    VPMOVMSKB Y0, AX             // vpmovmskb    eax, ymm0
-    SHLQ $32, AX                 // shl    rax, 32
-    ORQ  CX, AX                  // or    rax, rcx
+	LEAQ      LCDATA1<>(SB), BP
+	VMOVDQA   (BP), Y0           // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
+	VPCMPEQB  Y8/*(DI)*/, Y0, Y1 // vpcmpeqb    ymm1, ymm0, yword [rdi]
+	VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
+	VPCMPEQB  Y9/*(SI)*/, Y0, Y0 // vpcmpeqb    ymm0, ymm0, yword [rsi]
+	VPMOVMSKB Y0, AX             // vpmovmskb    eax, ymm0
+	SHLQ      $32, AX            // shl    rax, 32
+	ORQ       CX, AX             // or    rax, rcx
 
 #define FIND_ODD_BACKSLASH_SEQUENCES \
-    LEAQ (AX)(AX*1), CX          \ // lea    rcx, [rax + rax]
-    NOTQ CX                      \ // not    rcx
-    ANDQ AX, CX                  \ // and    rcx, rax
-    WORD $0x8b4c; BYTE $0x0a     \ // mov    r9, qword [rdx]
-    MOVQ $0x5555555555555555, R8 \ // mov    r8, 6148914691236517205
-    MOVQ R9, SI                  \ // mov    rsi, r9
-    XORQ R8, SI                  \ // xor    rsi, r8
-    ANDQ CX, SI                  \ // and    rsi, rcx
-    MOVQ $0xaaaaaaaaaaaaaaaa, R10 \ // mov    r10, -6148914691236517206
-    MOVQ R9, DI                  \ // mov    rdi, r9
-    XORQ R10, DI                 \ // xor    rdi, r10
-    ANDQ CX, DI                  \ // and    rdi, rcx
-    ADDQ AX, SI                  \ // add    rsi, rax
-    XORL CX, CX                  \ // xor    ecx, ecx
-    ADDQ AX, DI                  \ // add    rdi, rax
-    SETCS CX                     \ // setb    cl
-    ORQ  R9, DI                  \ // or    rdi, r9
-    MOVQ CX, (DX)                \ // mov    qword [rdx], rcx
-    NOTQ AX                      \ // not    rax
-    ANDQ AX, R10                 \ // and    r10, rax
-    ANDQ SI, R10                 \ // and    r10, rsi
-    ANDQ R8, AX                  \ // and    rax, r8
-    ANDQ DI, AX                  \ // and    rax, rdi
-    ORQ  R10, AX                   // or    rax, r10
+	LEAQ  (AX)(AX*1), CX           \ // lea    rcx, [rax + rax]
+	NOTQ  CX                       \ // not    rcx
+	ANDQ  AX, CX                   \ // and    rcx, rax
+	WORD  $0x8b4c; BYTE $0x0a      \ // mov    r9, qword [rdx]
+	MOVQ  $0x5555555555555555, R8  \ // mov    r8, 6148914691236517205
+	MOVQ  R9, SI                   \ // mov    rsi, r9
+	XORQ  R8, SI                   \ // xor    rsi, r8
+	ANDQ  CX, SI                   \ // and    rsi, rcx
+	MOVQ  $0xaaaaaaaaaaaaaaaa, R10 \ // mov    r10, -6148914691236517206
+	MOVQ  R9, DI                   \ // mov    rdi, r9
+	XORQ  R10, DI                  \ // xor    rdi, r10
+	ANDQ  CX, DI                   \ // and    rdi, rcx
+	ADDQ  AX, SI                   \ // add    rsi, rax
+	XORL  CX, CX                   \ // xor    ecx, ecx
+	ADDQ  AX, DI                   \ // add    rdi, rax
+	SETCS CX                       \ // setb    cl
+	ORQ   R9, DI                   \ // or    rdi, r9
+	MOVQ  CX, (DX)                 \ // mov    qword [rdx], rcx
+	NOTQ  AX                       \ // not    rax
+	ANDQ  AX, R10                  \ // and    r10, rax
+	ANDQ  SI, R10                  \ // and    r10, rsi
+	ANDQ  R8, AX                   \ // and    rax, r8
+	ANDQ  DI, AX                   \ // and    rax, rdi
+	ORQ   R10, AX                  // or    rax, r10
 
-    FIND_ODD_BACKSLASH_SEQUENCES
-    RET
+	FIND_ODD_BACKSLASH_SEQUENCES
+	RET
 
 #define OBSS_CONST Z16
 
 TEXT ·_find_odd_backslash_sequences_avx512(SB), $0-24
 
-    MOVQ p1+0(FP), DI
-    MOVQ p3+8(FP), DX
+	MOVQ p1+0(FP), DI
+	MOVQ p3+8(FP), DX
 
-    VMOVDQU32    (DI), Z8
+	VMOVDQU32 (DI), Z8
 
-    CALL ·__init_odd_backslash_sequences_avx512(SB)
-    CALL ·__find_odd_backslash_sequences_avx512(SB)
+	CALL ·__init_odd_backslash_sequences_avx512(SB)
+	CALL ·__find_odd_backslash_sequences_avx512(SB)
 
-    VZEROUPPER
-    MOVQ AX, result+16(FP)
-    RET
+	VZEROUPPER
+	MOVQ AX, result+16(FP)
+	RET
 
 TEXT ·__init_odd_backslash_sequences_avx512(SB), $0
-    MOVQ         $0x5c, AX
-    VPBROADCASTB AX, OBSS_CONST
-    RET
+	MOVQ         $0x5c, AX
+	VPBROADCASTB AX, OBSS_CONST
+	RET
 
 TEXT ·__find_odd_backslash_sequences_avx512(SB), $0
-    VPCMPEQB     Z8, OBSS_CONST, K1
-    KMOVQ        K1, AX
-    FIND_ODD_BACKSLASH_SEQUENCES
-    RET
+	VPCMPEQB Z8, OBSS_CONST, K1
+	KMOVQ    K1, AX
+	FIND_ODD_BACKSLASH_SEQUENCES
+	RET
