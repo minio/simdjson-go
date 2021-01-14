@@ -21,6 +21,7 @@
 package simdjson
 
 import (
+	"errors"
 	"strconv"
 	"unicode"
 	"unsafe"
@@ -38,6 +39,12 @@ func parse_number_simd(buf []byte, found_minus bool) (success, is_double bool, d
 		}
 
 		var err error
+		// check if number would overflow
+		_, err = strconv.ParseUint(string(buf[:pos]), 10, 64)
+		if err != nil && errors.Is(err, strconv.ErrRange) {
+			success = false
+			return
+		}
 		i, err = strconv.Atoi(string(buf[:pos]))
 		if err == nil {
 			success = true
