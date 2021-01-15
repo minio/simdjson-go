@@ -123,25 +123,11 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 	runtime.GC()
 	pj := internalParsedJson{}
 
-	b.Run("raw", func(b *testing.B) {
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			err := pj.parseMessage(ndjson)
-			if err != nil {
-				b.Fatal(err)
-			}
-			got := countRawTapeWhere("Make", "HOND", pj.ParsedJson)
-			if got != want {
-				b.Fatal(got, "!=", want)
-			}
-		}
-	})
 	b.Run("iter", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			err := pj.parseMessage(ndjson)
+			err := pj.parseMessageNdjson(ndjson)
 			if err != nil {
 				b.Fatal(err)
 			}

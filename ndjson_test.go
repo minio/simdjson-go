@@ -17,7 +17,6 @@
 package simdjson
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -389,68 +388,6 @@ func countWhere(key, value string, data ParsedJson) (count int) {
 				}
 			}
 		default:
-		}
-	}
-
-	return
-}
-
-func countRawTapeWhere(key, value string, data ParsedJson) (count int) {
-	tape := data.Tape
-	strbuf := data.Strings
-	for tapeidx := uint64(0); tapeidx < uint64(len(tape)); tapeidx++ {
-		howmany := uint64(0)
-		tape_val := tape[tapeidx]
-		ntype := tape_val >> 56
-
-		if ntype == 'r' {
-			howmany = tape_val & JSONVALUEMASK
-		} else {
-			return 0
-		}
-
-		// Decrement howmany (since we're adding one now for the ndjson support)
-		howmany -= 1
-
-		tapeidx++
-		for ; tapeidx < howmany; tapeidx++ {
-			tape_val = tape[tapeidx]
-			ntype := Tag(tape_val >> 56)
-			payload := tape_val & JSONVALUEMASK
-			switch ntype {
-			case TagString: // we have a string
-				string_length := uint64(binary.LittleEndian.Uint32(strbuf[payload : payload+4]))
-				if string(strbuf[payload+4:payload+4+string_length]) == key {
-					tape_val_next := tape[tapeidx+1]
-					ntype_next := Tag(tape_val_next >> 56)
-					if ntype_next == TagString {
-						payload_next := tape_val_next & JSONVALUEMASK
-						string_length_next := uint64(binary.LittleEndian.Uint32(strbuf[payload_next : payload_next+4]))
-						if string(strbuf[payload_next+4:payload_next+4+string_length_next]) == value {
-							count++
-						}
-					}
-				}
-
-			case TagInteger: // we have a long int
-				tapeidx++
-
-			case TagFloat: // we have a double
-				tapeidx++
-
-			case TagNull: // we have a null
-			case TagBoolTrue: // we have a true
-			case TagBoolFalse: // we have a false
-			case TagObjectStart: // we have an object
-			case TagObjectEnd: // we end an object
-			case TagArrayStart: // we start an array
-			case TagArrayEnd: // we end an array
-			case TagRoot: // we start and end with the root node
-				return 0
-
-			default:
-				return 0
-			}
 		}
 	}
 
