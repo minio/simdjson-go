@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"runtime"
 	"strconv"
@@ -126,6 +127,7 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 	b.Run("iter", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
+
 		for i := 0; i < b.N; i++ {
 			err := pj.parseMessageNdjson(ndjson)
 			if err != nil {
@@ -137,6 +139,68 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 			}
 		}
 	})
+	b.Run("chan", func(b *testing.B) {
+		b.SetBytes(int64(len(ndjson)))
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			// Temp values.
+			obj := &Object{}
+			elem := &Element{}
+			var tmp Iter
+			var nFound int
+			reuse := make(chan *ParsedJson, 1000)
+			res := make(chan Stream, 10)
+
+			ParseNDStream(bytes.NewBuffer(ndjson), res, reuse)
+			for got := range res {
+				if got.Error != nil {
+					if got.Error == io.EOF {
+						break
+					}
+					b.Fatal(got.Error)
+				}
+
+				all := got.Value.Iter()
+				// NDJSON is a separated by root objects.
+				for all.Advance() == TypeRoot {
+					// Read inside root.
+					t, i, err := all.Root(&tmp)
+					if t != TypeObject {
+						b.Log("got type", t.String())
+						continue
+					}
+
+					// Prepare object.
+					obj, err = i.Object(obj)
+					if err != nil {
+						b.Log("got err", err)
+						continue
+					}
+
+					// Find Make key.
+					elem = obj.FindKey("Make", elem)
+					if elem.Type != TypeString {
+						b.Log("got type", err)
+						continue
+					}
+					asB, err := elem.Iter.StringBytes()
+					if err != nil {
+						b.Log("got err", err)
+						continue
+					}
+					if bytes.Equal(asB, []byte("HOND")) {
+						nFound++
+					}
+				}
+				reuse <- got.Value
+			}
+			if nFound != want {
+				b.Fatal(nFound, "!=", want)
+			}
+		}
+	})
+
 }
 
 func TestParseNumber(t *testing.T) {

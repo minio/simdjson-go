@@ -109,7 +109,7 @@ struct that can be used to navigate the JSON object by calling [`Iter()`](https:
 Using the type [`Iter`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#Iter) you can call 
 [`Advance()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#Iter.Advance) to iterate over the tape, like so:
 
-```
+```Go
 for {
     typ := iter.Advance()
 
@@ -134,6 +134,79 @@ for {
     default:
         return
     }
+}
+```
+
+## Parsing NDSJON stream
+
+Newline delimited json is sent as packets with each line being a root element.
+
+Here is an example that counts the number of `"Make": "HOND"` in NDSJON similar to this:
+
+```
+{"Age":20, "Make": "HOND"}
+{"Age":22, "Make": "TLSA"}
+```
+
+```Go
+func findHondas(r io.Reader) {
+	// Temp values.
+	var tmpO simdjson.Object{}
+	var tmpE simdjson.Element{}
+	var tmpI simdjson.Iter
+	var nFound int
+	
+	// Communication
+	reuse := make(chan *simdjson.ParsedJson, 10)
+	res := make(chan simdjson.Stream, 10)
+
+	simdjson.ParseNDStream(r, res, reuse)
+	// Read results in blocks...
+	for got := range res {
+		if got.Error != nil {
+			if got.Error == io.EOF {
+				break
+			}
+			log.Fatal(got.Error)
+		}
+
+		all := got.Value.Iter()
+		// NDJSON is a separated by root objects.
+		for all.Advance() == simdjson.TypeRoot {
+			// Read inside root.
+			t, i, err := all.Root(&tmpI)
+			if t != simdjson.TypeObject {
+				log.Println("got type", t.String())
+				continue
+			}
+
+			// Prepare object.
+			obj, err := i.Object(&tmpO)
+			if err != nil {
+				log.Println("got err", err)
+				continue
+			}
+
+			// Find Make key.
+			elem := obj.FindKey("Make", &tmpE)
+			if elem.Type != TypeString {
+				log.Println("got type", err)
+				continue
+			}
+			
+			// Get value as bytes.
+			asB, err := elem.Iter.StringBytes()
+			if err != nil {
+				log.Println("got err", err)
+				continue
+			}
+			if bytes.Equal(asB, []byte("HOND")) {
+				nFound++
+			}
+		}
+		reuse <- got.Value
+	}
+	fmt.Println("Found", nFound, "Hondas")
 }
 ```
 
