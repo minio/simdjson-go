@@ -207,13 +207,6 @@ For string values without special characters the tape's payload points directly 
 
 For more information, see `TestStage2BuildTape` in `stage2_build_tape_test.go`.
 
-## Minor number inprecisions
-
-The number parser has minor inprecisions compared to Golang's standard number parsing. 
-There is constant `GOLANG_NUMBER_PARSING` (on by default) that uses Go's 
-parsing functionality at the expense of giving up some performance. 
-Note that the performance metrics mentioned above have been measured by setting the `GOLANG_NUMBER_PARSING` to `false`.
-
 ## Non streaming use cases
 
 The best performance is obtained by keeping the JSON message fully mapped in memory and setting the

@@ -26,13 +26,8 @@ import (
 
 func TestStage2BuildTape(t *testing.T) {
 
-	floatHexRepresentation1 := uint64(0x69066666666667)
-	floatHexRepresentation2 := uint64(0x79066666666667)
-
-	if GOLANG_NUMBER_PARSING {
-		floatHexRepresentation1 = 0x69066666666666
-		floatHexRepresentation2 = 0x79066666666666
-	}
+	var floatHexRepresentation1 uint64 = 0x69066666666666
+	var floatHexRepresentation2 uint64 = 0x79066666666666
 
 	const nul = '\000'
 

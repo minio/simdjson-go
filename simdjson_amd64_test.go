@@ -87,9 +87,6 @@ func TestParseND(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipFloats && GOLANG_NUMBER_PARSING {
-				return
-			}
 			got, err := ParseND([]byte(tt.js), nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseND() error = %v, wantErr %v", err, tt.wantErr)
@@ -169,11 +166,10 @@ func TestParseFailCases(t *testing.T) {
 	}
 
 	tests := []struct {
-		name       string
-		skipFloats bool // Skip tests that contain float64 inprecisions (see GOLANG_NUMBER_PARSING flag)
-		js         string
-		want       string
-		wantErr    bool
+		name    string
+		js      string
+		want    string
+		wantErr bool
 	}{
 		{
 			name:    "fail01_EXCLUDE",
@@ -236,16 +232,14 @@ func TestParseFailCases(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:       "fail13",
-			skipFloats: true,
-			js:         `{"Numbers cannot have leading zeroes": 013}`,
-			wantErr:    true,
+			name:    "fail13",
+			js:      `{"Numbers cannot have leading zeroes": 013}`,
+			wantErr: true,
 		},
 		{
-			name:       "fail14",
-			skipFloats: true,
-			js:         `{"Numbers cannot be hex": 0x14}`,
-			wantErr:    true,
+			name:    "fail14",
+			js:      `{"Numbers cannot be hex": 0x14}`,
+			wantErr: true,
 		},
 		{
 			name:    "fail15",
@@ -351,10 +345,9 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:       "fail37",
-			skipFloats: true,
-			js:         `[12a]`,
-			wantErr:    true,
+			name:    "fail37",
+			js:      `[12a]`,
+			wantErr: true,
 		},
 		{
 			name:    "fail38",
@@ -384,46 +377,39 @@ break"]`,
 			wantErr: true,
 		},
 		{
-			name:       "fail44",
-			skipFloats: true,
-			js:         `[-2.]`,
-			wantErr:    true,
+			name:    "fail44",
+			js:      `[-2.]`,
+			wantErr: true,
 		},
 		{
-			name:       "fail45",
-			skipFloats: true,
-			js:         `[0.e1]`,
-			wantErr:    true,
+			name:    "fail45",
+			js:      `[0.e1]`,
+			wantErr: true,
 		},
 		{
-			name:       "fail46",
-			skipFloats: true,
-			js:         `[2.e+3]`,
-			wantErr:    true,
+			name:    "fail46",
+			js:      `[2.e+3]`,
+			wantErr: true,
 		},
 		{
-			name:       "fail47",
-			skipFloats: true,
-			js:         `[2.e-3]`,
-			wantErr:    true,
+			name:    "fail47",
+			js:      `[2.e-3]`,
+			wantErr: true,
 		},
 		{
-			name:       "fail48",
-			skipFloats: true,
-			js:         `[2.e3]`,
-			wantErr:    true,
+			name:    "fail48",
+			js:      `[2.e3]`,
+			wantErr: true,
 		},
 		{
-			name:       "fail49",
-			skipFloats: true,
-			js:         `[-.123]`,
-			wantErr:    true,
+			name:    "fail49",
+			js:      `[-.123]`,
+			wantErr: true,
 		},
 		{
-			name:       "fail50",
-			skipFloats: true,
-			js:         `[1.]`,
-			wantErr:    true,
+			name:    "fail50",
+			js:      `[1.]`,
+			wantErr: true,
 		},
 		{
 			name:    "fail51",
@@ -653,9 +639,6 @@ break"]`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.skipFloats && GOLANG_NUMBER_PARSING {
-				return
-			}
 			got, err := Parse([]byte(tt.js), nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseFailCases() error = %v, wantErr %v", err, tt.wantErr)
@@ -977,9 +960,6 @@ func TestParsePassCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.skipFloats {
-				return
-			}
-			if tt.onlyPrecise && !GOLANG_NUMBER_PARSING {
 				return
 			}
 			var err error
