@@ -23,7 +23,7 @@ package simdjson
 import (
 	"sync/atomic"
 
-	"github.com/klauspost/cpuid"
+	"github.com/klauspost/cpuid/v2"
 )
 
 func json_markup(b byte) bool {
@@ -33,7 +33,7 @@ func json_markup(b byte) bool {
 func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 	f := find_structural_bits_in_slice
-	if cpuid.CPU.AVX512F() {
+	if cpuid.CPU.Has(cpuid.AVX512F) {
 		f = find_structural_bits_in_slice_avx512
 	}
 

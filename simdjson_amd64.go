@@ -29,13 +29,12 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/klauspost/cpuid"
+	"github.com/klauspost/cpuid/v2"
 )
 
 // SupportedCPU will return whether the CPU is supported.
 func SupportedCPU() bool {
-	const want = cpuid.AVX2 | cpuid.CLMUL
-	return cpuid.CPU.Features&want == want
+	return cpuid.CPU.Supports(cpuid.AVX2, cpuid.CLMUL)
 }
 
 // Parse a block of data and return the parsed JSON.
