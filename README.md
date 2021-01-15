@@ -20,78 +20,7 @@ Additionally `simdjson-go` has the following features:
 
 - No 4 GB object limit
 - Support for [ndjson](http://ndjson.org/) (newline delimited json)
-- Proper memory management
 - Pure Go (no need for cgo)
-
-## Performance vs simdjson
-
-Based on the same set of JSON test files, the graph below shows a comparison between `simdjson` and `simdjson-go`.
-
-![simdjson-vs-go-comparison](chart/simdjson-vs-simdjson-go.png)
-
-These numbers were measured on a MacBook Pro equipped with a 3.1 GHz Intel Core i7. 
-Also, to make it a fair comparison, the constant `GOLANG_NUMBER_PARSING` was set to `false` (default is `true`) 
-in order to use the same number parsing function (which is faster at the expense of some precision; see more below).
-
-In addition the constant `ALWAYS_COPY_STRINGS` was set to `false` (default is `true`) for non-streaming use case
- scenarios where the full JSON message is kept in memory (similar to the `simdjson` behaviour).
-
-## Performance vs `encoding/json` and `json-iterator/go`
-
-Below is a performance comparison to Golang's standard package `encoding/json` based on the same set of JSON test files.
-
-```
-$ benchcmp                    encoding_json.txt      simdjson-go.txt
-benchmark                     old MB/s               new MB/s         speedup
-BenchmarkApache_builds-8      106.77                  948.75           8.89x
-BenchmarkCanada-8              54.39                  519.85           9.56x
-BenchmarkCitm_catalog-8       100.44                 1565.28          15.58x
-BenchmarkGithub_events-8      159.49                  848.88           5.32x
-BenchmarkGsoc_2018-8          152.93                 2515.59          16.45x
-BenchmarkInstruments-8         82.82                  811.61           9.80x
-BenchmarkMarine_ik-8           48.12                  422.43           8.78x
-BenchmarkMesh-8                49.38                  371.39           7.52x
-BenchmarkMesh_pretty-8         73.10                  784.89          10.74x
-BenchmarkNumbers-8            160.69                  434.85           2.71x
-BenchmarkRandom-8              66.56                  615.12           9.24x
-BenchmarkTwitter-8             79.05                 1193.47          15.10x
-BenchmarkTwitterescaped-8      83.96                  536.19           6.39x
-BenchmarkUpdate_center-8       73.92                  860.52          11.64x
-```
-
-Also `simdjson-go` uses less additional memory and allocations.
-
-Here is another benchmark comparison to `json-iterator/go`:
-
-```
-$ benchcmp                    json-iterator.txt      simdjson-go.txt
-benchmark                     old MB/s               new MB/s         speedup
-BenchmarkApache_builds-8      154.65                  948.75           6.13x
-BenchmarkCanada-8              40.34                  519.85          12.89x
-BenchmarkCitm_catalog-8       183.69                 1565.28           8.52x
-BenchmarkGithub_events-8      170.77                  848.88           4.97x
-BenchmarkGsoc_2018-8          225.13                 2515.59          11.17x
-BenchmarkInstruments-8        120.39                  811.61           6.74x
-BenchmarkMarine_ik-8           61.71                  422.43           6.85x
-BenchmarkMesh-8                50.66                  371.39           7.33x
-BenchmarkMesh_pretty-8         90.36                  784.89           8.69x
-BenchmarkNumbers-8             52.61                  434.85           8.27x
-BenchmarkRandom-8              85.87                  615.12           7.16x
-BenchmarkTwitter-8            139.57                 1193.47           8.55x
-BenchmarkTwitterescaped-8     102.28                  536.19           5.24x
-BenchmarkUpdate_center-8      101.41                  860.52           8.49x
-```
-
-## AVX512 Acceleration
-
-Stage 1 has been optimized using AVX512 instructions. Under full CPU load (8 threads) the AVX512 code is about 1 GB/sec (15%) faster as compared to the AVX2 code. 
-
-```
-benchmark                                   AVX2 MB/s    AVX512 MB/s     speedup
-BenchmarkFindStructuralBitsParallelLoop      7225.24      8302.96         1.15x
-```
-
-These benchmarks were generated on a c5.2xlarge EC2 instance with a Xeon Platinum 8124M CPU at 3.0 GHz.
 
 ## Usage 
 
@@ -136,6 +65,28 @@ for {
     }
 }
 ```
+
+When you advance the Iter you get the next type currently queued.
+
+Each type then has helpers to access the data. When you get a type you can use these to access the data:
+
+| Type       | Action on Iter             |
+|------------|----------------------------|
+| TypeNone   | Nothing follows. Iter done |
+| TypeNull   | Null value                 |
+| TypeString | `String()`/`StringBytes()` |
+| TypeInt    | `Int()`/`Float()`          |
+| TypeUint   | `Uint()`/`Float()`         |
+| TypeFloat  | `Float()`                  |
+| TypeBool   | `Bool()`                   |
+| TypeObject | `Object()`                 |
+| TypeArray  | `Array()`                  |
+| TypeRoot   | `Root()`                   |
+
+The complex types returns helpers that will help parse each of the underlying structures.
+
+It is up to you to keep track of the nesting level you are operating at.
+
 
 ## Parsing NDSJON stream
 
@@ -211,6 +162,77 @@ func findHondas(r io.Reader) {
 ```
 
 More examples can be found in the examples subdirectory and further documentation can be found at [godoc](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc). 
+
+
+## Performance vs simdjson
+
+Based on the same set of JSON test files, the graph below shows a comparison between `simdjson` and `simdjson-go`.
+
+![simdjson-vs-go-comparison](chart/simdjson-vs-simdjson-go.png)
+
+These numbers were measured on a MacBook Pro equipped with a 3.1 GHz Intel Core i7.
+Also, to make it a fair comparison, the constant `GOLANG_NUMBER_PARSING` was set to `false` (default is `true`)
+in order to use the same number parsing function (which is faster at the expense of some precision; see more below).
+
+In addition the constant `ALWAYS_COPY_STRINGS` was set to `false` (default is `true`) for non-streaming use case
+scenarios where the full JSON message is kept in memory (similar to the `simdjson` behaviour).
+
+## Performance vs `encoding/json` and `json-iterator/go`
+
+Below is a performance comparison to Golang's standard package `encoding/json` based on the same set of JSON test files.
+
+```
+$ benchcmp                    encoding_json.txt      simdjson-go.txt
+benchmark                     old MB/s               new MB/s         speedup
+BenchmarkApache_builds-8      106.77                  948.75           8.89x
+BenchmarkCanada-8              54.39                  519.85           9.56x
+BenchmarkCitm_catalog-8       100.44                 1565.28          15.58x
+BenchmarkGithub_events-8      159.49                  848.88           5.32x
+BenchmarkGsoc_2018-8          152.93                 2515.59          16.45x
+BenchmarkInstruments-8         82.82                  811.61           9.80x
+BenchmarkMarine_ik-8           48.12                  422.43           8.78x
+BenchmarkMesh-8                49.38                  371.39           7.52x
+BenchmarkMesh_pretty-8         73.10                  784.89          10.74x
+BenchmarkNumbers-8            160.69                  434.85           2.71x
+BenchmarkRandom-8              66.56                  615.12           9.24x
+BenchmarkTwitter-8             79.05                 1193.47          15.10x
+BenchmarkTwitterescaped-8      83.96                  536.19           6.39x
+BenchmarkUpdate_center-8       73.92                  860.52          11.64x
+```
+
+Also `simdjson-go` uses less additional memory and allocations.
+
+Here is another benchmark comparison to `json-iterator/go`:
+
+```
+$ benchcmp                    json-iterator.txt      simdjson-go.txt
+benchmark                     old MB/s               new MB/s         speedup
+BenchmarkApache_builds-8      154.65                  948.75           6.13x
+BenchmarkCanada-8              40.34                  519.85          12.89x
+BenchmarkCitm_catalog-8       183.69                 1565.28           8.52x
+BenchmarkGithub_events-8      170.77                  848.88           4.97x
+BenchmarkGsoc_2018-8          225.13                 2515.59          11.17x
+BenchmarkInstruments-8        120.39                  811.61           6.74x
+BenchmarkMarine_ik-8           61.71                  422.43           6.85x
+BenchmarkMesh-8                50.66                  371.39           7.33x
+BenchmarkMesh_pretty-8         90.36                  784.89           8.69x
+BenchmarkNumbers-8             52.61                  434.85           8.27x
+BenchmarkRandom-8              85.87                  615.12           7.16x
+BenchmarkTwitter-8            139.57                 1193.47           8.55x
+BenchmarkTwitterescaped-8     102.28                  536.19           5.24x
+BenchmarkUpdate_center-8      101.41                  860.52           8.49x
+```
+
+## AVX512 Acceleration
+
+Stage 1 has been optimized using AVX512 instructions. Under full CPU load (8 threads) the AVX512 code is about 1 GB/sec (15%) faster as compared to the AVX2 code.
+
+```
+benchmark                                   AVX2 MB/s    AVX512 MB/s     speedup
+BenchmarkFindStructuralBitsParallelLoop      7225.24      8302.96         1.15x
+```
+
+These benchmarks were generated on a c5.2xlarge EC2 instance with a Xeon Platinum 8124M CPU at 3.0 GHz.
 
 ## Requirements
 
