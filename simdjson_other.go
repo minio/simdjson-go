@@ -26,7 +26,7 @@ import (
 
 // SupportedCPU will return whether the CPU is supported.
 func SupportedCPU() bool {
-return false
+	return false
 }
 
 // Parse a block of data and return the parsed JSON.
@@ -62,13 +62,12 @@ type Stream struct {
 // There is no guarantee that elements will be consumed, so always use
 // non-blocking writes to the reuse channel.
 func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
-		go func() {
-			res <- Stream{
-				Value: nil,
-				Error: fmt.Errorf("Unsupported platform"),
-			}
-			close(res)
-		}()
-		return
+	go func() {
+		res <- Stream{
+			Value: nil,
+			Error: fmt.Errorf("Unsupported platform"),
+		}
+		close(res)
+	}()
+	return
 }
-

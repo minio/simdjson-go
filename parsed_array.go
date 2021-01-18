@@ -145,8 +145,8 @@ readArray:
 	return dst, nil
 }
 
-// AsInteger returns the array values as float.
-// Integers are automatically converted to float.
+// AsInteger returns the array values as int64 values.
+// Uints/Floats are automatically converted to int64 if they fit within the range.
 func (a *Array) AsInteger() ([]int64, error) {
 	// Estimate length
 	lenEst := (len(a.tape.Tape) - a.off - 1) / 2
@@ -197,6 +197,57 @@ readArray:
 	return dst, nil
 }
 
+// AsUint64 returns the array values as float.
+// Uints/Floats are automatically converted to uint64 if they fit within the range.
+func (a *Array) AsUint64() ([]uint64, error) {
+	// Estimate length
+	lenEst := (len(a.tape.Tape) - a.off - 1) / 2
+	if lenEst < 0 {
+		lenEst = 0
+	}
+	dst := make([]uint64, 0, lenEst)
+readArray:
+	for {
+		tag := Tag(a.tape.Tape[a.off] >> 56)
+		a.off++
+		switch tag {
+		case TagFloat:
+			if len(a.tape.Tape) <= a.off {
+				return nil, errors.New("corrupt input: expected float, but no more values")
+			}
+			val := math.Float64frombits(a.tape.Tape[a.off])
+			if val > math.MaxInt64 {
+				return nil, errors.New("float value overflows uint64")
+			}
+			if val < 0 {
+				return nil, errors.New("float value is negative")
+			}
+			dst = append(dst, uint64(val))
+		case TagInteger:
+			if len(a.tape.Tape) <= a.off {
+				return nil, errors.New("corrupt input: expected integer, but no more values")
+			}
+			val := int64(a.tape.Tape[a.off])
+			if val < 0 {
+				return nil, errors.New("int64 value is negative")
+			}
+			dst = append(dst, uint64(val))
+		case TagUint:
+			if len(a.tape.Tape) <= a.off {
+				return nil, errors.New("corrupt input: expected integer, but no more values")
+			}
+
+			dst = append(dst, a.tape.Tape[a.off])
+		case TagArrayEnd:
+			break readArray
+		default:
+			return nil, fmt.Errorf("unable to convert type %v to integer", tag)
+		}
+		a.off++
+	}
+	return dst, nil
+}
+
 // AsString returns the array values as a slice of strings.
 // No conversion is done.
 func (a *Array) AsString() ([]string, error) {
@@ -224,6 +275,36 @@ func (a *Array) AsString() ([]string, error) {
 			dst = append(dst, s)
 		default:
 			return nil, fmt.Errorf("element in array is not string, but %v", t)
+		}
+	}
+}
+
+// AsStringCvt returns the array values as a slice of strings.
+// Scalar types are converted.
+// Root, Object and Arrays are not supported an will return an error if found.
+func (a *Array) AsStringCvt() ([]string, error) {
+	// Estimate length
+	lenEst := len(a.tape.Tape) - a.off - 1
+	if lenEst < 0 {
+		lenEst = 0
+	}
+	dst := make([]string, 0, lenEst)
+	i := a.Iter()
+	var elem Iter
+	for {
+		t, err := i.AdvanceIter(&elem)
+		if err != nil {
+			return nil, err
+		}
+		switch t {
+		case TypeNone:
+			return dst, nil
+		default:
+			s, err := elem.StringCvt()
+			if err != nil {
+				return nil, err
+			}
+			dst = append(dst, s)
 		}
 	}
 }

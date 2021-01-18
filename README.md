@@ -22,12 +22,23 @@ Additionally `simdjson-go` has the following features:
 - Support for [ndjson](http://ndjson.org/) (newline delimited json)
 - Pure Go (no need for cgo)
 
+## Requirements
+
+`simdjson-go` has the following requirements for parsing:
+
+A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPYC CPU (Q1 2017) should be sufficient).
+This can be checked using the provided [`SupportedCPU()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#SupportedCPU`) function.
+
+The package does not provide fallback for unsupported CPUs, but serialized data can be deserialized on an unsupported CPU.
+
+Using the `gccgo` will also always return unsupported CPU since it cannot compile assembly. 
+
 ## Usage 
 
 Run the following command in order to install `simdjson-go`
 
-```
-$ go get github.com/minio/simdjson-go
+```bash
+go get -u github.com/minio/simdjson-go
 ```
 
 In order to parse a JSON byte stream, you either call [`simdjson.Parse()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#Parse)
@@ -83,10 +94,44 @@ Each type then has helpers to access the data. When you get a type you can use t
 | TypeArray  | `Array()`                  |
 | TypeRoot   | `Root()`                   |
 
+You can also get the next value as an `interface{}` using the [Interface()](https://pkg.go.dev/github.com/minio/simdjson-go#Iter.Interface) method.
+
+Note that arrays and objects that are null are always returned as `TypeNull`.
+
 The complex types returns helpers that will help parse each of the underlying structures.
 
 It is up to you to keep track of the nesting level you are operating at.
 
+For any `Iter` it is possible to marshal the recursive content of the Iter using
+[`MarshalJSON()`](https://pkg.go.dev/github.com/minio/simdjson-go#Iter.MarshalJSON) or
+[`MarshalJSONBuffer(...)`](https://pkg.go.dev/github.com/minio/simdjson-go#Iter.MarshalJSONBuffer).
+
+Currently, it is not possible to unmarshal into structs.
+
+## Parsing Objects
+
+If you are only interested in one key in an object you can use `FindKey` to quickly select it.
+
+An object kan be traversed manually by using `NextElement(dst *Iter) (name string, t Type, err error)`.
+The key of the element will be returned as a string and the type of the value will be returned
+and the provided `Iter` will contain an iterator which will allow access to the content.
+
+There is a `NextElementBytes` which provides the same, but without the need to allocate a string.
+
+All elements of the object can be retrieved using a pretty lightweight [`Parse`](https://pkg.go.dev/github.com/minio/simdjson-go#Object.Parse)
+which provides a map of all keys and all elements an a slide.
+
+All elements of the object can be returned as `map[string]interface{}` using the `Map` method on the object.
+This will naturally perform allocations for all elements.
+
+## Parsing Arrays
+
+[Arrays](https://pkg.go.dev/github.com/minio/simdjson-go#Array) in JSON can have mixed types. 
+To iterate over the array with mixed types use the [`Iter`](https://pkg.go.dev/github.com/minio/simdjson-go#Array.Iter) 
+method to get an iterator.
+
+There are methods that allow you to retrieve all elements as a single type, 
+[]int64, []uint64, float64 and strings.  
 
 ## Parsing NDSJON stream
 
@@ -163,6 +208,31 @@ func findHondas(r io.Reader) {
 
 More examples can be found in the examples subdirectory and further documentation can be found at [godoc](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc). 
 
+## Serializing parsed json
+
+It is possible to serialize parsed JSON for more compact storage and faster load time.
+
+To create a new serialized use [NewSerializer](https://pkg.go.dev/github.com/minio/simdjson-go#NewSerializer).
+This serializer can be reused for several JSON blocks.
+
+The serializer will provide string deduplication and compression of elements. 
+This can be finetuned using the [`CompressMode`](https://pkg.go.dev/github.com/minio/simdjson-go#Serializer.CompressMode) setting.
+
+To serialize a block of parsed data use the [`Serialize`](https://pkg.go.dev/github.com/minio/simdjson-go#Serializer.Serialize) method.
+
+To read back use the [`Deserialize`](https://pkg.go.dev/github.com/minio/simdjson-go#Serializer.Deserialize) method.
+For deserializing the compression mode does not need to match since it is read from the stream. 
+
+Example of speed for serializer/deserializer on [`parking-citations-1M`](https://files.klauspost.com/compress/parking-citations-1M.json.zst).
+
+| Compress Mode | % of JSON size | Serialize Speed | Deserialize Speed |
+|---------------|----------------|-----------------|-------------------|
+| None          | 177.26%        | 425.70 MB/s     | 2334.33 MB/s      |
+| Fast          | 17.20%         | 412.75 MB/s     | 1234.76 MB/s      |
+| Default       | 16.85%         | 411.59 MB/s     | 1242.09 MB/s      |
+| Best          | 10.91%         | 337.17 MB/s     | 806.23 MB/s       |
+
+In some cases the speed difference and compression difference will be bigger.
 
 ## Performance vs simdjson
 
@@ -233,13 +303,6 @@ BenchmarkFindStructuralBitsParallelLoop      7225.24      8302.96         1.15x
 ```
 
 These benchmarks were generated on a c5.2xlarge EC2 instance with a Xeon Platinum 8124M CPU at 3.0 GHz.
-
-## Requirements
-
-`simdjson-go` has the following requirements:
-
-- A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPYC CPU (Q1 2017) should be sufficient). 
-This can be checked using the provided [`SupportedCPU()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#SupportedCPU`) function.
 
 ## Design
 
