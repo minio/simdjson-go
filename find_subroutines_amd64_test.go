@@ -356,7 +356,7 @@ func TestFindStructuralBits(t *testing.T) {
 	}
 }
 
-func testFindStructuralBitsWhitespacePadding(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
+func testFindStructuralBitsWhitespacePadding(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[indexSize]uint32, *int, *uint64, *uint64, uint64) uint64) {
 
 	// Test whitespace padding (for partial load of last 64 bytes) with
 	// string full of structural characters
@@ -372,7 +372,7 @@ func testFindStructuralBitsWhitespacePadding(t *testing.T, f func([]byte, *uint6
 		position := ^uint64(0)
 
 		index := indexChan{}
-		index.indexes = &[INDEX_SIZE]uint32{}
+		index.indexes = &[indexSize]uint32{}
 
 		processed := find_structural_bits_in_slice([]byte(msg[:l]), &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
@@ -414,7 +414,7 @@ func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
 	}
 }
 
-func testFindStructuralBitsLoop(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
+func testFindStructuralBitsLoop(t *testing.T, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[indexSize]uint32, *int, *uint64, *uint64, uint64) uint64) {
 	msg := loadCompressed(t, "twitter")
 
 	prev_iter_ends_odd_backslash := uint64(0)
@@ -428,7 +428,7 @@ func testFindStructuralBitsLoop(t *testing.T, f func([]byte, *uint64, *uint64, *
 
 	for processed := uint64(0); processed < uint64(len(msg)); {
 		index := indexChan{}
-		index.indexes = &[INDEX_SIZE]uint32{}
+		index.indexes = &[indexSize]uint32{}
 
 		processed += f(msg[processed:], &prev_iter_ends_odd_backslash,
 			&prev_iter_inside_quote, &error_mask,
@@ -501,7 +501,7 @@ func BenchmarkFindStructuralBits(b *testing.B) {
 	}
 }
 
-func benchmarkFindStructuralBitsLoop(b *testing.B, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
+func benchmarkFindStructuralBitsLoop(b *testing.B, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[indexSize]uint32, *int, *uint64, *uint64, uint64) uint64) {
 
 	msg := loadCompressed(b, "twitter")
 
@@ -520,7 +520,7 @@ func benchmarkFindStructuralBitsLoop(b *testing.B, f func([]byte, *uint64, *uint
 
 		for processed := uint64(0); processed < uint64(len(msg)); {
 			index := indexChan{}
-			index.indexes = &[INDEX_SIZE]uint32{}
+			index.indexes = &[indexSize]uint32{}
 
 			processed += f(msg[processed:], &prev_iter_ends_odd_backslash,
 				&prev_iter_inside_quote, &error_mask,
@@ -541,7 +541,7 @@ func BenchmarkFindStructuralBitsLoop(b *testing.B) {
 	}
 }
 
-func benchmarkFindStructuralBitsParallelLoop(b *testing.B, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[INDEX_SIZE]uint32, *int, *uint64, *uint64, uint64) uint64) {
+func benchmarkFindStructuralBitsParallelLoop(b *testing.B, f func([]byte, *uint64, *uint64, *uint64, *uint64, *[indexSize]uint32, *int, *uint64, *uint64, uint64) uint64) {
 
 	msg := loadCompressed(b, "twitter")
 	cpus := runtime.NumCPU()
@@ -563,7 +563,7 @@ func benchmarkFindStructuralBitsParallelLoop(b *testing.B, f func([]byte, *uint6
 
 				for processed := uint64(0); processed < uint64(len(msg)); {
 					index := indexChan{}
-					index.indexes = &[INDEX_SIZE]uint32{}
+					index.indexes = &[indexSize]uint32{}
 
 					processed += f(msg[processed:], &prev_iter_ends_odd_backslash,
 						&prev_iter_inside_quote, &error_mask,
@@ -708,7 +708,7 @@ func TestFlattenBitsIncremental(t *testing.T) {
 	for i, tc := range testCases {
 
 		index := indexChan{}
-		index.indexes = &[INDEX_SIZE]uint32{}
+		index.indexes = &[indexSize]uint32{}
 		carried := 0
 		position := ^uint64(0)
 
@@ -758,7 +758,7 @@ func BenchmarkFlattenBits(b *testing.B) {
 	b.ResetTimer()
 
 	index := indexChan{}
-	index.indexes = &[INDEX_SIZE]uint32{}
+	index.indexes = &[indexSize]uint32{}
 	carried := 0
 	position := ^uint64(0)
 

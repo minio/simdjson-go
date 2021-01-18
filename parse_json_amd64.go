@@ -42,8 +42,8 @@ func (pj *internalParsedJson) initialize(size int) {
 		pj.Strings = make([]byte, 0, stringsSize)
 	}
 	pj.Strings = pj.Strings[:0]
-	if cap(pj.containing_scope_offset) < DEFAULTDEPTH {
-		pj.containing_scope_offset = make([]uint64, 0, DEFAULTDEPTH)
+	if cap(pj.containing_scope_offset) < maxdepth {
+		pj.containing_scope_offset = make([]uint64, 0, maxdepth)
 	}
 	pj.containing_scope_offset = pj.containing_scope_offset[:0]
 }
@@ -75,18 +75,18 @@ func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err
 	// Make the capacity of the channel smaller than the number of slots.
 	// This way the sender will automatically block until the consumer
 	// has finished the slot it is working on.
-	pj.index_chan = make(chan indexChan, INDEX_SLOTS-2)
+	pj.index_chan = make(chan indexChan, indexSlots-2)
 	pj.buffers_offset = ^uint64(0)
 
 	var errStage1 error
 	go func() {
-		if !find_structural_indices(pj.Message, pj) {
+		if !findStructuralIndices(pj.Message, pj) {
 			errStage1 = errors.New("Failed to find all structural indices for stage 1")
 		}
 		wg.Done()
 	}()
 	go func() {
-		if !unified_machine(pj.Message, pj) {
+		if !unifiedMachine(pj.Message, pj) {
 			err = errors.New("Bad parsing while executing stage 2")
 			// drain the channel until empty
 			for range pj.index_chan {

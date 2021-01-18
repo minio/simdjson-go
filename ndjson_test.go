@@ -241,7 +241,7 @@ func verifyDemoNdjson(pj internalParsedJson, t *testing.T, object int) {
 		//}
 		//fmt.Printf("{%s, 0x%x},\n", c, tp&0xffffffffffffff)
 		expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
-		if !ALWAYS_COPY_STRINGS && tp != expected {
+		if !alwaysCopyStrings && tp != expected {
 			t.Errorf("verifyDemoNdjson(%d): got: %016x want: %016x", ii, tp, expected)
 		}
 	}
