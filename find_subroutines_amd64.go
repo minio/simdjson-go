@@ -152,7 +152,7 @@ func _find_structural_bits_in_slice(buf unsafe.Pointer, len uint64, p3 unsafe.Po
 func find_structural_bits_in_slice(buf []byte, prev_iter_ends_odd_backslash *uint64,
 	prev_iter_inside_quote, error_mask *uint64,
 	prev_iter_ends_pseudo_pred *uint64,
-	indexes *[INDEX_SIZE]uint32, index *int, carried *uint64, position *uint64,
+	indexes *[indexSize]uint32, index *int, carried *uint64, position *uint64,
 	ndjson uint64) (processed uint64) {
 
 	if len(buf) == 0 {
@@ -167,7 +167,7 @@ func find_structural_bits_in_slice(buf []byte, prev_iter_ends_odd_backslash *uin
 		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(&quote_bits), unsafe.Pointer(error_mask),
 		unsafe.Pointer(&whitespace), unsafe.Pointer(&structurals),
 		unsafe.Pointer(prev_iter_ends_pseudo_pred),
-		unsafe.Pointer(&(*indexes)[0]), unsafe.Pointer(index), INDEX_SIZE_WITH_SAFETY_BUFFER,
+		unsafe.Pointer(&(*indexes)[0]), unsafe.Pointer(index), indexSizeWithSafetyBuffer,
 		unsafe.Pointer(carried), unsafe.Pointer(position),
 		ndjson)
 }
@@ -183,7 +183,7 @@ func _find_structural_bits_in_slice_avx512(buf unsafe.Pointer, len uint64, p3 un
 func find_structural_bits_in_slice_avx512(buf []byte, prev_iter_ends_odd_backslash *uint64,
 	prev_iter_inside_quote, error_mask *uint64,
 	prev_iter_ends_pseudo_pred *uint64,
-	indexes *[INDEX_SIZE]uint32, index *int, carried *uint64, position *uint64,
+	indexes *[indexSize]uint32, index *int, carried *uint64, position *uint64,
 	ndjson uint64) (processed uint64) {
 
 	if len(buf) == 0 {
@@ -193,7 +193,7 @@ func find_structural_bits_in_slice_avx512(buf []byte, prev_iter_ends_odd_backsla
 	return _find_structural_bits_in_slice_avx512(unsafe.Pointer(&buf[0]), uint64(len(buf)), unsafe.Pointer(prev_iter_ends_odd_backslash),
 		unsafe.Pointer(prev_iter_inside_quote), unsafe.Pointer(error_mask),
 		unsafe.Pointer(prev_iter_ends_pseudo_pred),
-		unsafe.Pointer(&(*indexes)[0]), unsafe.Pointer(index), INDEX_SIZE_WITH_SAFETY_BUFFER,
+		unsafe.Pointer(&(*indexes)[0]), unsafe.Pointer(index), indexSizeWithSafetyBuffer,
 		unsafe.Pointer(carried), unsafe.Pointer(position),
 		ndjson)
 }
@@ -227,6 +227,6 @@ func __flatten_bits_incremental()
 //go:noescape
 func _flatten_bits_incremental(base_ptr, pbase unsafe.Pointer, mask uint64, carried unsafe.Pointer, position unsafe.Pointer)
 
-func flatten_bits_incremental(base *[INDEX_SIZE]uint32, base_index *int, mask uint64, carried *int, position *uint64) {
+func flatten_bits_incremental(base *[indexSize]uint32, base_index *int, mask uint64, carried *int, position *uint64) {
 	_flatten_bits_incremental(unsafe.Pointer(&(*base)[0]), unsafe.Pointer(base_index), mask, unsafe.Pointer(carried), unsafe.Pointer(position))
 }

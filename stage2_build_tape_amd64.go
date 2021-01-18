@@ -27,10 +27,10 @@ import (
 )
 
 // Constants for "return address" modes
-const RET_ADDRESS_SHIFT = 2
-const RET_ADDRESS_START_CONST = 1
-const RET_ADDRESS_OBJECT_CONST = 2
-const RET_ADDRESS_ARRAY_CONST = 3
+const retAddressShift = 2
+const retAddressStartConst = 1
+const retAddressObjectConst = 2
+const retAddressArrayConst = 3
 
 func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 	if pj.indexesChan.index >= pj.indexesChan.length {
@@ -71,7 +71,7 @@ func peekSize(pj *internalParsedJson) uint64 {
 	return uint64(pj.indexesChan.indexes[pj.indexesChan.index])
 }
 
-func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
+func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 	size := uint64(0)
 	need_copy := false
 	buf := pj.Message[idx:]
@@ -87,7 +87,7 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 			buf = paddedBuf[:]
 		}
 	}
-	if !parse_string_simd_validate_only(buf, &maxStringSize, &size, &need_copy) {
+	if !parseStringSimdValidateOnly(buf, &maxStringSize, &size, &need_copy) {
 		return false
 	}
 	if !need_copy {
@@ -105,7 +105,7 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 			pj.Strings = strs
 		}
 		start := len(pj.Strings)
-		_ = parse_string_simd(buf, &pj.Strings) // We can safely ignore the result since we validate above
+		_ = parseStringSimd(buf, &pj.Strings) // We can safely ignore the result since we validate above
 		pj.write_tape(uint64(STRINGBUFBIT+start), '"')
 		size = uint64(len(pj.Strings) - start)
 	}
@@ -114,7 +114,7 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 	return true
 }
 
-func parse_number(buf []byte, pj *ParsedJson) bool {
+func addNumber(buf []byte, pj *ParsedJson) bool {
 	tag, val := parseNumber(buf)
 	if tag == TagEnd {
 		return false
@@ -123,49 +123,49 @@ func parse_number(buf []byte, pj *ParsedJson) bool {
 	return true
 }
 
-func is_valid_true_atom(buf []byte) bool {
+func isValidTrueAtom(buf []byte) bool {
 	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
 		tv := uint64(0x0000000065757274) // "true    "
 		mask4 := uint64(0x00000000ffffffff)
 		locval := binary.LittleEndian.Uint64(buf)
 		error := (locval & mask4) ^ tv
-		error |= uint64(is_not_structural_or_whitespace(buf[4]))
+		error |= uint64(isNotStructuralOrWhitespace(buf[4]))
 		return error == 0
 	} else if len(buf) >= 5 {
-		return bytes.Compare(buf[:4], []byte("true")) == 0 && is_not_structural_or_whitespace(buf[4]) == 0
+		return bytes.Compare(buf[:4], []byte("true")) == 0 && isNotStructuralOrWhitespace(buf[4]) == 0
 	}
 	return false
 }
 
-func is_valid_false_atom(buf []byte) bool {
+func isValidFalseAtom(buf []byte) bool {
 	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
 		fv := uint64(0x00000065736c6166) // "false   "
 		mask5 := uint64(0x000000ffffffffff)
 		locval := binary.LittleEndian.Uint64(buf)
 		error := (locval & mask5) ^ fv
-		error |= uint64(is_not_structural_or_whitespace(buf[5]))
+		error |= uint64(isNotStructuralOrWhitespace(buf[5]))
 		return error == 0
 	} else if len(buf) >= 6 {
-		return bytes.Compare(buf[:5], []byte("false")) == 0 && is_not_structural_or_whitespace(buf[5]) == 0
+		return bytes.Compare(buf[:5], []byte("false")) == 0 && isNotStructuralOrWhitespace(buf[5]) == 0
 	}
 	return false
 }
 
-func is_valid_null_atom(buf []byte) bool {
+func isValidNullAtom(buf []byte) bool {
 	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
 		nv := uint64(0x000000006c6c756e) // "null    "
 		mask4 := uint64(0x00000000ffffffff)
 		locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
 		error := (locval & mask4) ^ nv
-		error |= uint64(is_not_structural_or_whitespace(buf[4]))
+		error |= uint64(isNotStructuralOrWhitespace(buf[4]))
 		return error == 0
 	} else if len(buf) >= 5 {
-		return bytes.Compare(buf[:4], []byte("null")) == 0 && is_not_structural_or_whitespace(buf[4]) == 0
+		return bytes.Compare(buf[:4], []byte("null")) == 0 && isNotStructuralOrWhitespace(buf[4]) == 0
 	}
 	return false
 }
 
-func unified_machine(buf []byte, pj *internalParsedJson) bool {
+func unifiedMachine(buf []byte, pj *internalParsedJson) bool {
 
 	const addOneForRoot = 1
 
@@ -174,7 +174,7 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 
 	////////////////////////////// START STATE /////////////////////////////
-	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
+	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
@@ -182,21 +182,21 @@ func unified_machine(buf []byte, pj *internalParsedJson) bool {
 	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
-continue_root:
+continueRoot:
 	switch buf[idx] {
 	case '{':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 		pj.write_tape(0, buf[idx])
 		goto object_begin
 	case '[':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 		pj.write_tape(0, buf[idx])
-		goto array_begin
+		goto arrayBegin
 	default:
 		goto fail
 	}
 
-start_continue:
+startContinue:
 	// We are back at the top, read the next char and we should be done
 	if done, idx = updateChar(pj, idx); done {
 		goto succeed
@@ -219,14 +219,14 @@ start_continue:
 		// drop last element
 		pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
-		pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
-		pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
+		pj.annotate_previousloc(offset>>retAddressShift, pj.get_current_loc()+addOneForRoot)
+		pj.write_tape(offset>>retAddressShift, 'r') // r is root
 
 		// And open a new root
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_START_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 		pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 
-		goto continue_root
+		goto continueRoot
 	}
 
 	//////////////////////////////// OBJECT STATES /////////////////////////////
@@ -237,12 +237,12 @@ object_begin:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 		goto object_key_state
 	case '}':
-		goto scope_end // could also go to object_continue
+		goto scopeEnd // could also go to object_continue
 	default:
 		goto fail
 	}
@@ -259,55 +259,55 @@ object_key_state:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 
 	case 't':
-		if !is_valid_true_atom(buf[idx:]) {
+		if !isValidTrueAtom(buf[idx:]) {
 			goto fail
 		}
 		pj.write_tape(0, buf[idx])
 
 	case 'f':
-		if !is_valid_false_atom(buf[idx:]) {
+		if !isValidFalseAtom(buf[idx:]) {
 			goto fail
 		}
 		pj.write_tape(0, buf[idx])
 
 	case 'n':
-		if !is_valid_null_atom(buf[idx:]) {
+		if !isValidNullAtom(buf[idx:]) {
 			goto fail
 		}
 		pj.write_tape(0, buf[idx])
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf[idx:], &pj.ParsedJson) {
+		if !addNumber(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
 
 	case '-':
-		if !parse_number(buf[idx:], &pj.ParsedJson) {
+		if !addNumber(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
 
 	case '{':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_OBJECT_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
 		pj.write_tape(0, buf[idx])
 		// we have not yet encountered } so we need to come back for it
 		goto object_begin
 
 	case '[':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_OBJECT_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
 		pj.write_tape(0, buf[idx])
 		// we have not yet encountered } so we need to come back for it
-		goto array_begin
+		goto arrayBegin
 
 	default:
 		goto fail
 	}
 
-object_continue:
+objectContinue:
 	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
@@ -319,96 +319,96 @@ object_continue:
 		if buf[idx] != '"' {
 			goto fail
 		}
-		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 		goto object_key_state
 
 	case '}':
-		goto scope_end
+		goto scopeEnd
 
 	default:
 		goto fail
 	}
 
 	////////////////////////////// COMMON STATE /////////////////////////////
-scope_end:
+scopeEnd:
 	// write our tape location to the header scope
 	offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
 	// drop last element
 	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
 
-	pj.write_tape(offset>>RET_ADDRESS_SHIFT, buf[idx])
-	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc())
+	pj.write_tape(offset>>retAddressShift, buf[idx])
+	pj.annotate_previousloc(offset>>retAddressShift, pj.get_current_loc())
 
 	/* goto saved_state*/
-	switch offset & ((1 << RET_ADDRESS_SHIFT) - 1) {
-	case RET_ADDRESS_ARRAY_CONST:
-		goto array_continue
-	case RET_ADDRESS_OBJECT_CONST:
-		goto object_continue
+	switch offset & ((1 << retAddressShift) - 1) {
+	case retAddressArrayConst:
+		goto arrayContinue
+	case retAddressObjectConst:
+		goto objectContinue
 	default:
-		goto start_continue
+		goto startContinue
 	}
 
 	////////////////////////////// ARRAY STATES /////////////////////////////
-array_begin:
+arrayBegin:
 	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
 	if buf[idx] == ']' {
-		goto scope_end // could also go to array_continue
+		goto scopeEnd // could also go to array_continue
 	}
 
-main_array_switch:
+mainArraySwitch:
 	// we call update char on all paths in, so we can peek at c on the
 	// on paths that can accept a close square brace (post-, and at start)
 	switch buf[idx] {
 	case '"':
-		if !parse_string(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
 			goto fail
 		}
 	case 't':
-		if !is_valid_true_atom(buf[idx:]) {
+		if !isValidTrueAtom(buf[idx:]) {
 			goto fail
 		}
 		pj.write_tape(0, buf[idx])
 
 	case 'f':
-		if !is_valid_false_atom(buf[idx:]) {
+		if !isValidFalseAtom(buf[idx:]) {
 			goto fail
 		}
 		pj.write_tape(0, buf[idx])
 
 	case 'n':
-		if !is_valid_null_atom(buf[idx:]) {
+		if !isValidNullAtom(buf[idx:]) {
 			goto fail
 		}
 		pj.write_tape(0, buf[idx])
 		/* goto array_continue */
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
-		if !parse_number(buf[idx:], &pj.ParsedJson) {
+		if !addNumber(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
 
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_ARRAY_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
 		pj.write_tape(0, buf[idx]) //  here the compilers knows what c is so this gets optimized
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<RET_ADDRESS_SHIFT)|RET_ADDRESS_ARRAY_CONST)
+		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
 		pj.write_tape(0, buf[idx]) // here the compilers knows what c is so this gets optimized
-		goto array_begin
+		goto arrayBegin
 
 	default:
 		goto fail
 	}
 
-array_continue:
+arrayContinue:
 	if done, idx = updateChar(pj, idx); done {
 		goto succeed
 	}
@@ -417,10 +417,10 @@ array_continue:
 		if done, idx = updateChar(pj, idx); done {
 			goto succeed
 		}
-		goto main_array_switch
+		goto mainArraySwitch
 
 	case ']':
-		goto scope_end
+		goto scopeEnd
 
 	default:
 		goto fail
@@ -437,8 +437,8 @@ succeed:
 		return false
 	}
 
-	pj.annotate_previousloc(offset>>RET_ADDRESS_SHIFT, pj.get_current_loc()+addOneForRoot)
-	pj.write_tape(offset>>RET_ADDRESS_SHIFT, 'r') // r is root
+	pj.annotate_previousloc(offset>>retAddressShift, pj.get_current_loc()+addOneForRoot)
+	pj.write_tape(offset>>retAddressShift, 'r') // r is root
 
 	pj.isvalid = true
 	return true
@@ -454,7 +454,7 @@ fail:
 
 // these are the chars that can follow a true/false/null or number atom
 // and nothing else
-var structural_or_whitespace_negated = [256]byte{
+var structuralOrWhitespaceNegated = [256]byte{
 	0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1,
@@ -473,6 +473,6 @@ var structural_or_whitespace_negated = [256]byte{
 
 // return non-zero if not a structural or whitespace char
 // zero otherwise
-func is_not_structural_or_whitespace(c byte) byte {
-	return structural_or_whitespace_negated[c]
+func isNotStructuralOrWhitespace(c byte) byte {
+	return structuralOrWhitespaceNegated[c]
 }

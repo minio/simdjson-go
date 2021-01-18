@@ -26,11 +26,20 @@ import (
 	"github.com/klauspost/cpuid/v2"
 )
 
-func json_markup(b byte) bool {
-	return b == '{' || b == '}' || b == '[' || b == ']' || b == ',' || b == ':'
+var jsonMarkupTable = [256]bool{
+	'{': true,
+	'}': true,
+	'[': true,
+	']': true,
+	',': true,
+	':': true,
 }
 
-func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
+func jsonMarkup(b byte) bool {
+	return jsonMarkupTable[b]
+}
+
+func findStructuralIndices(buf []byte, pj *internalParsedJson) bool {
 
 	f := find_structural_bits_in_slice
 	if cpuid.CPU.Has(cpuid.AVX512F) {
@@ -66,7 +75,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 
 		index := indexChan{}
 		offset := atomic.AddUint64(&pj.buffers_offset, 1)
-		index.indexes = &pj.buffers[offset%INDEX_SLOTS]
+		index.indexes = &pj.buffers[offset%indexSlots]
 
 		// In case last index during previous round was stripped back, put it back
 		if stripped_index != ^uint64(0) {
@@ -108,7 +117,7 @@ func find_structural_indices(buf []byte, pj *internalParsedJson) bool {
 				error_mask = ^uint64(0)
 				break
 			}
-		} else if !json_markup(buf[position]) {
+		} else if !jsonMarkup(buf[position]) {
 			// There may be a dangling quote at the end of the index buffer
 			// Strip it from current index buffer and save for next round
 			stripped_index = uint64(index.indexes[index.length-1])

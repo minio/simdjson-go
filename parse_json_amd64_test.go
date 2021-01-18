@@ -97,7 +97,7 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
 		pj.index_chan = make(chan indexChan, 128*10240)
-		find_structural_indices([]byte(ndjson), &pj)
+		findStructuralIndices([]byte(ndjson), &pj)
 	}
 }
 
@@ -514,9 +514,9 @@ func TestParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// enclose test string in quotes (as validated by stage 1)
 			buf := []byte(fmt.Sprintf(`"%s"`, tt.str))
-			dest := make([]byte, 0, len(buf)+32 /* safety margin as parse_string writes full AVX2 words */)
+			dest := make([]byte, 0, len(buf)+32 /* safety margin as parseString writes full AVX2 words */)
 
-			success := parse_string_simd(buf, &dest)
+			success := parseStringSimd(buf, &dest)
 
 			if success != tt.success {
 				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)
@@ -544,7 +544,7 @@ func TestParseStringValidateOnly(t *testing.T) {
 			dst_length := uint64(0)
 			need_copy := false
 			l := uint64(len(buf))
-			success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
+			success := parseStringSimdValidateOnly(buf, &l, &dst_length, &need_copy)
 
 			if success != tt.success {
 				t.Errorf("TestParseString() got = %v, want %v", success, tt.success)
@@ -567,7 +567,7 @@ func TestParseStringValidateOnlyBeyondBuffer(t *testing.T) {
 	dst_length := uint64(0)
 	need_copy := false
 	l := uint64(len(buf)) + 32
-	success := parse_string_simd_validate_only(buf, &l, &dst_length, &need_copy)
+	success := parseStringSimdValidateOnly(buf, &l, &dst_length, &need_copy)
 	if !success {
 		t.Errorf("TestParseStringValidateOnlyBeyondBuffer() got = %v, want %v", success, false)
 	}

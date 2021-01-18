@@ -115,7 +115,7 @@ func TestStage2BuildTape(t *testing.T) {
 			},
 		},
 		{
-			`{"a":true,"b":false,"c":null}   `, // without additional spaces, is_valid_null_atom reads beyond buffer capacity
+			`{"a":true,"b":false,"c":null}   `, // without additional spaces, isValidNullAtom reads beyond buffer capacity
 			[]struct {
 				c   byte
 				val uint64
@@ -184,7 +184,7 @@ func TestStage2BuildTape(t *testing.T) {
 			//}
 			//fmt.Printf("{%s, 0x%x},\n", c, tp&0xffffffffffffff)
 			expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
-			if !ALWAYS_COPY_STRINGS && tp != expected {
+			if !alwaysCopyStrings && tp != expected {
 				t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", ii, tp, expected)
 			}
 		}
@@ -207,7 +207,7 @@ func TestIsValidTrueAtom(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		same := is_valid_true_atom([]byte(tc.input))
+		same := isValidTrueAtom([]byte(tc.input))
 		if same != tc.expected {
 			t.Errorf("TestIsValidTrueAtom: got: %v want: %v", same, tc.expected)
 		}
@@ -230,7 +230,7 @@ func TestIsValidFalseAtom(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		same := is_valid_false_atom([]byte(tc.input))
+		same := isValidFalseAtom([]byte(tc.input))
 		if same != tc.expected {
 			t.Errorf("TestIsValidFalseAtom: got: %v want: %v", same, tc.expected)
 		}
@@ -253,7 +253,7 @@ func TestIsValidNullAtom(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		same := is_valid_null_atom([]byte(tc.input))
+		same := isValidNullAtom([]byte(tc.input))
 		if same != tc.expected {
 			t.Errorf("TestIsValidNullAtom: got: %v want: %v", same, tc.expected)
 		}

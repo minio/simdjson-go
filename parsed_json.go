@@ -33,14 +33,14 @@ import (
 // strings (not just those transformed anyway for unicode escape characters) into the separate
 // Strings buffer (at the expense of using more memory and less performance).
 //
-const ALWAYS_COPY_STRINGS = true
+const alwaysCopyStrings = true
 
 const JSONVALUEMASK = 0xffffffffffffff
 const JSONTAGMASK = 0xff << 56
 const STRINGBUFBIT = 0x80000000000000
 const STRINGBUFMASK = 0x7fffffffffffff
 
-const DEFAULTDEPTH = 128
+const maxdepth = 128
 
 type ParsedJson struct {
 	Message []byte
@@ -51,14 +51,14 @@ type ParsedJson struct {
 	internal *internalParsedJson
 }
 
-const INDEX_SLOTS = 16
-const INDEX_SIZE = 1536                                // Seems to be a good size for the index buffering
-const INDEX_SIZE_WITH_SAFETY_BUFFER = INDEX_SIZE - 128 // Make sure we never write beyond buffer
+const indexSlots = 16
+const indexSize = 1536                            // Seems to be a good size for the index buffering
+const indexSizeWithSafetyBuffer = indexSize - 128 // Make sure we never write beyond buffer
 
 type indexChan struct {
 	index   int
 	length  int
-	indexes *[INDEX_SIZE]uint32
+	indexes *[indexSize]uint32
 }
 
 type internalParsedJson struct {
@@ -67,7 +67,7 @@ type internalParsedJson struct {
 	isvalid                 bool
 	index_chan              chan indexChan
 	indexesChan             indexChan
-	buffers                 [INDEX_SLOTS][INDEX_SIZE]uint32
+	buffers                 [indexSlots][indexSize]uint32
 	buffers_offset          uint64
 	ndjson                  uint64
 }
