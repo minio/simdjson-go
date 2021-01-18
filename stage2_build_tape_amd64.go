@@ -114,21 +114,12 @@ func parse_string(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 	return true
 }
 
-func parse_number(buf []byte, pj *ParsedJson, neg bool) bool {
-	if len(buf) < 64 { // if we have less than 2 YMM words left, make sure there is enough space
-		paddedBuf := [128]byte{}
-		copy(paddedBuf[:], buf)
-		buf = paddedBuf[:]
-	}
-	succes, is_double, d, i := parse_number_simd(buf, neg)
-	if !succes {
+func parse_number(buf []byte, pj *ParsedJson) bool {
+	tag, val := parseNumber(buf)
+	if tag == TagEnd {
 		return false
 	}
-	if is_double {
-		pj.write_tape_double(d)
-	} else {
-		pj.write_tape_s64(int64(i))
-	}
+	pj.writeTapeTagVal(tag, val)
 	return true
 }
 
@@ -291,12 +282,12 @@ object_key_state:
 		pj.write_tape(0, buf[idx])
 
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf[idx:], &pj.ParsedJson, false) {
+		if !parse_number(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
 
 	case '-':
-		if !parse_number(buf[idx:], &pj.ParsedJson, true) {
+		if !parse_number(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
 
@@ -396,16 +387,10 @@ main_array_switch:
 		pj.write_tape(0, buf[idx])
 		/* goto array_continue */
 
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !parse_number(buf[idx:], &pj.ParsedJson, false) {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
+		if !parse_number(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
-
-	case '-':
-		if !parse_number(buf[idx:], &pj.ParsedJson, true) {
-			goto fail
-		}
-		/* goto array_continue */
 
 	case '{':
 		// we have not yet encountered ] so we need to come back for it

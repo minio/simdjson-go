@@ -22,10 +22,13 @@ package simdjson
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"reflect"
+	"io"
+	"math"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -121,25 +124,12 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 	runtime.GC()
 	pj := internalParsedJson{}
 
-	b.Run("raw", func(b *testing.B) {
-		b.SetBytes(int64(len(ndjson)))
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			err := pj.parseMessage(ndjson)
-			if err != nil {
-				b.Fatal(err)
-			}
-			got := countRawTapeWhere("Make", "HOND", pj.ParsedJson)
-			if got != want {
-				b.Fatal(got, "!=", want)
-			}
-		}
-	})
 	b.Run("iter", func(b *testing.B) {
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
+
 		for i := 0; i < b.N; i++ {
-			err := pj.parseMessage(ndjson)
+			err := pj.parseMessageNdjson(ndjson)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -149,124 +139,112 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 			}
 		}
 	})
+	b.Run("chan", func(b *testing.B) {
+		b.SetBytes(int64(len(ndjson)))
+		b.ReportAllocs()
+
+		for i := 0; i < b.N; i++ {
+			// Temp values.
+			obj := &Object{}
+			elem := &Element{}
+			var tmp Iter
+			var nFound int
+			reuse := make(chan *ParsedJson, 1000)
+			res := make(chan Stream, 10)
+
+			ParseNDStream(bytes.NewBuffer(ndjson), res, reuse)
+			for got := range res {
+				if got.Error != nil {
+					if got.Error == io.EOF {
+						break
+					}
+					b.Fatal(got.Error)
+				}
+
+				all := got.Value.Iter()
+				// NDJSON is a separated by root objects.
+				for all.Advance() == TypeRoot {
+					// Read inside root.
+					t, i, err := all.Root(&tmp)
+					if t != TypeObject {
+						b.Log("got type", t.String())
+						continue
+					}
+
+					// Prepare object.
+					obj, err = i.Object(obj)
+					if err != nil {
+						b.Log("got err", err)
+						continue
+					}
+
+					// Find Make key.
+					elem = obj.FindKey("Make", elem)
+					if elem.Type != TypeString {
+						b.Log("got type", err)
+						continue
+					}
+					asB, err := elem.Iter.StringBytes()
+					if err != nil {
+						b.Log("got err", err)
+						continue
+					}
+					if bytes.Equal(asB, []byte("HOND")) {
+						nFound++
+					}
+				}
+				reuse <- got.Value
+			}
+			if nFound != want {
+				b.Fatal(nFound, "!=", want)
+			}
+		}
+	})
+
 }
 
 func TestParseNumber(t *testing.T) {
-
-	if GOLANG_NUMBER_PARSING {
-		t.Skip()
-	}
-
 	testCases := []struct {
 		input     string
-		is_double bool
+		wantTag   Tag
 		expectedD float64
-		expectedI int
+		expectedI int64
+		expectedU uint64
 	}{
-		{"1", false, 0.0, 1},
-		{"-1", false, 0.0, -1},
-		{"1.0", true, 1.0, 0},
-		{"1234567890", false, 0.0, 1234567890},
-		{"9876.543210", true, 9876.543210, 0},
-		{"0.123456789e-12", true, 1.23456789e-13, 0},
-		{"1.234567890E+34", true, 1.234567890e+34, 0},
-		{"23456789012E66", true, 23456789012e66, 0},
-		{"-9876.543210", true, -9876.543210, 0},
-		// The number below parses to -65.61972000000004 for parse_number()
-		// This extra inprecision is tolerated when GOLANG_NUMBER_PARSING = false
-		{"-65.619720000000029", true, -65.61972000000003, 0},
+		{"1", TagInteger, 0.0, 1, 0},
+		{"-1", TagInteger, 0.0, -1, 0},
+		{"10000000000000000000", TagUint, 0.0, 0, 10000000000000000000},
+		{"10000000000000000001", TagUint, 0.0, 0, 10000000000000000001},
+		{"-10000000000000000000", TagFloat, -10000000000000000000, 0, 0},
+		{"1.0", TagFloat, 1.0, 0, 0},
+		{"1234567890", TagInteger, 0.0, 1234567890, 0},
+		{"9876.543210", TagFloat, 9876.543210, 0, 0},
+		{"0.123456789e-12", TagFloat, 1.23456789e-13, 0, 0},
+		{"1.234567890E+34", TagFloat, 1.234567890e+34, 0, 0},
+		{"23456789012E66", TagFloat, 23456789012e66, 0, 0},
+		{"-9876.543210", TagFloat, -9876.543210, 0, 0},
+		{"-65.619720000000029", TagFloat, -65.61972000000003, 0, 0},
 	}
 
 	for _, tc := range testCases {
-		found_minus := false
-		if tc.input[0] == '-' {
-			found_minus = true
+		tag, val := parseNumber([]byte(fmt.Sprintf(`%s:`, tc.input)))
+		if tag != tc.wantTag {
+			t.Errorf("TestParseNumber: got: %v want: %v", tag, tc.wantTag)
 		}
-		succes, is_double, d, i := parse_number_simd([]byte(fmt.Sprintf(`%s:`, tc.input)), found_minus)
-		if !succes {
-			t.Errorf("TestParseNumber: got: %v want: %v", succes, true)
-		}
-		if is_double != tc.is_double {
-			t.Errorf("TestParseNumber: got: %v want: %v", is_double, tc.is_double)
-		}
-		if is_double {
-			if !closeEnough(d, tc.expectedD) {
-				if GOLANG_NUMBER_PARSING {
-					t.Errorf("TestParseNumber: got: %g want: %g", d, tc.expectedD)
-				} else {
-					if !closeEnoughLessPrecision(d, tc.expectedD) {
-						t.Errorf("TestParseNumber: got: %g want: %g", d, tc.expectedD)
-					}
-				}
+		switch tag {
+		case TagFloat:
+			got := math.Float64frombits(val)
+			if !closeEnough(got, tc.expectedD) {
+				t.Errorf("TestParseNumber: got: %g want: %g", got, tc.expectedD)
 			}
-		} else {
-			if i != tc.expectedI {
-				t.Errorf("TestParseNumber: got: %d want: %d", i, tc.expectedI)
+		case TagInteger:
+			if tc.expectedI != int64(val) {
+				t.Errorf("TestParseNumber: got: %d want: %d", int64(val), tc.expectedI)
 			}
-		}
-	}
-}
-
-func TestParseInt64(t *testing.T) {
-
-	if GOLANG_NUMBER_PARSING {
-		t.Skip()
-	}
-
-	for i := range parseInt64Tests {
-		test := &parseInt64Tests[i]
-
-		found_minus := false
-		if test.in[0] == '-' {
-			found_minus = true
-		}
-		succes, is_double, _, i := parse_number_simd([]byte(fmt.Sprintf(`%s:`, test.in)), found_minus)
-		if !succes {
-			// Ignore intentionally bad syntactical errors
-			if !reflect.DeepEqual(test.err, strconv.ErrSyntax) {
-				t.Errorf("TestParseInt64: got: %v want: %v", succes, true)
+		case TagUint:
+			if tc.expectedU != val {
+				t.Errorf("TestParseNumber: got: %d want: %d", val, tc.expectedU)
 			}
-			continue // skip testing the rest for this test case
-		}
-		if is_double {
-			t.Errorf("TestParseInt64: got: %v want: %v", is_double, false)
-		}
-		if i != test.out {
-			// Ignore intentionally wrong conversions
-			if !reflect.DeepEqual(test.err, strconv.ErrRange) {
-				t.Errorf("TestParseInt64: got: %v want: %v", i, test.out)
-			}
-		}
-	}
-}
-
-func TestParseFloat64(t *testing.T) {
-
-	if GOLANG_NUMBER_PARSING {
-		t.Skip()
-	}
-
-	for i := 0; i < len(atoftests); i++ {
-		test := &atoftests[i]
-
-		found_minus := false
-		if test.in[0] == '-' {
-			found_minus = true
-		}
-		succes, is_double, d, _ := parse_number_simd([]byte(fmt.Sprintf(`%s:`, test.in)), found_minus)
-		if !succes {
-			// Ignore intentionally bad syntactical errors
-			if !reflect.DeepEqual(test.err, strconv.ErrSyntax) {
-				t.Errorf("TestParseFloat64: got: %v want: %v", succes, true)
-			}
-			continue // skip testing the rest for this test case
-		}
-		if !is_double {
-			t.Errorf("TestParseFloat64: got: %v want: %v", is_double, true)
-		}
-		outs := strconv.FormatFloat(d, 'g', -1, 64)
-		if outs != test.out {
-			t.Errorf("TestParseFloat64: got: %v want: %v", d, test.out)
 		}
 	}
 }
@@ -275,41 +253,61 @@ func TestParseFloat64(t *testing.T) {
 
 type parseInt64Test struct {
 	in  string
-	out int
-	err error
+	out int64
+	tag Tag
 }
 
 var parseInt64Tests = []parseInt64Test{
-	//	{"", 0, strconv.ErrSyntax},                                  /* fails for simdjson */
-	{"0", 0, nil},
-	{"-0", 0, nil},
-	{"1", 1, nil},
-	{"-1", -1, nil},
-	{"12345", 12345, nil},
-	{"-12345", -12345, nil},
-	//	{"012345", 12345, nil},                                      /* fails for simdjson */
-	//	{"-012345", -12345, nil},                                    /* fails for simdjson */
-	{"98765432100", 98765432100, nil},
-	{"-98765432100", -98765432100, nil},
-	{"9223372036854775807", 1<<63 - 1, nil},
-	{"-9223372036854775807", -(1<<63 - 1), nil},
-	{"9223372036854775808", 1<<63 - 1, strconv.ErrRange},
-	{"-9223372036854775808", -1 << 63, nil},
-	{"9223372036854775809", 1<<63 - 1, strconv.ErrRange},
-	{"-9223372036854775809", -1 << 63, strconv.ErrRange},
-	{"-1_2_3_4_5", 0, strconv.ErrSyntax}, // base=10 so no underscores allowed
-	{"-_12345", 0, strconv.ErrSyntax},
-	{"_12345", 0, strconv.ErrSyntax},
-	{"1__2345", 0, strconv.ErrSyntax},
-	{"12345_", 0, strconv.ErrSyntax},
+	{"", 0, TagEnd},
+	{"0", 0, TagInteger},
+	{"-0", 0, TagInteger},
+	{"1", 1, TagInteger},
+	{"-1", -1, TagInteger},
+	{"12345", 12345, TagInteger},
+	{"-12345", -12345, TagInteger},
+	{"012345", 0, TagEnd},
+	{"-012345", 0, TagEnd},
+	{"98765432100", 98765432100, TagInteger},
+	{"-98765432100", -98765432100, TagInteger},
+	{"9223372036854775807", 1<<63 - 1, TagInteger},
+	{"-9223372036854775807", -(1<<63 - 1), TagInteger},
+	{"9223372036854775808", 1<<63 - 1, TagUint},
+	{"-9223372036854775808", -1 << 63, TagInteger},
+	{"9223372036854775809", 1<<63 - 1, TagUint},
+	{"-9223372036854775809", -1 << 63, TagFloat},
+	{"-1_2_3_4_5", 0, TagEnd}, // base=10 so no underscores allowed
+	{"-_12345", 0, TagEnd},
+	{"_12345", 0, TagEnd},
+	{"1__2345", 0, TagEnd},
+	{"12345_", 0, TagEnd},
 
 	// zero (originate from atof tests below, but returned as int for simdjson)
-	{"0e0", 0, nil},
-	{"-0e0", 0, nil},
-	{"0e-0", 0, nil},
-	{"-0e-0", 0, nil},
-	{"0e+0", 0, nil},
-	{"-0e+0", 0, nil},
+	{"0e0", 0, TagFloat},
+	{"-0e0", 0, TagFloat},
+	{"0e-0", 0, TagFloat},
+	{"-0e-0", 0, TagFloat},
+	{"0e+0", 0, TagFloat},
+	{"-0e+0", 0, TagFloat},
+}
+
+func TestParseInt64(t *testing.T) {
+	for i := range parseInt64Tests {
+		test := &parseInt64Tests[i]
+		t.Run(test.in, func(t *testing.T) {
+
+			tag, val := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			if tag != test.tag {
+				// Ignore intentionally bad syntactical errors
+				t.Errorf("TestParseInt64: got: %v want: %v", tag, test.tag)
+				return // skip testing the rest for this test case
+			}
+			if tag == TagInteger && int64(val) != test.out {
+				// Ignore intentionally wrong conversions
+				t.Errorf("TestParseInt64: got value: %v want: %v", int64(val), test.out)
+			}
+		})
+
+	}
 }
 
 // The following code is borrowed from Golang (https://golang.org/src/strconv/atof_test.go)
@@ -321,59 +319,58 @@ type atofTest struct {
 }
 
 var atoftests = []atofTest{
-	//	{"", "0", strconv.ErrSyntax},                                /* fails for simdjson */
-	//	{"1", "1", nil},                                             /* parsed as int for simdjson */
-	//	{"+1", "1", nil},                                            /* parsed as int for simdjson */
+	{"", "0", strconv.ErrSyntax}, /* fails for simdjson */
+	{"1", "1", nil},              /* parsed as int for simdjson */
+	{"+1", "1", nil},             /* parsed as int for simdjson */
+
 	{"1x", "0", strconv.ErrSyntax},
 	{"1.1.", "0", strconv.ErrSyntax},
 	{"1e23", "1e+23", nil},
 	{"1E23", "1e+23", nil},
-	//	{"100000000000000000000000", "1e+23", nil},                  /* parsed as int for simdjson */
+	{"100000000000000000000000", "1e+23", nil}, /* parsed as int for simdjson */
 	{"1e-100", "1e-100", nil},
-	//	{"123456700", "1.234567e+08", nil},                          /* parsed as int for simdjson */
-	//	{"99999999999999974834176", "9.999999999999997e+22", nil},   /* parsed as int for simdjson */
-	//	{"100000000000000000000001", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
-	//	{"100000000000000008388608", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
-	//	{"100000000000000016777215", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
-	//	{"100000000000000016777216", "1.0000000000000003e+23", nil}, /* parsed as int for simdjson */
-	//	{"-1", "-1", nil},                                           /* parsed as int for simdjson */
+	{"123456700", "123456700", nil},                             /* parsed as int for simdjson */
+	{"99999999999999974834176", "9.999999999999997e+22", nil},   /* parsed as int for simdjson */
+	{"100000000000000000000001", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
+	{"100000000000000008388608", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
+	{"100000000000000016777215", "1.0000000000000001e+23", nil}, /* parsed as int for simdjson */
+	{"100000000000000016777216", "1.0000000000000003e+23", nil}, /* parsed as int for simdjson */
+	{"-1", "-1", nil},                                           /* parsed as int for simdjson */
 	{"-0.1", "-0.1", nil},
-	//	{"-0", "-0", nil},                                           /* parsed as int for simdjson */
+	{"-0", "0", nil}, /* parsed as int for simdjson */
 	{"1e-20", "1e-20", nil},
 	{"625e-3", "0.625", nil},
 
-	// Hexadecimal floating-point.                               /* all fail for simdjson */
-
 	// zeros (several test cases for zero have been moved up because they are detected as ints)
-	//	{"+0e0", "0", nil},                                          /* fails for simdjson */
-	//	{"+0e-0", "0", nil},                                         /* fails for simdjson */
-	//	{"+0e+0", "0", nil},                                         /* fails for simdjson */
-	//	{"0e+01234567890123456789", "0", nil},                       /* fails for simdjson */
-	//	{"0.00e-01234567890123456789", "0", nil},                    /* fails for simdjson */
-	//	{"-0e+01234567890123456789", "-0", nil},                     /* fails for simdjson */
-	//	{"-0.00e-01234567890123456789", "-0", nil},                  /* fails for simdjson */
+	{"+0e0", "0", nil},
+	{"+0e-0", "0", nil},
+	{"+0e+0", "0", nil},
+	{"0e+01234567890123456789", "0", nil},
+	{"0.00e-01234567890123456789", "0", nil},
+	{"-0e+01234567890123456789", "-0", nil},
+	{"-0.00e-01234567890123456789", "-0", nil},
 
-	{"0e291", "0", nil}, // issue 15364
-	{"0e292", "0", nil}, // issue 15364
-	{"0e347", "0", nil}, // issue 15364
-	{"0e348", "0", nil}, // issue 15364
-	//	{"-0e291", "-0", nil},                                       /* returns "0" */
-	//	{"-0e292", "-0", nil},                                       /* returns "0" */
-	//	{"-0e347", "-0", nil},                                       /* returns "0" */
-	//	{"-0e348", "-0", nil},                                       /* returns "0" */
+	{"0e291", "0", nil},   // issue 15364
+	{"0e292", "0", nil},   // issue 15364
+	{"0e347", "0", nil},   // issue 15364
+	{"0e348", "0", nil},   // issue 15364
+	{"-0e291", "-0", nil}, /* returns "0" */
+	{"-0e292", "-0", nil}, /* returns "0" */
+	{"-0e347", "-0", nil}, /* returns "0" */
+	{"-0e348", "-0", nil}, /* returns "0" */
 
 	// NaNs
-	//	{"nan", "NaN", nil},                                         /* fails for simdjson */
-	//	{"NaN", "NaN", nil},                                         /* fails for simdjson */
-	//	{"NAN", "NaN", nil},                                         /* fails for simdjson */
+	{"nan", "NaN", errors.New("invalid json")},
+	{"NaN", "NaN", errors.New("invalid json")},
+	{"NAN", "NaN", errors.New("invalid json")},
 
 	// Infs
-	//	{"inf", "+Inf", nil},                                        /* fails for simdjson */
-	//	{"-Inf", "-Inf", nil},                                       /* fails for simdjson */
-	//	{"+INF", "+Inf", nil},                                       /* fails for simdjson */
-	//	{"-Infinity", "-Inf", nil},                                  /* fails for simdjson */
-	//	{"+INFINITY", "+Inf", nil},                                  /* fails for simdjson */
-	//	{"Infinity", "+Inf", nil},                                   /* fails for simdjson */
+	{"inf", "+Inf", errors.New("invalid json")},
+	{"-Inf", "-Inf", errors.New("invalid json")},
+	{"+INF", "+Inf", errors.New("invalid json")},
+	{"-Infinity", "-Inf", errors.New("invalid json")},
+	{"+INFINITY", "+Inf", errors.New("invalid json")},
+	{"Infinity", "+Inf", errors.New("invalid json")},
 
 	// largest float64
 	{"1.7976931348623157e308", "1.7976931348623157e+308", nil},
@@ -383,10 +380,8 @@ var atoftests = []atofTest{
 	{"1.7976931348623159e308", "+Inf", strconv.ErrRange},
 	{"-1.7976931348623159e308", "-Inf", strconv.ErrRange},
 
-	// the border is ...158079
-	// borderline - okay
-	//	{"1.7976931348623158e308", "1.7976931348623157e+308", nil},  /* returns "+Inf" */
-	//	{"-1.7976931348623158e308", "-1.7976931348623157e+308", nil},/* returns "-Inf" */
+	{"1.7976931348623158e308", "1.7976931348623157e+308", nil},
+	{"-1.7976931348623158e308", "-1.7976931348623157e+308", nil},
 
 	// borderline - too large
 	{"1.797693134862315808e308", "+Inf", strconv.ErrRange},
@@ -395,39 +390,39 @@ var atoftests = []atofTest{
 	// a little too large
 	{"1e308", "1e+308", nil},
 	{"2e308", "+Inf", strconv.ErrRange},
-	//	{"1e309", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
+	{"1e309", "+Inf", strconv.ErrRange},
 
 	// way too large
-	//	{"1e310", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
-	//	{"-1e310", "-Inf", strconv.ErrRange},                        /* fails for simdjson */
-	//	{"1e400", "+Inf", strconv.ErrRange},                         /* fails for simdjson */
-	//	{"-1e400", "-Inf", strconv.ErrRange},                        /* fails for simdjson */
-	//	{"1e400000", "+Inf", strconv.ErrRange},                      /* fails for simdjson */
-	//	{"-1e400000", "-Inf", strconv.ErrRange},                     /* fails for simdjson */
+	{"1e310", "+Inf", strconv.ErrRange},
+	{"-1e310", "-Inf", strconv.ErrRange},
+	{"1e400", "+Inf", strconv.ErrRange},
+	{"-1e400", "-Inf", strconv.ErrRange},
+	{"1e400000", "+Inf", strconv.ErrRange},
+	{"-1e400000", "-Inf", strconv.ErrRange},
 
 	// denormalized
 	{"1e-305", "1e-305", nil},
 	{"1e-306", "1e-306", nil},
 	{"1e-307", "1e-307", nil},
 	{"1e-308", "1e-308", nil},
-	//	{"1e-309", "1e-309", nil},                                   /* fails for simdjson */
-	//	{"1e-310", "1e-310", nil},                                   /* fails for simdjson */
-	//	{"1e-322", "1e-322", nil},                                   /* fails for simdjson */
+	{"1e-309", "1e-309", nil},
+	{"1e-310", "1e-310", nil},
+	{"1e-322", "1e-322", nil},
 	// smallest denormal
-	//	{"5e-324", "5e-324", nil},                                   /* fails for simdjson */
-	//	{"4e-324", "5e-324", nil},                                   /* fails for simdjson */
-	//	{"3e-324", "5e-324", nil},                                   /* fails for simdjson */
+	{"5e-324", "5e-324", nil},
+	{"4e-324", "5e-324", nil},
+	{"3e-324", "5e-324", nil},
 	// too small
-	//	{"2e-324", "0", nil},                                        /* fails for simdjson */
+	{"2e-324", "0", nil},
 	// way too small
-	//	{"1e-350", "0", nil},                                        /* fails for simdjson */
-	//	{"1e-400000", "0", nil},                                     /* fails for simdjson */
+	{"1e-350", "0", nil},
+	{"1e-400000", "0", nil},
 
 	// try to overflow exponent
-	//	{"1e-4294967296", "0", nil},                                 /* fails for simdjson */
-	//	{"1e+4294967296", "+Inf", strconv.ErrRange},                 /* fails for simdjson */
-	//	{"1e-18446744073709551616", "0", nil},                       /* fails for simdjson */
-	//	{"1e+18446744073709551616", "+Inf", strconv.ErrRange},       /* fails for simdjson */
+	{"1e-4294967296", "0", nil},
+	{"1e+4294967296", "+Inf", strconv.ErrRange},
+	{"1e-18446744073709551616", "0", nil},
+	{"1e+18446744073709551616", "+Inf", strconv.ErrRange},
 
 	// Parse errors
 	{"1e", "0", strconv.ErrSyntax},
@@ -435,33 +430,33 @@ var atoftests = []atofTest{
 	{".e-1", "0", strconv.ErrSyntax},
 
 	// https://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
-	//	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil}, /* fails for simdjson */
+	{"2.2250738585072012e-308", "2.2250738585072014e-308", nil},
 	// https://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
-	//	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},  /* fails for simdjson */
+	{"2.2250738585072011e-308", "2.225073858507201e-308", nil},
 
 	// A very large number (initially wrongly parsed by the fast algorithm).
-	//	{"4.630813248087435e+307", "4.630813248087435e+307", nil},   /* fails for simdjson */
+	{"4.630813248087435e+307", "4.630813248087435e+307", nil},
 
 	// A different kind of very large number.
-	//	{"22.222222222222222", "22.22222222222222", nil},            /* fails for simdjson */
-	//	{"2." + strings.Repeat("2", 4000) + "e+1", "22.22222222222222", nil},
+	{"22.222222222222222", "22.22222222222222", nil},
+	{"2." + strings.Repeat("2", 4000) + "e+1", "22.22222222222222", nil},
 
 	// Exactly halfway between 1 and math.Nextafter(1, 2).
 	// Round to even (down).
-	//	{"1.00000000000000011102230246251565404236316680908203125", "1", nil}, /* fails for simdjson */
+	{"1.00000000000000011102230246251565404236316680908203125", "1", nil},
 	// Slightly lower; still round down.
-	//	{"1.00000000000000011102230246251565404236316680908203124", "1", nil}, /* fails for simdjson */
+	{"1.00000000000000011102230246251565404236316680908203124", "1", nil},
 	// Slightly higher; round up.
-	//	{"1.00000000000000011102230246251565404236316680908203126", "1.0000000000000002", nil}, /* fails for simdjson */
+	{"1.00000000000000011102230246251565404236316680908203126", "1.0000000000000002", nil},
 	// Slightly higher, but you have to read all the way to the end.
-	//	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},  /* fails for simdjson */
+	{"1.00000000000000011102230246251565404236316680908203125" + strings.Repeat("0", 10000) + "1", "1.0000000000000002", nil},
 
 	// Halfway between x := math.Nextafter(1, 2) and math.Nextafter(x, 2)
 	// Round to even (up).
-	//	{"1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004", nil}, /* fails for simdjson */
+	{"1.00000000000000033306690738754696212708950042724609375", "1.0000000000000004", nil},
 
 	// Underscores.
-	//	{"1_23.50_0_0e+1_2", "1.235e+14", nil},                      /* fails for simdjson */
+	{"1_23.50_0_0e+1_2", "1.235e+14", strconv.ErrSyntax},
 	{"-_123.5e+12", "0", strconv.ErrSyntax},
 	{"+_123.5e+12", "0", strconv.ErrSyntax},
 	{"_123.5e+12", "0", strconv.ErrSyntax},
@@ -476,6 +471,41 @@ var atoftests = []atofTest{
 	{"123.5e-_12", "0", strconv.ErrSyntax},
 	{"123.5e+1__2", "0", strconv.ErrSyntax},
 	{"123.5e+12_", "0", strconv.ErrSyntax},
+}
+
+func TestParseFloat64(t *testing.T) {
+
+	for i := 0; i < len(atoftests); i++ {
+		test := &atoftests[i]
+		t.Run(test.in, func(t *testing.T) {
+			tag, val := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			switch tag {
+			case TagEnd:
+				if test.err == nil {
+					t.Errorf("TestParseFloat64: got error, none")
+				}
+			case TagFloat:
+				got := math.Float64frombits(val)
+				outs := strconv.FormatFloat(got, 'g', -1, 64)
+				if outs != test.out {
+					t.Errorf("TestParseFloat64: got: %v want: %v", outs, test.out)
+				}
+			case TagInteger:
+				got := int64(val)
+				outs := fmt.Sprint(got)
+				if outs != test.out {
+					t.Errorf("TestParseFloat64: got: %v want: %v", outs, test.out)
+				}
+			case TagUint:
+				got := val
+				outs := fmt.Sprint(got)
+				if outs != test.out {
+					t.Errorf("TestParseFloat64: got: %v want: %v", outs, test.out)
+				}
+			default:
+			}
+		})
+	}
 }
 
 func TestParseString(t *testing.T) {
@@ -562,13 +592,8 @@ func benchmarkParseNumber(b *testing.B, neg int) {
 		b.Run(cs.name, func(b *testing.B) {
 			s := fmt.Sprintf("%d", cs.num*int64(neg))
 			s = fmt.Sprintf(`%s:`, s) // append delimiter
-			found_minus := false
-			if neg != 0 {
-				found_minus = true
-			}
 			for i := 0; i < b.N; i++ {
-				_, _, _, i := parse_number_simd([]byte(s), found_minus)
-				BenchSink += int(i)
+				parseNumber([]byte(s))
 			}
 		})
 	}
@@ -576,7 +601,7 @@ func benchmarkParseNumber(b *testing.B, neg int) {
 
 func BenchmarkParseNumberFloat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		parse_number_simd([]byte("339.7784:"), false)
+		parseNumber([]byte("339.7784:"))
 	}
 }
 
@@ -588,27 +613,27 @@ func BenchmarkParseAtof64FloatGolang(b *testing.B) {
 
 func BenchmarkParseNumberFloatExp(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		parse_number_simd([]byte("-5.09e75:"), false)
+		parseNumber([]byte("-5.09e75:"))
 	}
 }
 
 func BenchmarkParseNumberBig(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		parse_number_simd([]byte("123456789123456789123456789:"), false)
+		parseNumber([]byte("123456789123456789123456789:"))
 	}
 }
 
 func BenchmarkParseNumberRandomBits(b *testing.B) {
 	initAtof()
 	for i := 0; i < b.N; i++ {
-		parse_number_simd([]byte(benchmarksRandomBitsSimd[i%1024]), false)
+		parseNumber([]byte(benchmarksRandomBitsSimd[i%1024]))
 	}
 }
 
 func BenchmarkParseNumberRandomFloats(b *testing.B) {
 	initAtof()
 	for i := 0; i < b.N; i++ {
-		parse_number_simd([]byte(benchmarksRandomNormalSimd[i%1024]), false)
+		parseNumber([]byte(benchmarksRandomNormalSimd[i%1024]))
 	}
 }
 

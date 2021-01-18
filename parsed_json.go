@@ -27,26 +27,10 @@ import (
 )
 
 //
-// The current parse_number() code has some precision issues
-// (see PR "Exact float parsing", https://github.com/lemire/simdjson/pull/333)
-//
-// An example of this (from canada.json):
-//     "-65.619720000000029" --> -65.61972000000004
-// instead of
-//     "-65.619720000000029" --> -65.61972000000003
-//
-// There is a slower code path that uses Golang's Atoi() and ParseFloat()
-//
-// For **benchmarking** both GOLANG_NUMBER_PARSING and ALWAYS_COPY_STRINGS are set to false
-//
-const GOLANG_NUMBER_PARSING = true
-
-//
-//
 // For enhanced performance, simdjson-go can point back into the original JSON buffer for strings,
 // however this can lead to issues in streaming use cases scenarios, or scenarios in which
 // the underlying JSON buffer is reused. So the default behaviour is to create copies of all
-// strings (not just those transformed anyway for unicode escape charactes) into the separate
+// strings (not just those transformed anyway for unicode escape characters) into the separate
 // Strings buffer (at the expense of using more memory and less performance).
 //
 const ALWAYS_COPY_STRINGS = true
@@ -782,14 +766,17 @@ func (pj *ParsedJson) write_tape(val uint64, c byte) {
 	pj.Tape = append(pj.Tape, val|(uint64(c)<<56))
 }
 
+// writeTapeTagVal will write a tag with no embedded value and a value to the tape.
+func (pj *ParsedJson) writeTapeTagVal(tag Tag, val uint64) {
+	pj.Tape = append(pj.Tape, uint64(tag)<<56, val)
+}
+
 func (pj *ParsedJson) write_tape_s64(val int64) {
-	pj.write_tape(0, 'l')
-	pj.Tape = append(pj.Tape, uint64(val))
+	pj.writeTapeTagVal(TagInteger, uint64(val))
 }
 
 func (pj *ParsedJson) write_tape_double(d float64) {
-	pj.write_tape(0, 'd')
-	pj.Tape = append(pj.Tape, math.Float64bits(d))
+	pj.writeTapeTagVal(TagFloat, math.Float64bits(d))
 }
 
 func (pj *ParsedJson) annotate_previousloc(saved_loc uint64, val uint64) {

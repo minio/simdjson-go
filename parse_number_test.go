@@ -20,18 +20,116 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 )
 
-func closeEnough(d1, d2 float64) (ce bool) {
-	return math.Abs((d1-d2)/(0.5*(d1+d2))) < 1e-20
+func TestNumberIsValid(t *testing.T) {
+	// From: https://stackoverflow.com/a/13340826
+	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
+	isValidNumber := func(s string) bool {
+		tag, _ := parseNumber([]byte(s))
+		return tag != TagEnd
+	}
+	validTests := []string{
+		"0",
+		"-0",
+		"1",
+		"-1",
+		"0.1",
+		"-0.1",
+		"1234",
+		"-1234",
+		"12.34",
+		"-12.34",
+		"12E0",
+		"12E1",
+		"12e34",
+		"12E-0",
+		"12e+1",
+		"12e-34",
+		"-12E0",
+		"-12E1",
+		"-12e34",
+		"-12E-0",
+		"-12e+1",
+		"-12e-34",
+		"1.2E0",
+		"1.2E1",
+		"1.2e34",
+		"1.2E-0",
+		"1.2e+1",
+		"1.2e-34",
+		"-1.2E0",
+		"-1.2E1",
+		"-1.2e34",
+		"-1.2E-0",
+		"-1.2e+1",
+		"-1.2e-34",
+		"0E0",
+		"0E1",
+		"0e34",
+		"0E-0",
+		"0e+1",
+		"0e-34",
+		"-0E0",
+		"-0E1",
+		"-0e34",
+		"-0E-0",
+		"-0e+1",
+		"-0e-34",
+	}
+
+	for _, test := range validTests {
+		if !isValidNumber(test) {
+			t.Errorf("%s should be valid", test)
+		}
+
+		if !jsonNumberRegexp.MatchString(test) {
+			t.Errorf("%s should be valid but regexp does not match", test)
+		}
+	}
+
+	invalidTests := []string{
+		"",
+		"invalid",
+		"1.0.1",
+		"1..1",
+		"-1-2",
+		"012a42",
+		"01.2",
+		"012",
+		"12E12.12",
+		"1e2e3",
+		"1e+-2",
+		"1e--23",
+		"1e",
+		"e1",
+		"1e+",
+		"1ea",
+		"1a",
+		"1.a",
+		"1.",
+		"01",
+		"1.e1",
+	}
+
+	for _, test := range invalidTests {
+		if isValidNumber(test) {
+			t.Errorf("%s should be invalid", test)
+		}
+
+		if jsonNumberRegexp.MatchString(test) {
+			t.Errorf("%s should be invalid but matches regexp", test)
+		}
+	}
 }
 
-func closeEnoughLessPrecision(d1, d2 float64) (ce bool) {
-	return math.Abs((d1-d2)/(0.5*(d1+d2))) < 1e-15
+func closeEnough(d1, d2 float64) (ce bool) {
+	return math.Abs((d1-d2)/(0.5*(d1+d2))) < 1e-20
 }
 
 // The following benchmarking code is borrowed from Golang (https://golang.org/src/strconv/atoi_test.go)
@@ -65,41 +163,7 @@ func benchmarkParseIntGolang(b *testing.B, neg int) {
 	}
 }
 
-func BenchmarkAtoiGolang(b *testing.B) {
-	b.Run("Pos", func(b *testing.B) {
-		benchmarkAtoiGolang(b, 1)
-	})
-	b.Run("Neg", func(b *testing.B) {
-		benchmarkAtoiGolang(b, -1)
-	})
-}
-
-func benchmarkAtoiGolang(b *testing.B, neg int) {
-	cases := []benchCase{}
-	if strconv.IntSize == 64 {
-		cases = append(cases, []benchCase{
-			{"63bit", 1<<63 - 1},
-		}...)
-	}
-	for _, cs := range cases {
-		b.Run(cs.name, func(b *testing.B) {
-			s := fmt.Sprintf("%d", cs.num*int64(neg))
-			for i := 0; i < b.N; i++ {
-				out, _ := strconv.Atoi(s)
-				BenchSink += out
-			}
-		})
-	}
-}
-
 var BenchSink int // make sure compiler cannot optimize away benchmarks
-
-// The following benchmarking code is borrowed from Golang (https://golang.org/src/strconv/atof_test.go)
-
-type atofSimpleTest struct {
-	x float64
-	s string
-}
 
 var (
 	atofOnce                   sync.Once
@@ -129,31 +193,5 @@ func initAtofOnce() {
 		x := rand.NormFloat64()
 		benchmarksRandomNormal[i] = strconv.FormatFloat(x, 'g', -1, 64)
 		benchmarksRandomNormalSimd[i] = benchmarksRandomNormal[i] + ":"
-	}
-}
-
-func BenchmarkParseAtof64FloatExpGolang(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		strconv.ParseFloat("-5.09e75", 64)
-	}
-}
-
-func BenchmarkParseAtof64BigGolang(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		strconv.ParseFloat("123456789123456789123456789", 64)
-	}
-}
-
-func BenchmarkParseAtof64RandomBitsGolang(b *testing.B) {
-	initAtof()
-	for i := 0; i < b.N; i++ {
-		strconv.ParseFloat(benchmarksRandomBits[i%1024], 64)
-	}
-}
-
-func BenchmarkParseAtof64RandomFloatsGolang(b *testing.B) {
-	initAtof()
-	for i := 0; i < b.N; i++ {
-		strconv.ParseFloat(benchmarksRandomNormal[i%1024], 64)
 	}
 }
