@@ -22,13 +22,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/klauspost/compress/s2"
-	"github.com/klauspost/compress/zstd"
 	"io"
 	"math"
 	"runtime"
 	"sync"
 	"unsafe"
+
+	"github.com/klauspost/compress/s2"
+	"github.com/klauspost/compress/zstd"
 )
 
 const (
@@ -189,6 +190,10 @@ func serializeNDStream(dst io.Writer, in <-chan Stream, reuse chan<- *ParsedJson
 	return writeErr
 }
 
+const (
+	tagFloatWithFlag = Tag('e')
+)
+
 // Serialize the data in pj and return the data.
 // An optional destination can be provided.
 func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
@@ -278,8 +283,6 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 		entry := pj.Tape[off]
 		ntype := Tag(entry >> 56)
 		payload := entry & JSONVALUEMASK
-		s.tagsBuf[tagsOff] = uint8(ntype)
-		tagsOff++
 
 		switch ntype {
 		case TagString:
@@ -303,9 +306,18 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
 			off++
 		case TagFloat:
-			binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off+1])
-			s.valuesBuf = append(s.valuesBuf, tmp[:]...)
-			off++
+			if payload == 0 {
+				binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off+1])
+				s.valuesBuf = append(s.valuesBuf, tmp[:]...)
+				off++
+			} else {
+				ntype = tagFloatWithFlag
+				binary.LittleEndian.PutUint64(tmp[:], entry)
+				s.valuesBuf = append(s.valuesBuf, tmp[:]...)
+				binary.LittleEndian.PutUint64(tmp[:], pj.Tape[off+1])
+				s.valuesBuf = append(s.valuesBuf, tmp[:]...)
+				off++
+			}
 		case TagNull, TagBoolTrue, TagBoolFalse:
 			// No value.
 		case TagObjectStart, TagArrayStart, TagRoot:
@@ -319,6 +331,8 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 			wg.Wait()
 			panic(fmt.Errorf("unknown tag: %d", int(ntype)))
 		}
+		s.tagsBuf[tagsOff] = uint8(ntype)
+		tagsOff++
 		off++
 	}
 	if tagsOff > 0 {
@@ -587,6 +601,13 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			dst.Tape[off+1] = binary.LittleEndian.Uint64(values[:8])
 			values = values[8:]
 			off += 2
+		case tagFloatWithFlag:
+			// Tape contains full value
+			if len(values) < 16 {
+				return dst, fmt.Errorf("reading %v: no values left", tag)
+			}
+			dst.Tape[off] = binary.LittleEndian.Uint64(values[:8])
+			dst.Tape[off+1] = binary.LittleEndian.Uint64(values[8:16])
 		case TagNull, TagBoolTrue, TagBoolFalse, TagEnd:
 			dst.Tape[off] = tagDst
 			off++

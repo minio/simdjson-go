@@ -42,6 +42,32 @@ const STRINGBUFMASK = 0x7fffffffffffff
 
 const maxdepth = 128
 
+// FloatFlags are flags recorded when converting floats.
+type FloatFlags uint64
+
+// FloatFlag is a flag recorded when parsing floats.
+type FloatFlag uint64
+
+const (
+	// FloatOverflowedInteger is set when number in JSON was in integer notation,
+	// but under/overflowed both int64 and uint64 and therefore was parsed as float.
+	FloatOverflowedInteger FloatFlag = 1 << iota
+)
+
+// Contains returns whether f contains the specified flag.
+func (f FloatFlags) Contains(flag FloatFlag) bool {
+	return FloatFlag(f)&flag == flag
+}
+
+// Flags converts the flag to FloatFlags and optionally merges more flags.
+func (f FloatFlag) Flags(more ...FloatFlag) FloatFlags {
+	// We operate on a copy, so we can modify f.
+	for _, v := range more {
+		f |= v
+	}
+	return FloatFlags(f)
+}
+
 type ParsedJson struct {
 	Message []byte
 	Tape    []uint64
@@ -63,13 +89,13 @@ type indexChan struct {
 
 type internalParsedJson struct {
 	ParsedJson
-	containing_scope_offset []uint64
-	isvalid                 bool
-	index_chan              chan indexChan
-	indexesChan             indexChan
-	buffers                 [indexSlots][indexSize]uint32
-	buffers_offset          uint64
-	ndjson                  uint64
+	containingScopeOffset []uint64
+	isvalid               bool
+	indexChans            chan indexChan
+	indexesChan           indexChan
+	buffers               [indexSlots][indexSize]uint32
+	buffersOffset         uint64
+	ndjson                uint64
 }
 
 // Iter returns a new Iter.
@@ -479,6 +505,34 @@ func (i *Iter) Float() (float64, error) {
 	}
 }
 
+// FloatFlags returns the float value of the next element.
+// This will include flags from parsing.
+// Integers are automatically converted to float.
+func (i *Iter) FloatFlags() (float64, FloatFlags, error) {
+	switch i.t {
+	case TagFloat:
+		if i.off >= len(i.tape.Tape) {
+			return 0, 0, errors.New("corrupt input: expected float, but no more values on tape")
+		}
+		v := math.Float64frombits(i.tape.Tape[i.off])
+		return v, 0, nil
+	case TagInteger:
+		if i.off >= len(i.tape.Tape) {
+			return 0, 0, errors.New("corrupt input: expected integer, but no more values on tape")
+		}
+		v := int64(i.tape.Tape[i.off])
+		return float64(v), 0, nil
+	case TagUint:
+		if i.off >= len(i.tape.Tape) {
+			return 0, 0, errors.New("corrupt input: expected integer, but no more values on tape")
+		}
+		v := i.tape.Tape[i.off]
+		return float64(v), FloatFlags(i.cur), nil
+	default:
+		return 0, 0, fmt.Errorf("unable to convert type %v to float", i.t)
+	}
+}
+
 // Int returns the integer value of the next element.
 // Integers and floats within range are automatically converted.
 func (i *Iter) Int() (int64, error) {
@@ -769,6 +823,10 @@ func (pj *ParsedJson) write_tape(val uint64, c byte) {
 // writeTapeTagVal will write a tag with no embedded value and a value to the tape.
 func (pj *ParsedJson) writeTapeTagVal(tag Tag, val uint64) {
 	pj.Tape = append(pj.Tape, uint64(tag)<<56, val)
+}
+
+func (pj *ParsedJson) writeTapeTagValFlags(tag Tag, val, flags uint64) {
+	pj.Tape = append(pj.Tape, uint64(tag)<<56|flags, val)
 }
 
 func (pj *ParsedJson) write_tape_s64(val int64) {

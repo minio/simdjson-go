@@ -96,7 +96,7 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
-		pj.index_chan = make(chan indexChan, 128*10240)
+		pj.indexChans = make(chan indexChan, 128*10240)
 		findStructuralIndices([]byte(ndjson), &pj)
 	}
 }
@@ -210,24 +210,30 @@ func TestParseNumber(t *testing.T) {
 		expectedD float64
 		expectedI int64
 		expectedU uint64
+		flags     FloatFlags
 	}{
-		{"1", TagInteger, 0.0, 1, 0},
-		{"-1", TagInteger, 0.0, -1, 0},
-		{"10000000000000000000", TagUint, 0.0, 0, 10000000000000000000},
-		{"10000000000000000001", TagUint, 0.0, 0, 10000000000000000001},
-		{"-10000000000000000000", TagFloat, -10000000000000000000, 0, 0},
-		{"1.0", TagFloat, 1.0, 0, 0},
-		{"1234567890", TagInteger, 0.0, 1234567890, 0},
-		{"9876.543210", TagFloat, 9876.543210, 0, 0},
-		{"0.123456789e-12", TagFloat, 1.23456789e-13, 0, 0},
-		{"1.234567890E+34", TagFloat, 1.234567890e+34, 0, 0},
-		{"23456789012E66", TagFloat, 23456789012e66, 0, 0},
-		{"-9876.543210", TagFloat, -9876.543210, 0, 0},
-		{"-65.619720000000029", TagFloat, -65.61972000000003, 0, 0},
+		{input: "1", wantTag: TagInteger, expectedI: 1},
+		{input: "-1", wantTag: TagInteger, expectedI: -1},
+		{input: "10000000000000000000", wantTag: TagUint, expectedU: 10000000000000000000},
+		{input: "10000000000000000001", wantTag: TagUint, expectedU: 10000000000000000001},
+		// math.MinInt64 - 1
+		{input: "-9223372036854775809", wantTag: TagFloat, expectedD: -9.223372036854776e+18, flags: FloatOverflowedInteger.Flags()},
+		{input: "-10000000000000000000", wantTag: TagFloat, expectedD: -10000000000000000000, flags: FloatOverflowedInteger.Flags()},
+		{input: "100000000000000000000", wantTag: TagFloat, expectedD: 100000000000000000000, flags: FloatOverflowedInteger.Flags()},
+		// math.MaxUint64 +1
+		{input: "18446744073709551616", wantTag: TagFloat, expectedD: 1.8446744073709552e+19, flags: FloatOverflowedInteger.Flags()},
+		{input: "1.0", wantTag: TagFloat, expectedD: 1.0},
+		{input: "1234567890", wantTag: TagInteger, expectedI: 1234567890},
+		{input: "9876.543210", wantTag: TagFloat, expectedD: 9876.543210},
+		{input: "0.123456789e-12", wantTag: TagFloat, expectedD: 1.23456789e-13},
+		{input: "1.234567890E+34", wantTag: TagFloat, expectedD: 1.234567890e+34},
+		{input: "23456789012E66", wantTag: TagFloat, expectedD: 23456789012e66},
+		{input: "-9876.543210", wantTag: TagFloat, expectedD: -9876.543210},
+		{input: "-65.619720000000029", wantTag: TagFloat, expectedD: -65.61972000000003},
 	}
 
 	for _, tc := range testCases {
-		tag, val := parseNumber([]byte(fmt.Sprintf(`%s:`, tc.input)))
+		tag, val, flags := parseNumber([]byte(fmt.Sprintf(`%s:`, tc.input)))
 		if tag != tc.wantTag {
 			t.Errorf("TestParseNumber: got: %v want: %v", tag, tc.wantTag)
 		}
@@ -245,6 +251,9 @@ func TestParseNumber(t *testing.T) {
 			if tc.expectedU != val {
 				t.Errorf("TestParseNumber: got: %d want: %d", val, tc.expectedU)
 			}
+		}
+		if flags != uint64(tc.flags) {
+			t.Errorf("TestParseNumber flags; got: %d want: %d", flags, tc.flags)
 		}
 	}
 }
@@ -295,7 +304,7 @@ func TestParseInt64(t *testing.T) {
 		test := &parseInt64Tests[i]
 		t.Run(test.in, func(t *testing.T) {
 
-			tag, val := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			tag, val, _ := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
 			if tag != test.tag {
 				// Ignore intentionally bad syntactical errors
 				t.Errorf("TestParseInt64: got: %v want: %v", tag, test.tag)
@@ -478,7 +487,7 @@ func TestParseFloat64(t *testing.T) {
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
 		t.Run(test.in, func(t *testing.T) {
-			tag, val := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			tag, val, _ := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
 			switch tag {
 			case TagEnd:
 				if test.err == nil {

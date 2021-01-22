@@ -133,6 +133,28 @@ method to get an iterator.
 There are methods that allow you to retrieve all elements as a single type, 
 []int64, []uint64, float64 and strings.  
 
+## Number parsing
+
+Numbers in JSON are untyped and are returned by the following rules in order:
+
+* If there is any float point notation, like exponents, or a dot notation, it is always returned as float.
+* If number is a pure integer and it fits within an int64 it is returned as such.
+* If number is a pure positive integer and fits within a uint64 it is returned as such.
+* If the number is valid number it is returned as float64.
+
+If the number was converted from integer notation to a float due to not fitting inside int64/uint64
+the `FloatOverflowedInteger` flag is set, which can be retrieved using `(Iter).FloatFlags()` method.  
+
+JSON numbers follow JavaScript’s double-precision floating-point format.
+
+* Represented in base 10 with no superfluous leading zeros (e.g. 67, 1, 100).
+* Include digits between 0 and 9.
+* Can be a negative number (e.g. -10).
+* Can be a fraction (e.g. .5).
+* Can also have an exponent of 10, prefixed by e or E with a plus or minus sign to indicate positive or negative exponentiation.
+* Octal and hexadecimal formats are not supported.
+* Can not have a value of NaN (Not A Number) or Infinity.
+
 ## Parsing NDSJON stream
 
 Newline delimited json is sent as packets with each line being a root element.
