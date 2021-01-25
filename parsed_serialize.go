@@ -228,6 +228,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	//   - TagObjectEnd, TagArrayEnd: No value stored, derived from start.
 	//   - TagInteger, TagUint, TagFloat: 64 bits
 	// 	 - TagString: offset, length stored.
+	//   - tagFloatWithFlag (v2): Contains float parsing flag.
 	//
 	// If there are any values left as tag or value, it is considered invalid.
 
