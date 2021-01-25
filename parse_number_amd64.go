@@ -21,6 +21,7 @@
 package simdjson
 
 import (
+	"errors"
 	"math"
 	"strconv"
 )
@@ -63,14 +64,14 @@ var isNumberRune = [256]uint8{
 // parseNumber will parse the number starting in the buffer.
 // Any non-number characters at the end will be ignored.
 // Returns TagEnd if no valid value found be found.
-func parseNumber(buf []byte) (tag Tag, val uint64) {
+func parseNumber(buf []byte) (tag Tag, val, flags uint64) {
 	pos := 0
 	found := uint8(0)
 	for i, v := range buf {
 		t := isNumberRune[v]
 		if t == 0 {
 			//fmt.Println("aborting on", string(v), "in", string(buf[:i]))
-			return TagEnd, 0
+			return TagEnd, 0, 0
 		}
 		if t == isEOVFlag {
 			break
@@ -78,14 +79,14 @@ func parseNumber(buf []byte) (tag Tag, val uint64) {
 		if t&isMustHaveDigitNext > 0 {
 			// A period and minus must be followed by a digit
 			if len(buf) < i+2 || isNumberRune[buf[i+1]]&isDigitFlag == 0 {
-				return TagEnd, 0
+				return TagEnd, 0, 0
 			}
 		}
 		found |= t
 		pos = i + 1
 	}
 	if pos == 0 {
-		return TagEnd, 0
+		return TagEnd, 0, 0
 	}
 	const maxIntLen = 20
 
@@ -94,33 +95,42 @@ func parseNumber(buf []byte) (tag Tag, val uint64) {
 		if found&isMinusFlag == 0 {
 			if pos > 1 && buf[0] == '0' {
 				// Integers cannot have a leading zero.
-				return TagEnd, 0
+				return TagEnd, 0, 0
 			}
 		} else {
 			if pos > 2 && buf[1] == '0' {
 				// Integers cannot have a leading zero after minus.
-				return TagEnd, 0
+				return TagEnd, 0, 0
 			}
 		}
 		i64, err := strconv.ParseInt(string(buf[:pos]), 10, 64)
 		if err == nil {
-			return TagInteger, uint64(i64)
+			return TagInteger, uint64(i64), 0
 		}
+		if errors.Is(err, strconv.ErrRange) {
+			flags |= uint64(FloatOverflowedInteger)
+		}
+
 		if found&isMinusFlag == 0 {
 			u64, err := strconv.ParseUint(string(buf[:pos]), 10, 64)
 			if err == nil {
-				return TagUint, u64
+				return TagUint, u64, 0
+			}
+			if errors.Is(err, strconv.ErrRange) {
+				flags |= uint64(FloatOverflowedInteger)
 			}
 		}
+	} else if found&isFloatOnlyFlag == 0 {
+		flags |= uint64(FloatOverflowedInteger)
 	}
 
 	if pos > 1 && buf[0] == '0' && isNumberRune[buf[1]]&isFloatOnlyFlag == 0 {
 		// Float can only have have a leading 0 when followed by a period.
-		return TagEnd, 0
+		return TagEnd, 0, 0
 	}
 	f64, err := strconv.ParseFloat(string(buf[:pos]), 64)
 	if err == nil {
-		return TagFloat, math.Float64bits(f64)
+		return TagFloat, math.Float64bits(f64), flags
 	}
-	return TagEnd, 0
+	return TagEnd, 0, 0
 }

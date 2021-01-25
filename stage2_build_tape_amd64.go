@@ -35,7 +35,7 @@ const retAddressArrayConst = 3
 func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 	if pj.indexesChan.index >= pj.indexesChan.length {
 		var ok bool
-		pj.indexesChan, ok = <-pj.index_chan // Get next element from channel
+		pj.indexesChan, ok = <-pj.indexChans // Get next element from channel
 		if !ok {
 			done = true // return done if channel closed
 			return
@@ -50,7 +50,7 @@ func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 func updateCharDebug(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 	if pj.indexesChan.index >= pj.indexesChan.length {
 		var ok bool
-		pj.indexesChan, ok = <-pj.index_chan // Get next element from channel
+		pj.indexesChan, ok = <-pj.indexChans // Get next element from channel
 		if !ok {
 			done = true // return done if channel closed
 			return
@@ -115,11 +115,11 @@ func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 }
 
 func addNumber(buf []byte, pj *ParsedJson) bool {
-	tag, val := parseNumber(buf)
+	tag, val, flags := parseNumber(buf)
 	if tag == TagEnd {
 		return false
 	}
-	pj.writeTapeTagVal(tag, val)
+	pj.writeTapeTagValFlags(tag, val, flags)
 	return true
 }
 
@@ -174,7 +174,7 @@ func unifiedMachine(buf []byte, pj *internalParsedJson) bool {
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 
 	////////////////////////////// START STATE /////////////////////////////
-	pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
+	pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 
 	pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 	// the root is used, if nothing else, to capture the size of the tape
@@ -185,11 +185,11 @@ func unifiedMachine(buf []byte, pj *internalParsedJson) bool {
 continueRoot:
 	switch buf[idx] {
 	case '{':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 		pj.write_tape(0, buf[idx])
 		goto object_begin
 	case '[':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 		pj.write_tape(0, buf[idx])
 		goto arrayBegin
 	default:
@@ -214,16 +214,16 @@ startContinue:
 		}
 
 		// Otherwise close current root
-		offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+		offset = pj.containingScopeOffset[len(pj.containingScopeOffset)-1]
 
 		// drop last element
-		pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+		pj.containingScopeOffset = pj.containingScopeOffset[:len(pj.containingScopeOffset)-1]
 
 		pj.annotate_previousloc(offset>>retAddressShift, pj.get_current_loc()+addOneForRoot)
 		pj.write_tape(offset>>retAddressShift, 'r') // r is root
 
 		// And open a new root
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
 		pj.write_tape(0, 'r') // r for root, 0 is going to get overwritten
 
 		goto continueRoot
@@ -292,13 +292,13 @@ object_key_state:
 		}
 
 	case '{':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
 		pj.write_tape(0, buf[idx])
 		// we have not yet encountered } so we need to come back for it
 		goto object_begin
 
 	case '[':
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
 		pj.write_tape(0, buf[idx])
 		// we have not yet encountered } so we need to come back for it
 		goto arrayBegin
@@ -334,9 +334,9 @@ objectContinue:
 	////////////////////////////// COMMON STATE /////////////////////////////
 scopeEnd:
 	// write our tape location to the header scope
-	offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+	offset = pj.containingScopeOffset[len(pj.containingScopeOffset)-1]
 	// drop last element
-	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+	pj.containingScopeOffset = pj.containingScopeOffset[:len(pj.containingScopeOffset)-1]
 
 	pj.write_tape(offset>>retAddressShift, buf[idx])
 	pj.annotate_previousloc(offset>>retAddressShift, pj.get_current_loc())
@@ -394,13 +394,13 @@ mainArraySwitch:
 
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
 		pj.write_tape(0, buf[idx]) //  here the compilers knows what c is so this gets optimized
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
-		pj.containing_scope_offset = append(pj.containing_scope_offset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
+		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
 		pj.write_tape(0, buf[idx]) // here the compilers knows what c is so this gets optimized
 		goto arrayBegin
 
@@ -428,12 +428,12 @@ arrayContinue:
 
 	////////////////////////////// FINAL STATES /////////////////////////////
 succeed:
-	offset = pj.containing_scope_offset[len(pj.containing_scope_offset)-1]
+	offset = pj.containingScopeOffset[len(pj.containingScopeOffset)-1]
 	// drop last element
-	pj.containing_scope_offset = pj.containing_scope_offset[:len(pj.containing_scope_offset)-1]
+	pj.containingScopeOffset = pj.containingScopeOffset[:len(pj.containingScopeOffset)-1]
 
 	// Sanity checks
-	if len(pj.containing_scope_offset) != 0 {
+	if len(pj.containingScopeOffset) != 0 {
 		return false
 	}
 

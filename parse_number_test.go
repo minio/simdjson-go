@@ -31,7 +31,7 @@ func TestNumberIsValid(t *testing.T) {
 	// From: https://stackoverflow.com/a/13340826
 	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
 	isValidNumber := func(s string) bool {
-		tag, _ := parseNumber([]byte(s))
+		tag, _, _ := parseNumber([]byte(s))
 		return tag != TagEnd
 	}
 	validTests := []string{

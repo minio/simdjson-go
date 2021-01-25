@@ -74,7 +74,7 @@ func findStructuralIndices(buf []byte, pj *internalParsedJson) bool {
 	for len(buf) > 0 {
 
 		index := indexChan{}
-		offset := atomic.AddUint64(&pj.buffers_offset, 1)
+		offset := atomic.AddUint64(&pj.buffersOffset, 1)
 		index.indexes = &pj.buffers[offset%indexSlots]
 
 		// In case last index during previous round was stripped back, put it back
@@ -125,13 +125,13 @@ func findStructuralIndices(buf []byte, pj *internalParsedJson) bool {
 			index.length -= 1
 		}
 
-		pj.index_chan <- index
+		pj.indexChans <- index
 		indexTotal += index.length
 
 		buf = buf[processed:]
 		position -= processed
 	}
-	close(pj.index_chan)
+	close(pj.indexChans)
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
 	return error_mask == 0 && indexTotal > 0

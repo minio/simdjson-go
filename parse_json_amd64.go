@@ -42,10 +42,10 @@ func (pj *internalParsedJson) initialize(size int) {
 		pj.Strings = make([]byte, 0, stringsSize)
 	}
 	pj.Strings = pj.Strings[:0]
-	if cap(pj.containing_scope_offset) < maxdepth {
-		pj.containing_scope_offset = make([]uint64, 0, maxdepth)
+	if cap(pj.containingScopeOffset) < maxdepth {
+		pj.containingScopeOffset = make([]uint64, 0, maxdepth)
 	}
-	pj.containing_scope_offset = pj.containing_scope_offset[:0]
+	pj.containingScopeOffset = pj.containingScopeOffset[:0]
 }
 
 func (pj *internalParsedJson) parseMessage(msg []byte) error {
@@ -75,8 +75,8 @@ func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err
 	// Make the capacity of the channel smaller than the number of slots.
 	// This way the sender will automatically block until the consumer
 	// has finished the slot it is working on.
-	pj.index_chan = make(chan indexChan, indexSlots-2)
-	pj.buffers_offset = ^uint64(0)
+	pj.indexChans = make(chan indexChan, indexSlots-2)
+	pj.buffersOffset = ^uint64(0)
 
 	var errStage1 error
 	go func() {
@@ -89,7 +89,7 @@ func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err
 		if !unifiedMachine(pj.Message, pj) {
 			err = errors.New("Bad parsing while executing stage 2")
 			// drain the channel until empty
-			for range pj.index_chan {
+			for range pj.indexChans {
 			}
 		}
 		wg.Done()
