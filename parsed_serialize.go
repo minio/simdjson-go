@@ -33,9 +33,10 @@ import (
 )
 
 const (
-	stringBits = 14
-	stringSize = 1 << stringBits
-	stringmask = stringSize - 1
+	stringBits        = 14
+	stringSize        = 1 << stringBits
+	stringmask        = stringSize - 1
+	serializedVersion = 2
 )
 
 // Serializer allows to serialize parsed json and read it back.
@@ -373,7 +374,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	wg.Wait()
 
 	// Version
-	dst = append(dst, 1)
+	dst = append(dst, serializedVersion)
 
 	// Size of varints...
 	varInts := binary.PutUvarint(tmp[:], uint64(0)) +
@@ -463,7 +464,8 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 
 	if v, err := br.ReadByte(); err != nil {
 		return dst, err
-	} else if v != 1 {
+	} else if v > serializedVersion {
+		// v2 reads v1.
 		return dst, errors.New("unknown version")
 	}
 
