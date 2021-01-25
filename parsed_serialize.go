@@ -611,6 +611,8 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 			}
 			dst.Tape[off] = binary.LittleEndian.Uint64(values[:8])
 			dst.Tape[off+1] = binary.LittleEndian.Uint64(values[8:16])
+			values = values[16:]
+			off += 2
 		case TagNull, TagBoolTrue, TagBoolFalse, TagEnd:
 			dst.Tape[off] = tagDst
 			off++
