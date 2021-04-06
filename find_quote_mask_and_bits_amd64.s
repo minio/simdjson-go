@@ -47,11 +47,11 @@ TEXT ·_find_quote_mask_and_bits(SB), $0-48
 	RET
 
 TEXT ·__find_quote_mask_and_bits(SB), $0
-	LEAQ LCDATA1<>(SB), BP
+	LEAQ LCDATA1<>(SB), R10
 
 	VMOVDQA    Y8, Y0         // vmovdqu    ymm0, yword [rdi]
 	VMOVDQA    Y9, Y1         // vmovdqu    ymm1, yword [rsi]
-	VMOVDQA    (BP), Y2       // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
+	VMOVDQA    (R10), Y2      // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
 	VPCMPEQB   Y2, Y0, Y3     // vpcmpeqb    ymm3, ymm0, ymm2
 	VPMOVMSKB  Y3, AX         // vpmovmskb    eax, ymm3
 	VPCMPEQB   Y2, Y1, Y2     // vpcmpeqb    ymm2, ymm1, ymm2
@@ -66,9 +66,9 @@ TEXT ·__find_quote_mask_and_bits(SB), $0
 	VPCLMULQDQ $0, X3, X2, X2 // vpclmulqdq    xmm2, xmm2, xmm3, 0
 	VMOVQ      X2, AX         // vmovq    rax, xmm2
 	XORQ       (CX), AX       // xor    rax, qword [rcx]
-	VMOVDQA    0x40(BP), Y2   // vmovdqa    ymm2, yword 32[rbp] /* [rip + LCPI0_1] */
+	VMOVDQA    0x40(R10), Y2  // vmovdqa    ymm2, yword 32[rbp] /* [rip + LCPI0_1] */
 	VPXOR      Y2, Y0, Y0     // vpxor    ymm0, ymm0, ymm2
-	VMOVDQA    0x80(BP), Y3   // vmovdqa    ymm3, yword 64[rbp] /* [rip + LCPI0_2] */
+	VMOVDQA    0x80(R10), Y3  // vmovdqa    ymm3, yword 64[rbp] /* [rip + LCPI0_2] */
 	VPCMPGTB   Y0, Y3, Y0     // vpcmpgtb    ymm0, ymm3, ymm0
 	VPMOVMSKB  Y0, DX         // vpmovmskb    edx, ymm0
 	VPXOR      Y2, Y1, Y0     // vpxor    ymm0, ymm1, ymm2
@@ -107,10 +107,10 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
 #define QMAB_CONST3 Z19
 
 TEXT ·__init_quote_mask_and_bits_avx512(SB), $0
-	LEAQ      LCDATA1<>(SB), BP
-	VMOVDQU32 0x00(BP), QMAB_CONST1
-	VMOVDQU32 0x40(BP), QMAB_CONST2
-	VMOVDQU32 0x80(BP), QMAB_CONST3
+	LEAQ      LCDATA1<>(SB), R10
+	VMOVDQU32 0x00(R10), QMAB_CONST1
+	VMOVDQU32 0x40(R10), QMAB_CONST2
+	VMOVDQU32 0x80(R10), QMAB_CONST3
 	RET
 
 TEXT ·__find_quote_mask_and_bits_avx512(SB), $0

@@ -69,7 +69,7 @@ DATA LCDATA1<>+0x230(SB)/8, $0x0000000000000000
 DATA LCDATA1<>+0x238(SB)/8, $0x0000000000000000
 GLOBL LCDATA1<>(SB), 8, $576
 
-TEXT ·_parse_string_validate_only(SB), $0-40
+TEXT ·_parse_string_validate_only(SB), $8-40
 
 	MOVQ src+0(FP), DI
 	MOVQ maxStringSize+8(FP), SI
@@ -257,7 +257,7 @@ LBB0_31:
 	MOVQ AX, result+32(FP)
 	RET
 
-TEXT ·_parse_string(SB), $0-32
+TEXT ·_parse_string(SB), $8-32
 
 	MOVQ src+0(FP), DI
 	MOVQ dst+8(FP), SI

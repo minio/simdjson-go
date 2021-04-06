@@ -22,8 +22,8 @@ TEXT ·_find_odd_backslash_sequences(SB), $0-24
 	RET
 
 TEXT ·__find_odd_backslash_sequences(SB), $0
-	LEAQ      LCDATA1<>(SB), BP
-	VMOVDQA   (BP), Y0           // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
+	LEAQ      LCDATA1<>(SB), R8
+	VMOVDQA   (R8), Y0           // vmovdqa    ymm0, yword 0[rbp] /* [rip + LCPI0_0] */
 	VPCMPEQB  Y8/*(DI)*/, Y0, Y1 // vpcmpeqb    ymm1, ymm0, yword [rdi]
 	VPMOVMSKB Y1, CX             // vpmovmskb    ecx, ymm1
 	VPCMPEQB  Y9/*(SI)*/, Y0, Y0 // vpcmpeqb    ymm0, ymm0, yword [rsi]
