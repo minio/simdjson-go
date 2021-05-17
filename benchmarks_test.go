@@ -29,20 +29,35 @@ func benchmarkFromFile(b *testing.B, filename string) {
 	}
 	msg := loadCompressed(b, filename)
 
-	b.SetBytes(int64(len(msg)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	pj := &ParsedJson{}
-
-	for i := 0; i < b.N; i++ {
-		// Reset tape
-		var err error
-		pj, err = Parse(msg, pj)
-		if err != nil {
-			b.Fatal(err)
+	b.Run("copy", func(b *testing.B) {
+		pj := &ParsedJson{}
+		b.SetBytes(int64(len(msg)))
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// Reset tape
+			var err error
+			pj, err = Parse(msg, pj, WithCopyStrings(true))
+			if err != nil {
+				b.Fatal(err)
+			}
 		}
-	}
+	})
+	b.Run("nocopy", func(b *testing.B) {
+		pj := &ParsedJson{}
+		b.SetBytes(int64(len(msg)))
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			// Reset tape
+			var err error
+			pj, err = Parse(msg, pj, WithCopyStrings(false))
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
 }
 
 func BenchmarkApache_builds(b *testing.B)  { benchmarkFromFile(b, "apache_builds") }

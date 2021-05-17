@@ -71,9 +71,8 @@ func peekSize(pj *internalParsedJson) uint64 {
 	return uint64(pj.indexesChan.indexes[pj.indexesChan.index])
 }
 
-func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
+func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64, needCopy bool) bool {
 	size := uint64(0)
-	need_copy := false
 	buf := pj.Message[idx:]
 	// Make sure that we have at least one full YMM word available after maxStringSize into the buffer
 	if len(buf)-int(maxStringSize) < 64 {
@@ -87,10 +86,10 @@ func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64) bool {
 			buf = paddedBuf[:]
 		}
 	}
-	if !parseStringSimdValidateOnly(buf, &maxStringSize, &size, &need_copy) {
+	if !parseStringSimdValidateOnly(buf, &maxStringSize, &size, &needCopy) {
 		return false
 	}
-	if !need_copy {
+	if !needCopy {
 		pj.write_tape(idx+1, '"')
 	} else {
 		// Make sure we account for at least 32 bytes additional space due to
@@ -237,7 +236,7 @@ object_begin:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj), pj.copyStrings) {
 			goto fail
 		}
 		goto object_key_state
@@ -259,7 +258,7 @@ object_key_state:
 	}
 	switch buf[idx] {
 	case '"':
-		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj), pj.copyStrings) {
 			goto fail
 		}
 
@@ -319,7 +318,7 @@ objectContinue:
 		if buf[idx] != '"' {
 			goto fail
 		}
-		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj), pj.copyStrings) {
 			goto fail
 		}
 		goto object_key_state
@@ -365,7 +364,7 @@ mainArraySwitch:
 	// on paths that can accept a close square brace (post-, and at start)
 	switch buf[idx] {
 	case '"':
-		if !parseString(&pj.ParsedJson, idx, peekSize(pj)) {
+		if !parseString(&pj.ParsedJson, idx, peekSize(pj), pj.copyStrings) {
 			goto fail
 		}
 	case 't':

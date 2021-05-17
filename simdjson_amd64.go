@@ -37,9 +37,7 @@ func SupportedCPU() bool {
 	return cpuid.CPU.Supports(cpuid.AVX2, cpuid.CLMUL)
 }
 
-// Parse a block of data and return the parsed JSON.
-// An optional block of previously parsed json can be supplied to reduce allocations.
-func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
+func newInternalParsedJson(reuse *ParsedJson, opts []ParserOption) (*internalParsedJson, error) {
 	if !SupportedCPU() {
 		return nil, errors.New("Host CPU does not meet target specs")
 	}
@@ -53,7 +51,23 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 	if pj == nil {
 		pj = &internalParsedJson{}
 	}
-	err := pj.parseMessage(b)
+	pj.copyStrings = true
+	for _, opt := range opts {
+		if err := opt(pj); err != nil {
+			return nil, err
+		}
+	}
+	return pj, nil
+}
+
+// Parse a block of data and return the parsed JSON.
+// An optional block of previously parsed json can be supplied to reduce allocations.
+func Parse(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, error) {
+	pj, err := newInternalParsedJson(reuse, opts)
+	if err != nil {
+		return nil, err
+	}
+	err = pj.parseMessage(b)
 	if err != nil {
 		return nil, err
 	}
@@ -64,17 +78,12 @@ func Parse(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
 
 // ParseND will parse newline delimited JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
-func ParseND(b []byte, reuse *ParsedJson) (*ParsedJson, error) {
-	if !SupportedCPU() {
-		return nil, errors.New("Host CPU does not meet target specs")
+func ParseND(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, error) {
+	pj, err := newInternalParsedJson(reuse, opts)
+	if err != nil {
+		return nil, err
 	}
-	var pj internalParsedJson
-	if reuse != nil {
-		pj.ParsedJson = *reuse
-	}
-	b = bytes.TrimSpace(b)
-
-	err := pj.parseMessageNdjson(b)
+	err = pj.parseMessageNdjson(bytes.TrimSpace(b))
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +175,7 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 				queue <- result
 				go func() {
 					var pj internalParsedJson
+					pj.copyStrings = true
 					select {
 					case v := <-reuse:
 						if cap(v.Message) >= tmpSize+1024 {
