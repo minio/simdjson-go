@@ -23,7 +23,9 @@ package simdjson
 import (
 	"errors"
 	"math"
+	"reflect"
 	"strconv"
+	"unsafe"
 )
 
 const (
@@ -91,7 +93,7 @@ func parseNumber(buf []byte) (tag Tag, val, flags uint64) {
 	const maxIntLen = 20
 
 	// Only try integers if we didn't find any float exclusive and it can fit in an integer.
-	if found&isFloatOnlyFlag == 0 && pos <= 20 {
+	if found&isFloatOnlyFlag == 0 && pos <= maxIntLen {
 		if found&isMinusFlag == 0 {
 			if pos > 1 && buf[0] == '0' {
 				// Integers cannot have a leading zero.
@@ -103,7 +105,7 @@ func parseNumber(buf []byte) (tag Tag, val, flags uint64) {
 				return TagEnd, 0, 0
 			}
 		}
-		i64, err := strconv.ParseInt(string(buf[:pos]), 10, 64)
+		i64, err := strconv.ParseInt(unsafeBytesToString(buf[:pos]), 10, 64)
 		if err == nil {
 			return TagInteger, uint64(i64), 0
 		}
@@ -112,7 +114,7 @@ func parseNumber(buf []byte) (tag Tag, val, flags uint64) {
 		}
 
 		if found&isMinusFlag == 0 {
-			u64, err := strconv.ParseUint(string(buf[:pos]), 10, 64)
+			u64, err := strconv.ParseUint(unsafeBytesToString(buf[:pos]), 10, 64)
 			if err == nil {
 				return TagUint, u64, 0
 			}
@@ -128,9 +130,23 @@ func parseNumber(buf []byte) (tag Tag, val, flags uint64) {
 		// Float can only have have a leading 0 when followed by a period.
 		return TagEnd, 0, 0
 	}
-	f64, err := strconv.ParseFloat(string(buf[:pos]), 64)
+	f64, err := strconv.ParseFloat(unsafeBytesToString(buf[:pos]), 64)
 	if err == nil {
 		return TagFloat, math.Float64bits(f64), flags
 	}
 	return TagEnd, 0, 0
+}
+
+// unsafeBytesToString should only be used when we have control of b.
+func unsafeBytesToString(b []byte) (s string) {
+	var length = len(b)
+
+	if length == 0 {
+		return ""
+	}
+
+	stringHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	stringHeader.Data = uintptr(unsafe.Pointer(&b[0]))
+	stringHeader.Len = length
+	return s
 }

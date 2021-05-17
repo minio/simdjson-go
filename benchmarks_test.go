@@ -84,9 +84,8 @@ func benchmarkJsoniter(b *testing.B, filename string) {
 	b.ResetTimer()
 
 	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	var parsed interface{}
 	for i := 0; i < b.N; i++ {
-
-		var parsed interface{}
 		if err := json.Unmarshal(msg, &parsed); err != nil {
 			b.Fatal(err)
 		}
@@ -101,9 +100,9 @@ func benchmarkEncodingJson(b *testing.B, filename string) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	var parsed interface{}
 	for i := 0; i < b.N; i++ {
 
-		var parsed interface{}
 		if err := json.Unmarshal(msg, &parsed); err != nil {
 			b.Fatal(err)
 		}
