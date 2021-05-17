@@ -783,7 +783,7 @@ DATA LCTABLE<>+0x1840(SB)/8, $0x0101010101010101
 // end of structural_or_whitespace_or_exponent_or_decimal_negated
 GLOBL LCTABLE<>(SB), 8, $6216
 
-TEXT ·_parse_number(SB), $0-56
+TEXT ·_parse_number(SB), $8-56
 
 	MOVQ buf+0(FP), DI
 	MOVQ offset+8(FP), SI

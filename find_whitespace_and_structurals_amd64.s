@@ -60,16 +60,16 @@ TEXT ·_find_whitespace_and_structurals(SB), $0-24
 	RET
 
 TEXT ·__find_whitespace_and_structurals(SB), $0
-	LEAQ LCDATA1<>(SB), BP
+	LEAQ LCDATA1<>(SB), R8
 
 	VMOVDQA   Y8, Y0        // vmovdqu    ymm0, yword [rdi]
 	VMOVDQA   Y9, Y1        // vmovdqu    ymm1, yword [rsi]
-	VMOVDQA   (BP), Y2      // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
+	VMOVDQA   (R8), Y2      // vmovdqa    ymm2, yword 0[rbp] /* [rip + LCPI0_0] */
 	VPSHUFB   Y0, Y2, Y3    // vpshufb    ymm3, ymm2, ymm0
 	VPSRLD    $4, Y0, Y0    // vpsrld    ymm0, ymm0, 4
-	VMOVDQA   0x40(BP), Y4  // vmovdqa    ymm4, yword 32[rbp] /* [rip + LCPI0_1] */
+	VMOVDQA   0x40(R8), Y4  // vmovdqa    ymm4, yword 32[rbp] /* [rip + LCPI0_1] */
 	VPAND     Y4, Y0, Y0    // vpand    ymm0, ymm0, ymm4
-	VMOVDQA   0x80(BP), Y5  // vmovdqa    ymm5, yword 64[rbp] /* [rip + LCPI0_2] */
+	VMOVDQA   0x80(R8), Y5  // vmovdqa    ymm5, yword 64[rbp] /* [rip + LCPI0_2] */
 	VPSHUFB   Y0, Y5, Y0    // vpshufb    ymm0, ymm5, ymm0
 	VPAND     Y3, Y0, Y0    // vpand    ymm0, ymm0, ymm3
 	VPSHUFB   Y1, Y2, Y2    // vpshufb    ymm2, ymm2, ymm1
@@ -77,7 +77,7 @@ TEXT ·__find_whitespace_and_structurals(SB), $0
 	VPAND     Y4, Y1, Y1    // vpand    ymm1, ymm1, ymm4
 	VPSHUFB   Y1, Y5, Y1    // vpshufb    ymm1, ymm5, ymm1
 	VPAND     Y2, Y1, Y1    // vpand    ymm1, ymm1, ymm2
-	VMOVDQA   0xc0(BP), Y2  // vmovdqa    ymm2, yword 96[rbp] /* [rip + LCPI0_3] */
+	VMOVDQA   0xc0(R8), Y2  // vmovdqa    ymm2, yword 96[rbp] /* [rip + LCPI0_3] */
 	VPAND     Y2, Y0, Y3    // vpand    ymm3, ymm0, ymm2
 	VPXOR     Y4, Y4, Y4    // vpxor    ymm4, ymm4, ymm4
 	VPCMPEQB  Y4, Y3, Y3    // vpcmpeqb    ymm3, ymm3, ymm4
@@ -89,7 +89,7 @@ TEXT ·__find_whitespace_and_structurals(SB), $0
 	ORQ       AX, SI        // or    rsi, rax
 	NOTQ      SI            // not    rsi
 	MOVQ      SI, (CX)      // mov    qword [rcx], rsi
-	VMOVDQA   0x100(BP), Y2 // vmovdqa    ymm2, yword 128[rbp] /* [rip + LCPI0_4] */
+	VMOVDQA   0x100(R8), Y2 // vmovdqa    ymm2, yword 128[rbp] /* [rip + LCPI0_4] */
 	VPAND     Y2, Y0, Y0    // vpand    ymm0, ymm0, ymm2
 	VPCMPEQB  Y4, Y0, Y0    // vpcmpeqb    ymm0, ymm0, ymm4
 	VPAND     Y2, Y1, Y1    // vpand    ymm1, ymm1, ymm2
@@ -124,13 +124,13 @@ TEXT ·_find_whitespace_and_structurals_avx512(SB), $0-24
 #define WSAS_CONST_5 Z25
 
 TEXT ·__init_whitespace_and_structurals_avx512(SB), $0
-	LEAQ      LCDATA1<>(SB), BP
+	LEAQ      LCDATA1<>(SB), R8
 	VPXORD    ZERO_CONST, ZERO_CONST, ZERO_CONST
-	VMOVDQU32 0x000(BP), WSAS_CONST_1
-	VMOVDQU32 0x040(BP), WSAS_CONST_2
-	VMOVDQU32 0x080(BP), WSAS_CONST_3
-	VMOVDQU32 0x0c0(BP), WSAS_CONST_4
-	VMOVDQU32 0x100(BP), WSAS_CONST_5
+	VMOVDQU32 0x000(R8), WSAS_CONST_1
+	VMOVDQU32 0x040(R8), WSAS_CONST_2
+	VMOVDQU32 0x080(R8), WSAS_CONST_3
+	VMOVDQU32 0x0c0(R8), WSAS_CONST_4
+	VMOVDQU32 0x100(R8), WSAS_CONST_5
 	RET
 
 TEXT ·__find_whitespace_and_structurals_avx512(SB), $0
