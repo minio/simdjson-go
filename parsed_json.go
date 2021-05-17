@@ -26,15 +26,6 @@ import (
 	"strconv"
 )
 
-//
-// For enhanced performance, simdjson-go can point back into the original JSON buffer for strings,
-// however this can lead to issues in streaming use cases scenarios, or scenarios in which
-// the underlying JSON buffer is reused. So the default behaviour is to create copies of all
-// strings (not just those transformed anyway for unicode escape characters) into the separate
-// Strings buffer (at the expense of using more memory and less performance).
-//
-const alwaysCopyStrings = true
-
 const JSONVALUEMASK = 0xffffffffffffff
 const JSONTAGMASK = 0xff << 56
 const STRINGBUFBIT = 0x80000000000000
@@ -96,6 +87,7 @@ type internalParsedJson struct {
 	buffers               [indexSlots][indexSize]uint32
 	buffersOffset         uint64
 	ndjson                uint64
+	copyStrings           bool
 }
 
 // Iter returns a new Iter.

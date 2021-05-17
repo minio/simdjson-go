@@ -184,7 +184,7 @@ func TestStage2BuildTape(t *testing.T) {
 			//}
 			//fmt.Printf("{%s, 0x%x},\n", c, tp&0xffffffffffffff)
 			expected := tc.expected[ii].val | (uint64(tc.expected[ii].c) << 56)
-			if !alwaysCopyStrings && tp != expected {
+			if !pj.copyStrings && tp != expected {
 				t.Errorf("TestStage2BuildTape(%d): got: %d want: %d", ii, tp, expected)
 			}
 		}
