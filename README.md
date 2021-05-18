@@ -455,8 +455,8 @@ BenchmarkTwitterescaped/copy-32               	    1189	    972250 ns/op	 578.46
 BenchmarkTwitterescaped/nocopy-32             	    1372	    874972 ns/op	 642.77 MB/s	    2518 B/op	      53 allocs/op
 
 BenchmarkUpdate_center/copy-32                	    1665	    708717 ns/op	 752.31 MB/s	    3235 B/op	      58 allocs/op
-BenchmarkUpdate_center/nocopy-32              	    2241	    536027 ns/op	 994.68 MB/s	    2130 B/op	      58 allocs/op```
-
+BenchmarkUpdate_center/nocopy-32              	    2241	    536027 ns/op	 994.68 MB/s	    2130 B/op	      58 allocs/op
+```
 
 ## Design
 
