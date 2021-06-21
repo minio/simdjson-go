@@ -112,7 +112,7 @@ Currently, it is not possible to unmarshal into structs.
 
 If you are only interested in one key in an object you can use `FindKey` to quickly select it.
 
-An object kan be traversed manually by using `NextElement(dst *Iter) (name string, t Type, err error)`.
+An object can be traversed manually by using `NextElement(dst *Iter) (name string, t Type, err error)`.
 The key of the element will be returned as a string and the type of the value will be returned
 and the provided `Iter` will contain an iterator which will allow access to the content.
 
