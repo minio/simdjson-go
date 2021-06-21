@@ -155,11 +155,11 @@ JSON numbers follow JavaScript’s double-precision floating-point format.
 * Octal and hexadecimal formats are not supported.
 * Can not have a value of NaN (Not A Number) or Infinity.
 
-## Parsing NDSJON stream
+## Parsing NDJSON stream
 
 Newline delimited json is sent as packets with each line being a root element.
 
-Here is an example that counts the number of `"Make": "HOND"` in NDSJON similar to this:
+Here is an example that counts the number of `"Make": "HOND"` in NDJSON similar to this:
 
 ```
 {"Age":20, "Make": "HOND"}
