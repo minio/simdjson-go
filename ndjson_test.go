@@ -18,7 +18,7 @@ package simdjson
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -291,7 +291,7 @@ func TestNdjsonCountWhere2(t *testing.T) {
 
 func loadFile(filename string) []byte {
 	if !strings.HasSuffix(filename, ".zst") {
-		ndjson, err := ioutil.ReadFile(filename)
+		ndjson, err := os.ReadFile(filename)
 		if err != nil {
 			panic("Failed to load file")
 		}
@@ -309,9 +309,9 @@ func loadFile(filename string) []byte {
 			fmt.Println("downloading file" + filename)
 			resp, err := http.DefaultClient.Get("https://files.klauspost.com/compress/" + filepath.Base(filename))
 			if err == nil && resp.StatusCode == http.StatusOK {
-				b, err := ioutil.ReadAll(resp.Body)
+				b, err := io.ReadAll(resp.Body)
 				if err == nil {
-					err = ioutil.WriteFile(filename, b, os.ModePerm)
+					err = os.WriteFile(filename, b, os.ModePerm)
 					if err == nil {
 						continue
 					}
@@ -325,7 +325,7 @@ func loadFile(filename string) []byte {
 		panic("Failed to create decompressor")
 	}
 	defer dec.Close()
-	ndjson, err := ioutil.ReadAll(dec)
+	ndjson, err := io.ReadAll(dec)
 	if err != nil {
 		panic("Failed to load file")
 	}

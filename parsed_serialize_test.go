@@ -41,7 +41,7 @@ func BenchmarkSerialize(b *testing.B) {
 				once.Do(func() {
 					b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
 				})
-				//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
+				// _ = os.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 				b.SetBytes(int64(len(org)))
 				b.ReportAllocs()
 				b.ResetTimer()
@@ -90,7 +90,7 @@ func BenchmarkDeSerialize(b *testing.B) {
 				if false {
 					b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
 				}
-				//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
+				//_ = os.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 				pj2, err := s.Deserialize(output, nil)
 				if err != nil {
 					b.Fatal(err)
@@ -146,7 +146,7 @@ func BenchmarkSerializeNDJSON(b *testing.B) {
 		if true {
 			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
 		}
-		//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
+		// _ = os.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -195,7 +195,7 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		// _ = ioutil.WriteFile(filepath.Join("testdata", filepath.Base(b.Name())+".compressed"), output, os.ModePerm)
+		// _ = os.WriteFile(filepath.Join("testdata", filepath.Base(b.Name())+".compressed"), output, os.ModePerm)
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
 		b.ResetTimer()

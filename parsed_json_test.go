@@ -19,7 +19,7 @@ package simdjson
 import (
 	"encoding/binary"
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -37,7 +37,7 @@ func loadCompressed(t tester, file string) (ref []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, err = ioutil.ReadFile(filepath.Join("testdata", file+".json.zst"))
+	ref, err = os.ReadFile(filepath.Join("testdata", file+".json.zst"))
 	if err != nil {
 		t.Fatal(err)
 	}

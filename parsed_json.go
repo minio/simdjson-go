@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"strconv"
 )
@@ -140,7 +139,7 @@ type Iter struct {
 
 // loadTape will load the input from the supplied readers.
 func loadTape(tape, strings io.Reader) (*ParsedJson, error) {
-	b, err := ioutil.ReadAll(tape)
+	b, err := io.ReadAll(tape)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +155,7 @@ func loadTape(tape, strings io.Reader) (*ParsedJson, error) {
 		dst.Tape[i] = binary.LittleEndian.Uint64(b[i*8 : i*8+8])
 	}
 	// Read stringbuf
-	b, err = ioutil.ReadAll(strings)
+	b, err = io.ReadAll(strings)
 	if err != nil {
 		return nil, err
 	}
