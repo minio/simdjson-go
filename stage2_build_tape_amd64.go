@@ -93,20 +93,21 @@ func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64, needCopy bool
 		pj.write_tape(idx+1, '"')
 	} else {
 		// Make sure we account for at least 32 bytes additional space due to
-		requiredLen := uint64(len(pj.Strings)) + size + 32
-		if requiredLen >= uint64(cap(pj.Strings)) {
-			newSize := uint64(cap(pj.Strings) * 2)
+		strs := pj.Strings.B
+		requiredLen := uint64(len(strs)) + size + 32
+		if requiredLen >= uint64(cap(strs)) {
+			newSize := uint64(cap(strs) * 2)
 			if newSize < requiredLen {
 				newSize = requiredLen + size // add size once more to account for further space
 			}
-			strs := make([]byte, len(pj.Strings), newSize)
-			copy(strs, pj.Strings)
-			pj.Strings = strs
+			strs = make([]byte, len(strs), newSize)
+			copy(strs, pj.Strings.B)
+			pj.Strings.B = strs
 		}
-		start := len(pj.Strings)
-		_ = parseStringSimd(buf, &pj.Strings) // We can safely ignore the result since we validate above
+		start := len(strs)
+		_ = parseStringSimd(buf, &pj.Strings.B) // We can safely ignore the result since we validate above
 		pj.write_tape(uint64(STRINGBUFBIT+start), '"')
-		size = uint64(len(pj.Strings) - start)
+		size = uint64(len(pj.Strings.B) - start)
 	}
 	// put length onto the tape
 	pj.Tape = append(pj.Tape, size)

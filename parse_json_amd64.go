@@ -38,10 +38,11 @@ func (pj *internalParsedJson) initialize(size int) {
 	if stringsSize < 128 {
 		stringsSize = 128 // always allocate at least 128 for the string buffer
 	}
-	if cap(pj.Strings) < stringsSize {
-		pj.Strings = make([]byte, 0, stringsSize)
+	if pj.Strings != nil && cap(pj.Strings.B) >= stringsSize {
+		pj.Strings.B = pj.Strings.B[:0]
+	} else {
+		pj.Strings = &TStrings{make([]byte, 0, stringsSize)}
 	}
-	pj.Strings = pj.Strings[:0]
 	if cap(pj.containingScopeOffset) < maxdepth {
 		pj.containingScopeOffset = make([]uint64, 0, maxdepth)
 	}

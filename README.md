@@ -458,6 +458,26 @@ BenchmarkUpdate_center/copy-32                	    1665	    708717 ns/op	 752.31
 BenchmarkUpdate_center/nocopy-32              	    2241	    536027 ns/op	 994.68 MB/s	    2130 B/op	      58 allocs/op
 ```
 
+### In-place Value Replacement
+
+It is possible to replace a few, basic internal values.
+This means that when re-parsing or re-serializing the parsed JSON these values will be output.
+
+Boolean (true/false) and null values can be freely exchanged.
+
+Numeric values (float, int, uint) can be exchanged freely.
+
+Strings can also be exchanged with different values.
+
+Strings and numbers can be exchanged. However, note that there is no checks for numbers inserted as object keys,
+so if used for this invalid JSON is possible.
+
+There is no way to modify objects, arrays, other than value types above inside each.
+It is not possible to remove or add elements.
+
+To replace a value, of value referenced by an `Iter` simply call `SetNull`, `SetBool`, `SetFloat`, `SetInt`, `SetUInt`,
+`SetString` or `SetStringBytes`.
+
 ## Design
 
 `simdjson-go` follows the same two stage design as `simdjson`. 
