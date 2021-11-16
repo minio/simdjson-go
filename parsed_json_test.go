@@ -17,7 +17,6 @@
 package simdjson
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
@@ -97,73 +96,6 @@ var testCases = []struct {
 	{
 		name: "update-center",
 	},
-}
-
-func bytesToUint64(buf []byte) []uint64 {
-
-	tape := make([]uint64, len(buf)/8)
-	for i := range tape {
-		tape[i] = binary.LittleEndian.Uint64(buf[i*8:])
-	}
-	return tape
-}
-
-func testCTapeCtoGoTapeCompare(t *testing.T, ctape []uint64, csbuf []byte, pj internalParsedJson) {
-
-	gotape := pj.Tape
-
-	cindex, goindex := 0, 0
-	for goindex < len(gotape) {
-		if cindex == len(ctape) {
-			t.Errorf("TestCTapeCtoGoTapeCompare: unexpected, ctape at end, but gotape not yet")
-			break
-		}
-		cval, goval := ctape[cindex], gotape[goindex]
-
-		// Make sure the type is the same between the C and Go version
-		if cval>>56 != goval>>56 {
-			t.Errorf("TestCTapeCtoGoTapeCompare: got: %02x want: %02x", goval>>56, cval>>56)
-		}
-
-		ntype := Tag(goval >> 56)
-		switch ntype {
-		case TagRoot, TagObjectStart, TagObjectEnd, TagArrayStart, TagArrayEnd:
-			cindex++
-			goindex++
-
-		case TagString:
-			cpayload := cval & JSONVALUEMASK
-			cstrlen := binary.LittleEndian.Uint32(csbuf[cpayload : cpayload+4])
-			cstr := string(csbuf[cpayload+4 : cpayload+4+uint64(cstrlen)])
-			gostr, _ := pj.stringAt(goval&JSONVALUEMASK, gotape[goindex+1])
-			if cstr != gostr {
-				t.Errorf("TestCTapeCtoGoTapeCompare: got: %s want: %s", gostr, cstr)
-			}
-			cindex++
-			goindex += 2
-
-		case TagNull, TagBoolTrue, TagBoolFalse:
-			cindex++
-			goindex++
-
-		case TagInteger, TagFloat:
-			if ctape[cindex+1] != gotape[goindex+1] {
-				if ntype != TagFloat {
-					t.Errorf("TestCTapeCtoGoTapeCompare: got: %016x want: %016x", gotape[goindex+1], ctape[cindex+1])
-
-				}
-			}
-			cindex += 2
-			goindex += 2
-
-		default:
-			t.Errorf("TestCTapeCtoGoTapeCompare: unexpected token, got: %02x", ntype)
-		}
-	}
-
-	if cindex != len(ctape) {
-		t.Errorf("TestCTapeCtoGoTapeCompare: got: %d want: %d", cindex, len(ctape))
-	}
 }
 
 func BenchmarkIter_MarshalJSONBuffer(b *testing.B) {
