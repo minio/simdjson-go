@@ -1029,10 +1029,46 @@ func print_with_escapes(src []byte) string {
 	return string(escapeBytes(make([]byte, 0, len(src)+len(src)>>4), src))
 }
 
+var shouldEscape = [256]bool{
+	'\b': true,
+	'\f': true,
+	'\n': true,
+	'\r': true,
+	'"':  true,
+	'\t': true,
+	'\\': true,
+	// Remaining will be added in init below.
+}
+
+func init() {
+	for i := range shouldEscape[:0x20] {
+		shouldEscape[i] = true
+	}
+}
+
 // escapeBytes will escape JSON bytes.
 // Output is appended to dst.
 func escapeBytes(dst, src []byte) []byte {
+	esc := false
+	for i, s := range src {
+		if shouldEscape[s] {
+			if i > 0 {
+				dst = append(dst, src[:i]...)
+				src = src[i:]
+			}
+			esc = true
+			break
+		}
+	}
+	if !esc {
+		// Nothing was escaped...
+		return append(dst, src...)
+	}
 	for _, s := range src {
+		if !shouldEscape[s] {
+			dst = append(dst, s)
+			continue
+		}
 		switch s {
 		case '\b':
 			dst = append(dst, '\\', 'b')
@@ -1056,14 +1092,9 @@ func escapeBytes(dst, src []byte) []byte {
 			dst = append(dst, '\\', '\\')
 
 		default:
-			if s <= 0x1f {
-				dst = append(dst, '\\', 'u', '0', '0', valToHex[s>>4], valToHex[s&0xf])
-			} else {
-				dst = append(dst, s)
-			}
+			dst = append(dst, '\\', 'u', '0', '0', valToHex[s>>4], valToHex[s&0xf])
 		}
 	}
-
 	return dst
 }
 
