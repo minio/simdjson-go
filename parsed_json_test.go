@@ -614,6 +614,10 @@ func TestIter_SetString(t *testing.T) {
 			setTo: "",
 			want:  `{"":{"":true,"":false,"":null},"":{"":"","":"","":""},"":"","":[null,true,false,"","","",""]}`,
 		},
+		{
+			setTo: "\t",
+			want:  `{"\t":{"\t":true,"\t":false,"\t":null},"\t":{"\t":"\t","\t":"\t","\t":"\t"},"\t":"\t","\t":[null,true,false,"\t","\t","\t","\t"]}`,
+		},
 	}
 
 	for _, test := range tests {
