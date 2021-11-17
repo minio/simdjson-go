@@ -1119,20 +1119,15 @@ func appendFloat(dst []byte, f float64) ([]byte, error) {
 	// Like fmt %g, but the exponent cutoffs are different
 	// and exponents themselves are not padded to two digits.
 	abs := math.Abs(f)
-	fmt := byte('f')
-	if abs != 0 {
-		if abs < 1e-6 || abs >= 1e21 {
-			fmt = 'e'
-		}
+	if (abs >= 1e-6 && abs < 1e21) || abs == 0 {
+		return appendFloatF(dst, f), nil
 	}
-	dst = strconv.AppendFloat(dst, f, fmt, -1, 64)
-	if fmt == 'e' {
-		// clean up e-09 to e-9
-		n := len(dst)
-		if n >= 4 && dst[n-4] == 'e' && dst[n-3] == '-' && dst[n-2] == '0' {
-			dst[n-2] = dst[n-1]
-			dst = dst[:n-1]
-		}
+	dst = strconv.AppendFloat(dst, f, 'e', -1, 64)
+	// clean up e-09 to e-9
+	n := len(dst)
+	if n >= 4 && dst[n-4] == 'e' && dst[n-3] == '-' && dst[n-2] == '0' {
+		dst[n-2] = dst[n-1]
+		dst = dst[:n-1]
 	}
 	return dst, nil
 }
