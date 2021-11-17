@@ -41,10 +41,6 @@ func appendFloatF(dst []byte, val float64) []byte {
 	// Precision for shortest representation mode.
 
 	prec = max(digs.nd-digs.dp, 0)
-	return formatDigits(dst, neg, digs, prec)
-}
-
-func formatDigits(dst []byte, neg bool, digs decimalSlice, prec int) []byte {
 	return fmtF(dst, neg, digs, prec)
 }
 

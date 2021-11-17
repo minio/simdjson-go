@@ -465,7 +465,9 @@ writeloop:
 		}
 	}
 	if len(stack) > 1 {
-		return nil, fmt.Errorf("objects or arrays not closed. left on stack: %v", stack[1:])
+		// Copy so "stack" doesn't escape.
+		sCopy := append(make([]uint8, 0, len(stack)-1), stack[1:]...)
+		return nil, fmt.Errorf("objects or arrays not closed. left on stack: %v", sCopy)
 	}
 	return dst, nil
 }
