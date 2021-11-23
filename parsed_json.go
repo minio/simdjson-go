@@ -674,6 +674,44 @@ func (i *Iter) Root(dst *Iter) (Type, *Iter, error) {
 	return dst.AdvanceInto().Type(), dst, nil
 }
 
+// FindElement allows searching for fields and objects by path from the iter and forward,
+// moving into root and objects, but not arrays.
+// Separate each object name by /.
+// For example `Image/Url` will search the current root/object for an "Image"
+// object and return the value of the "Url" element.
+// ErrNotFound is returned if any part of the path cannot be found.
+// If the tape contains an error it will be returned.
+// The iter will *not* be advanced.
+func (i *Iter) FindElement(path string, dst *Element) (*Element, error) {
+	// Local copy.
+	cp := *i
+	for {
+		switch cp.t {
+		case TagObjectStart:
+			var o Object
+			obj, err := cp.Object(&o)
+			if err != nil {
+				return dst, err
+			}
+			return obj.FindPath(path, dst)
+		case TagRoot:
+			_, _, err := cp.Root(&cp)
+			if err != nil {
+				return dst, err
+			}
+			continue
+		case TagEnd:
+			tag := cp.AdvanceInto()
+			if tag == TagEnd {
+				return dst, ErrNotFound
+			}
+			continue
+		default:
+			return dst, fmt.Errorf("type %q found before object was found", cp.t)
+		}
+	}
+}
+
 // Bool() returns the bool value.
 func (i *Iter) Bool() (bool, error) {
 	switch i.t {

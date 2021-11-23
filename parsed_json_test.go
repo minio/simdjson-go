@@ -19,7 +19,9 @@ package simdjson
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"log"
 	"path/filepath"
 	"testing"
 
@@ -249,4 +251,49 @@ func TestPrintJson(t *testing.T) {
 	if string(out) != expected {
 		t.Errorf("TestPrintJson: got: %s want: %s", out, expected)
 	}
+}
+
+func ExampleIter_FindElement() {
+	input := `{
+    "Image":
+    {
+        "Animated": false,
+        "Height": 600,
+        "IDs":
+        [
+            116,
+            943,
+            234,
+            38793
+        ],
+        "Thumbnail":
+        {
+            "Height": 125,
+            "Url": "http://www.example.com/image/481989943",
+            "Width": 100
+        },
+        "Title": "View from 15th Floor",
+        "Width": 800
+    },
+	"Alt": "Image of city" 
+}`
+	pj, err := Parse([]byte(input), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	i := pj.Iter()
+
+	// Find element in path.
+	elem, err := i.FindElement("Image/Thumbnail/Width", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Print result:
+	fmt.Println(elem.Type)
+	fmt.Println(elem.Iter.StringCvt())
+
+	// Output:
+	// int
+	// 100 <nil>
 }
