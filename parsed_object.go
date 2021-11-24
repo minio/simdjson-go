@@ -138,14 +138,14 @@ func (o *Object) FindKey(key string, dst *Element) *Element {
 	}
 }
 
-// ErrNotFound is returned
-var ErrNotFound = errors.New("path not found")
+// ErrPathNotFound is returned
+var ErrPathNotFound = errors.New("path not found")
 
 // FindPath allows searching for fields and objects by path.
 // Separate each object name by /.
 // For example `Image/Url` will search the current object for an "Image"
 // object and return the value of the "Url" element.
-// ErrNotFound is returned if any part of the path cannot be found.
+// ErrPathNotFound is returned if any part of the path cannot be found.
 // If the tape contains an error it will be returned.
 // The object will not be advanced.
 func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
@@ -158,7 +158,7 @@ func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
 		typ := tmp.Advance()
 		// We want name and at least one value.
 		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
-			return dst, ErrNotFound
+			return dst, ErrPathNotFound
 		}
 		// Advance must be string or end of object
 		offset := tmp.cur
@@ -168,7 +168,7 @@ func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
 			t := tmp.Advance()
 			if t == TypeNone {
 				// Not found...
-				return dst, ErrNotFound
+				return dst, ErrPathNotFound
 			}
 			continue
 		}
