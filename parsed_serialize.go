@@ -421,7 +421,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	dst = append(dst, tmp[:n]...)
 	dst = append(dst, s.valuesCompBuf...)
 	if false {
-		fmt.Println("strings:", len(pj.Strings)+len(pj.Message), "->", len(s.sMsg), "tags:", rawTags, "->", len(s.tagsCompBuf), "values:", rawValues, "->", len(s.valuesCompBuf), "Total:", len(pj.Message)+len(pj.Strings)+len(pj.Tape)*8, "->", len(dst))
+		fmt.Println("strings:", len(pj.Strings.B)+len(pj.Message), "->", len(s.sMsg), "tags:", rawTags, "->", len(s.tagsCompBuf), "values:", rawValues, "->", len(s.valuesCompBuf), "Total:", len(pj.Message)+len(pj.Strings.B)+len(pj.Tape)*8, "->", len(dst))
 	}
 
 	return dst
@@ -500,16 +500,16 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	if ss, err := binary.ReadUvarint(br); err != nil {
 		return dst, err
 	} else {
-		if uint64(cap(dst.Strings)) < ss || dst.Strings == nil {
-			dst.Strings = make([]byte, ss)
+		if dst.Strings == nil || uint64(cap(dst.Strings.B)) < ss {
+			dst.Strings = &TStrings{B: make([]byte, ss)}
 		}
-		dst.Strings = dst.Strings[:ss]
+		dst.Strings.B = dst.Strings.B[:ss]
 	}
 
 	// Decompress strings
 	var sWG sync.WaitGroup
 	var stringsErr, msgErr error
-	err := s.decBlock(br, dst.Strings, &sWG, &stringsErr)
+	err := s.decBlock(br, dst.Strings.B, &sWG, &stringsErr)
 	if err != nil {
 		return dst, err
 	}
