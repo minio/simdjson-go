@@ -139,7 +139,7 @@ func (o *Object) FindKey(key string, dst *Element) *Element {
 }
 
 // ErrNotFound is returned
-var ErrNotFound = errors.New("not found")
+var ErrNotFound = errors.New("path not found")
 
 // FindPath allows searching for fields and objects by path.
 // Separate each object name by /.
