@@ -19,6 +19,7 @@ package simdjson
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Object represents a JSON object.
@@ -134,6 +135,76 @@ func (o *Object) FindKey(key string, dst *Element) *Element {
 			return nil
 		}
 		return dst
+	}
+}
+
+// ErrPathNotFound is returned
+var ErrPathNotFound = errors.New("path not found")
+
+// FindPath allows searching for fields and objects by path.
+// Separate each object name by /.
+// For example `Image/Url` will search the current object for an "Image"
+// object and return the value of the "Url" element.
+// ErrPathNotFound is returned if any part of the path cannot be found.
+// If the tape contains an error it will be returned.
+// The object will not be advanced.
+func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
+	tmp := o.tape.Iter()
+	tmp.off = o.off
+	p := strings.Split(path, "/")
+	key := p[0]
+	p = p[1:]
+	for {
+		typ := tmp.Advance()
+		// We want name and at least one value.
+		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			return dst, ErrPathNotFound
+		}
+		// Advance must be string or end of object
+		offset := tmp.cur
+		length := tmp.tape.Tape[tmp.off]
+		if int(length) != len(key) {
+			// Skip the value.
+			t := tmp.Advance()
+			if t == TypeNone {
+				// Not found...
+				return dst, ErrPathNotFound
+			}
+			continue
+		}
+		// Read name
+		name, err := tmp.tape.stringByteAt(offset, length)
+		if err != nil {
+			return dst, err
+		}
+
+		if string(name) != key {
+			// Skip the value
+			tmp.Advance()
+			continue
+		}
+		// Done...
+		if len(p) == 0 {
+			if dst == nil {
+				dst = &Element{}
+			}
+			dst.Name = key
+			dst.Type, err = tmp.AdvanceIter(&dst.Iter)
+			if err != nil {
+				return dst, err
+			}
+			return dst, nil
+		}
+
+		t, err := tmp.AdvanceIter(&tmp)
+		if err != nil {
+			return dst, err
+		}
+		if t != TypeObject {
+			return dst, fmt.Errorf("value of key %v is not an object", key)
+		}
+		key = p[0]
+		p = p[1:]
 	}
 }
 

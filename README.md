@@ -108,6 +108,30 @@ For any `Iter` it is possible to marshal the recursive content of the Iter using
 
 Currently, it is not possible to unmarshal into structs.
 
+### Search by path
+
+It is possible to search by path to find elements by traversing objects.
+
+For example:
+
+```
+	// Find element in path.
+	elem, err := i.FindElement("Image/URL", nil)
+```
+
+Will locate the field inside a json object with the following structure:
+
+```
+{
+    "Image": {
+        "URL": "value"
+    }
+}
+```
+
+The values can be any type. The [Element](https://pkg.go.dev/github.com/minio/simdjson-go#Element)
+will contain the element information and an Iter to access the content.
+
 ## Parsing Objects
 
 If you are only interested in one key in an object you can use `FindKey` to quickly select it.
