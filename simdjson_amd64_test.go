@@ -99,7 +99,7 @@ func TestParseND(t *testing.T) {
 			i := got.Iter()
 			b2, err := i.MarshalJSON()
 			if string(b2) != tt.want {
-				t.Errorf("ParseND() got = %v, want %v", string(b2), tt.want)
+				t.Errorf("ParseND() got = %v\nwant = %v", string(b2), tt.want)
 			}
 
 			// Compare each element
@@ -117,7 +117,7 @@ func TestParseND(t *testing.T) {
 					t.Fatal(err)
 				}
 				if string(got) != want {
-					t.Errorf("ParseND() got = %v, want %v", string(got), want)
+					t.Errorf("ParseND() got = %v\nwant = %v", string(got), want)
 				}
 			}
 
