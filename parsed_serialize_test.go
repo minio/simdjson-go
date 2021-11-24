@@ -29,8 +29,6 @@ func BenchmarkSerialize(b *testing.B) {
 
 	bench := func(b *testing.B, s *Serializer) {
 		for _, tt := range testCases {
-			s := NewSerializer()
-			var once sync.Once
 			b.Run(tt.name, func(b *testing.B) {
 				org := loadCompressed(b, tt.name)
 				pj, err := Parse(org, nil)
@@ -38,9 +36,6 @@ func BenchmarkSerialize(b *testing.B) {
 					b.Fatal(err)
 				}
 				output := s.Serialize(nil, *pj)
-				once.Do(func() {
-					b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
-				})
 				//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 				b.SetBytes(int64(len(org)))
 				b.ReportAllocs()
@@ -48,6 +43,7 @@ func BenchmarkSerialize(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					output = s.Serialize(output[:0], *pj)
 				}
+				b.ReportMetric(100*float64(len(output))/float64(len(org)), "pct")
 			})
 		}
 	}
@@ -87,9 +83,6 @@ func BenchmarkDeSerialize(b *testing.B) {
 				}
 
 				output := s.Serialize(nil, *pj)
-				if false {
-					b.Log(len(org), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(org)), "%")
-				}
 				//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 				pj2, err := s.Deserialize(output, nil)
 				if err != nil {
@@ -105,6 +98,7 @@ func BenchmarkDeSerialize(b *testing.B) {
 						b.Fatal(err)
 					}
 				}
+				b.ReportMetric(100*float64(len(output))/float64(len(org)), "pct")
 			})
 		}
 	}
@@ -143,9 +137,6 @@ func BenchmarkSerializeNDJSON(b *testing.B) {
 	}
 	bench := func(b *testing.B, s *Serializer) {
 		output := s.Serialize(nil, *pj)
-		if true {
-			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
-		}
 		//_ = ioutil.WriteFile(filepath.Join("testdata", tt.name+".compressed"), output, os.ModePerm)
 		b.SetBytes(int64(len(ndjson)))
 		b.ReportAllocs()
@@ -153,6 +144,7 @@ func BenchmarkSerializeNDJSON(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			output = s.Serialize(output[:0], *pj)
 		}
+		b.ReportMetric(100*float64(len(output))/float64(len(ndjson)), "pct")
 	}
 	b.Run("default", func(b *testing.B) {
 		s := NewSerializer()
@@ -188,9 +180,6 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 	}
 	bench := func(b *testing.B, s *Serializer) {
 		output := s.Serialize(nil, *pj)
-		if true {
-			b.Log(len(ndjson), "(JSON) ->", len(output), "(Serialized)", 100*float64(len(output))/float64(len(ndjson)), "%")
-		}
 		pj2, err := s.Deserialize(output, nil)
 		if err != nil {
 			b.Fatal(err)
@@ -205,6 +194,7 @@ func BenchmarkDeSerializeNDJSON(b *testing.B) {
 				b.Fatal(err)
 			}
 		}
+		b.ReportMetric(100*float64(len(output))/float64(len(ndjson)), "pct")
 	}
 	b.Run("default", func(b *testing.B) {
 		s := NewSerializer()

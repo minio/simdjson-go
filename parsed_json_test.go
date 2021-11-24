@@ -17,10 +17,13 @@
 package simdjson
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -180,5 +183,570 @@ func TestPrintJson(t *testing.T) {
 
 	if string(out) != expected {
 		t.Errorf("TestPrintJson: got: %s want: %s", out, expected)
+	}
+}
+
+func TestExchange(t *testing.T) {
+	input := `{"value": -20}`
+	pj, err := Parse([]byte(input), nil)
+	if err != nil {
+		t.Errorf("Parse failed: %v", err)
+		return
+	}
+	for i := 0; i < 200; i++ {
+		i := i
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			t.Parallel()
+			var cl *ParsedJson
+			var o *Object
+			for j := 0; j < 10; j++ {
+				cl = pj.Clone(cl)
+				iter := cl.Iter()
+				iter.Advance()
+				_, r, err := iter.Root(&iter)
+				if err != nil {
+					t.Fatalf("Root failed: %v", err)
+				}
+				o, err = r.Object(o)
+				if err != nil {
+					t.Fatalf("Object failed: %v", err)
+				}
+				_, _, err = o.NextElementBytes(r)
+				if err != nil {
+					t.Fatalf("NextElementBytes failed: %v", err)
+				}
+				want := uint64(i + j*100)
+				err = r.SetUInt(want)
+				if err != nil {
+					t.Fatalf("SetUInt failed: %v", err)
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+				v, err := r.Uint()
+				if err != nil {
+					t.Fatalf("Uint failed: %v", err)
+					return
+				}
+				if v != want {
+					t.Errorf("want %d, got %d", want, v)
+				}
+			}
+		})
+	}
+}
+
+func TestIter_SetNull(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		want string
+	}{
+		{
+			want: `{"0val":{"true":null,"false":null,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,null,null,"astring",-42,9223372036854775808,1.23455]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run("null", func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeBool, TypeNull:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetNull()
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+
+					if iter.Type() != TypeNull {
+						t.Errorf("Want type %v, got %v", TypeNull, iter.Type())
+					}
+				default:
+					err := iter.SetNull()
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestIter_SetBool(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		setTo bool
+		want  string
+	}{
+		{
+			setTo: true,
+			want:  `{"0val":{"true":true,"false":true,"nullval":true},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[true,true,true,"astring",-42,9223372036854775808,1.23455]}`,
+		},
+		{
+			setTo: false,
+			want:  `{"0val":{"true":false,"false":false,"nullval":false},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[false,false,false,"astring",-42,9223372036854775808,1.23455]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.setTo), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeBool, TypeNull:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetBool(test.setTo)
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+					val, err := iter.Bool()
+					if err != nil {
+						t.Errorf("Unable to retrieve value: %v", err)
+					}
+
+					if val != test.setTo {
+						t.Errorf("Want value %v, got %v", test.setTo, val)
+					}
+				default:
+					err := iter.SetBool(test.setTo)
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestIter_SetFloat(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		setTo float64
+		want  string
+	}{
+		{
+			setTo: 69.420,
+			want:  `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":69.42,"int":69.42,"uint":69.42},"stringval":"initial value","array":[null,true,false,"astring",69.42,69.42,69.42]}`,
+		},
+		{
+			setTo: 10e30,
+			want:  `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":1e+31,"int":1e+31,"uint":1e+31},"stringval":"initial value","array":[null,true,false,"astring",1e+31,1e+31,1e+31]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.setTo), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeInt, TypeFloat, TypeUint:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetFloat(test.setTo)
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+					val, err := iter.Float()
+					if err != nil {
+						t.Errorf("Unable to retrieve value: %v", err)
+					}
+
+					if val != test.setTo {
+						t.Errorf("Want value %v, got %v", test.setTo, val)
+					}
+				case TypeString:
+					// Do not replace strings...
+				default:
+					err := iter.SetFloat(test.setTo)
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestIter_SetInt(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		setTo int64
+		want  string
+	}{
+		{
+			setTo: -69,
+			want:  `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":-69,"int":-69,"uint":-69},"stringval":"initial value","array":[null,true,false,"astring",-69,-69,-69]}`,
+		},
+		{
+			setTo: 42,
+			want:  `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":42,"int":42,"uint":42},"stringval":"initial value","array":[null,true,false,"astring",42,42,42]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.setTo), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeInt, TypeFloat, TypeUint:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetInt(test.setTo)
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+					val, err := iter.Int()
+					if err != nil {
+						t.Errorf("Unable to retrieve value: %v", err)
+					}
+
+					if val != test.setTo {
+						t.Errorf("Want value %v, got %v", test.setTo, val)
+					}
+				case TypeString:
+					// Do not replace strings...
+
+				default:
+					err := iter.SetInt(test.setTo)
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestIter_SetUInt(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		setTo uint64
+		want  string
+	}{
+		{
+			setTo: 69,
+			want:  `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":69,"int":69,"uint":69},"stringval":"initial value","array":[null,true,false,"astring",69,69,69]}`,
+		},
+		{
+			setTo: 420,
+			want:  `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":420,"int":420,"uint":420},"stringval":"initial value","array":[null,true,false,"astring",420,420,420]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.setTo), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeInt, TypeFloat, TypeUint:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetUInt(test.setTo)
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+					val, err := iter.Uint()
+					if err != nil {
+						t.Errorf("Unable to retrieve value: %v", err)
+					}
+
+					if val != test.setTo {
+						t.Errorf("Want value %v, got %v", test.setTo, val)
+					}
+				case TypeString:
+					// Do not replace strings...
+				default:
+					err := iter.SetUInt(test.setTo)
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestIter_SetString(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		setTo string
+		want  string
+	}{
+		{
+			setTo: "anotherval",
+			want:  `{"anotherval":{"anotherval":true,"anotherval":false,"anotherval":null},"anotherval":{"anotherval":"anotherval","anotherval":"anotherval","anotherval":"anotherval"},"anotherval":"anotherval","anotherval":[null,true,false,"anotherval","anotherval","anotherval","anotherval"]}`,
+		},
+		{
+			setTo: "",
+			want:  `{"":{"":true,"":false,"":null},"":{"":"","":"","":""},"":"","":[null,true,false,"","","",""]}`,
+		},
+		{
+			setTo: "\t",
+			want:  `{"\t":{"\t":true,"\t":false,"\t":null},"\t":{"\t":"\t","\t":"\t","\t":"\t"},"\t":"\t","\t":[null,true,false,"\t","\t","\t","\t"]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.setTo), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeString, TypeInt, TypeFloat, TypeUint:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetString(test.setTo)
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+					val, err := iter.String()
+					if err != nil {
+						t.Errorf("Unable to retrieve value: %v", err)
+					}
+
+					if val != test.setTo {
+						t.Errorf("Want value %v, got %v", test.setTo, val)
+					}
+				default:
+					err := iter.SetString(test.setTo)
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestIter_SetStringBytes(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"0val":{"true":true,"false":false,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,true,false,"astring",-42,9223372036854775808,1.23455]}`
+	tests := []struct {
+		setTo []byte
+		want  string
+	}{
+		{
+			setTo: []byte("anotherval"),
+			want:  `{"anotherval":{"anotherval":true,"anotherval":false,"anotherval":null},"anotherval":{"anotherval":"anotherval","anotherval":"anotherval","anotherval":"anotherval"},"anotherval":"anotherval","anotherval":[null,true,false,"anotherval","anotherval","anotherval","anotherval"]}`,
+		},
+		{
+			setTo: []byte{},
+			want:  `{"":{"":true,"":false,"":null},"":{"":"","":"","":""},"":"","":[null,true,false,"","","",""]}`,
+		},
+		{
+			setTo: []byte(nil),
+			want:  `{"":{"":true,"":false,"":null},"":{"":"","":"","":""},"":"","":[null,true,false,"","","",""]}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprint(test.setTo), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeString, TypeInt, TypeFloat, TypeUint:
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetStringBytes(test.setTo)
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+					val, err := iter.StringBytes()
+					if err != nil {
+						t.Errorf("Unable to retrieve value: %v", err)
+					}
+
+					if !bytes.Equal(val, test.setTo) {
+						t.Errorf("Want value %v, got %v", test.setTo, val)
+					}
+				default:
+					err := iter.SetStringBytes(test.setTo)
+					if err == nil {
+						t.Errorf("Value should not be settable for type %v", typ)
+					}
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
 	}
 }

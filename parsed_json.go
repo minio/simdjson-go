@@ -17,18 +17,16 @@
 package simdjson
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"math"
 	"strconv"
 )
 
-const JSONVALUEMASK = 0xffffffffffffff
-const JSONTAGMASK = 0xff << 56
-const STRINGBUFBIT = 0x80000000000000
+const JSONVALUEMASK = 0xff_ffff_ffff_ffff
+const JSONTAGOFFSET = 56
+const JSONTAGMASK = 0xff << JSONTAGOFFSET
+const STRINGBUFBIT = 0x80_0000_0000_0000
 const STRINGBUFMASK = 0x7fffffffffffff
 
 const maxdepth = 128
@@ -59,10 +57,14 @@ func (f FloatFlag) Flags(more ...FloatFlag) FloatFlags {
 	return FloatFlags(f)
 }
 
+type TStrings struct {
+	B []byte
+}
+
 type ParsedJson struct {
 	Message []byte
 	Tape    []uint64
-	Strings []byte
+	Strings *TStrings
 
 	// allows to reuse the internal structures without exposing it.
 	internal *internalParsedJson
@@ -111,10 +113,43 @@ func (pj *ParsedJson) stringByteAt(offset, length uint64) ([]byte, error) {
 	}
 
 	offset = offset & STRINGBUFMASK
-	if offset+length > uint64(len(pj.Strings)) {
-		return nil, fmt.Errorf("string buffer offset (%v) outside valid area (%v)", offset+length, len(pj.Strings))
+	if offset+length > uint64(len(pj.Strings.B)) {
+		return nil, fmt.Errorf("string buffer offset (%v) outside valid area (%v)", offset+length, len(pj.Strings.B))
 	}
-	return pj.Strings[offset : offset+length], nil
+	return pj.Strings.B[offset : offset+length], nil
+}
+
+// Clone returns a deep clone of the ParsedJson.
+// If a nil destination is sent a new will be created.
+func (pj *ParsedJson) Clone(dst *ParsedJson) *ParsedJson {
+	if dst == nil {
+		dst = &ParsedJson{
+			Message:  make([]byte, len(pj.Message)),
+			Tape:     make([]uint64, len(pj.Tape)),
+			Strings:  &TStrings{make([]byte, len(pj.Strings.B))},
+			internal: nil,
+		}
+	} else {
+		if cap(dst.Message) < len(pj.Message) {
+			dst.Message = make([]byte, len(pj.Message))
+		}
+		if cap(dst.Tape) < len(pj.Tape) {
+			dst.Tape = make([]uint64, len(pj.Tape))
+		}
+		if dst.Strings == nil {
+			dst.Strings = &TStrings{make([]byte, len(pj.Strings.B))}
+		} else if cap(dst.Strings.B) < len(pj.Strings.B) {
+			dst.Strings.B = make([]byte, len(pj.Strings.B))
+		}
+	}
+	dst.internal = nil
+	dst.Tape = dst.Tape[:len(pj.Tape)]
+	copy(dst.Tape, pj.Tape)
+	dst.Message = dst.Message[:len(pj.Message)]
+	copy(dst.Message, pj.Message)
+	dst.Strings.B = dst.Strings.B[:len(pj.Strings.B)]
+	copy(dst.Strings.B, pj.Strings.B)
+	return dst
 }
 
 // Iter represents a section of JSON.
@@ -136,32 +171,6 @@ type Iter struct {
 
 	// current tag
 	t Tag
-}
-
-// loadTape will load the input from the supplied readers.
-func loadTape(tape, strings io.Reader) (*ParsedJson, error) {
-	b, err := ioutil.ReadAll(tape)
-	if err != nil {
-		return nil, err
-	}
-	if len(b)&7 != 0 {
-		return nil, errors.New("unexpected tape length, should be modulo 8 bytes")
-	}
-	dst := ParsedJson{
-		Tape:    make([]uint64, len(b)/8),
-		Strings: nil,
-	}
-	// Read tape
-	for i := range dst.Tape {
-		dst.Tape[i] = binary.LittleEndian.Uint64(b[i*8 : i*8+8])
-	}
-	// Read stringbuf
-	b, err = ioutil.ReadAll(strings)
-	if err != nil {
-		return nil, err
-	}
-	dst.Strings = b
-	return &dst, nil
 }
 
 // Advance will read the type of the next element
@@ -509,7 +518,7 @@ func (i *Iter) FloatFlags() (float64, FloatFlags, error) {
 			return 0, 0, errors.New("corrupt input: expected float, but no more values on tape")
 		}
 		v := math.Float64frombits(i.tape.Tape[i.off])
-		return v, 0, nil
+		return v, FloatFlags(i.cur), nil
 	case TagInteger:
 		if i.off >= len(i.tape.Tape) {
 			return 0, 0, errors.New("corrupt input: expected integer, but no more values on tape")
@@ -521,10 +530,24 @@ func (i *Iter) FloatFlags() (float64, FloatFlags, error) {
 			return 0, 0, errors.New("corrupt input: expected integer, but no more values on tape")
 		}
 		v := i.tape.Tape[i.off]
-		return float64(v), FloatFlags(i.cur), nil
+		return float64(v), 0, nil
 	default:
 		return 0, 0, fmt.Errorf("unable to convert type %v to float", i.t)
 	}
+}
+
+// SetFloat can change a float, int, uint or string with the specified value.
+// Attempting to change other types will return an error.
+func (i *Iter) SetFloat(v float64) error {
+	switch i.t {
+	case TagFloat, TagInteger, TagUint, TagString:
+		i.tape.Tape[i.off-1] = uint64(TagFloat) << JSONTAGOFFSET
+		i.tape.Tape[i.off] = math.Float64bits(v)
+		i.t = TagFloat
+		i.cur = 0
+		return nil
+	}
+	return fmt.Errorf("cannot set tag %s to float", i.t.String())
 }
 
 // Int returns the integer value of the next element.
@@ -561,6 +584,20 @@ func (i *Iter) Int() (int64, error) {
 	default:
 		return 0, fmt.Errorf("unable to convert type %v to float", i.t)
 	}
+}
+
+// SetInt can change a float, int, uint or string with the specified value.
+// Attempting to change other types will return an error.
+func (i *Iter) SetInt(v int64) error {
+	switch i.t {
+	case TagFloat, TagInteger, TagUint, TagString:
+		i.tape.Tape[i.off-1] = uint64(TagInteger) << JSONTAGOFFSET
+		i.tape.Tape[i.off] = uint64(v)
+		i.t = TagInteger
+		i.cur = uint64(v)
+		return nil
+	}
+	return fmt.Errorf("cannot set tag %s to int", i.t.String())
 }
 
 // Uint returns the unsigned integer value of the next element.
@@ -600,6 +637,20 @@ func (i *Iter) Uint() (uint64, error) {
 	}
 }
 
+// SetUInt can change a float, int, uint or string with the specified value.
+// Attempting to change other types will return an error.
+func (i *Iter) SetUInt(v uint64) error {
+	switch i.t {
+	case TagString, TagFloat, TagInteger, TagUint:
+		i.tape.Tape[i.off-1] = uint64(TagUint) << JSONTAGOFFSET
+		i.tape.Tape[i.off] = v
+		i.t = TagUint
+		i.cur = v
+		return nil
+	}
+	return fmt.Errorf("cannot set tag %s to uint", i.t.String())
+}
+
 // String() returns a string value.
 func (i *Iter) String() (string, error) {
 	if i.t != TagString {
@@ -612,7 +663,7 @@ func (i *Iter) String() (string, error) {
 	return i.tape.stringAt(i.cur, i.tape.Tape[i.off])
 }
 
-// StringBytes() returns a byte array.
+// StringBytes returns a string as byte array.
 func (i *Iter) StringBytes() ([]byte, error) {
 	if i.t != TagString {
 		return nil, errors.New("value is not string")
@@ -623,7 +674,29 @@ func (i *Iter) StringBytes() ([]byte, error) {
 	return i.tape.stringByteAt(i.cur, i.tape.Tape[i.off])
 }
 
-// StringCvt() returns a string representation of the value.
+// SetString can change a string, int, uint or float with the specified string.
+// Attempting to change other types will return an error.
+func (i *Iter) SetString(v string) error {
+	return i.SetStringBytes([]byte(v))
+}
+
+// SetStringBytes can change a string, int, uint or float with the specified string.
+// Attempting to change other types will return an error.
+// Sending nil will add an empty string.
+func (i *Iter) SetStringBytes(v []byte) error {
+	switch i.t {
+	case TagString, TagFloat, TagInteger, TagUint:
+		i.cur = ((uint64(TagString) << JSONTAGOFFSET) | STRINGBUFBIT) | uint64(len(i.tape.Strings.B))
+		i.tape.Tape[i.off-1] = i.cur
+		i.tape.Tape[i.off] = uint64(len(v))
+		i.t = TagString
+		i.tape.Strings.B = append(i.tape.Strings.B, v...)
+		return nil
+	}
+	return fmt.Errorf("cannot set tag %s to string", i.t.String())
+}
+
+// StringCvt returns a string representation of the value.
 // Root, Object and Arrays are not supported.
 func (i *Iter) StringCvt() (string, error) {
 	switch i.t {
@@ -651,7 +724,7 @@ func (i *Iter) StringCvt() (string, error) {
 	return "", fmt.Errorf("cannot convert type %s to string", TagToType[i.t])
 }
 
-// Root() returns the object embedded in root as an iterator
+// Root returns the object embedded in root as an iterator
 // along with the type of the content of the first element of the iterator.
 // An optional destination can be supplied to avoid allocations.
 func (i *Iter) Root(dst *Iter) (Type, *Iter, error) {
@@ -676,7 +749,7 @@ func (i *Iter) Root(dst *Iter) (Type, *Iter, error) {
 	return dst.AdvanceInto().Type(), dst, nil
 }
 
-// Bool() returns the bool value.
+// Bool returns the bool value.
 func (i *Iter) Bool() (bool, error) {
 	switch i.t {
 	case TagBoolTrue:
@@ -685,6 +758,38 @@ func (i *Iter) Bool() (bool, error) {
 		return false, nil
 	}
 	return false, fmt.Errorf("value is not bool, but %v", i.t)
+}
+
+// SetBool can change a bool or null type to bool with the specified value.
+// Attempting to change other types will return an error.
+func (i *Iter) SetBool(v bool) error {
+	switch i.t {
+	case TagBoolTrue, TagBoolFalse, TagNull:
+		if v {
+			i.t = TagBoolTrue
+			i.cur = 0
+			i.tape.Tape[i.off-1] = uint64(TagBoolTrue) << JSONTAGOFFSET
+		} else {
+			i.t = TagBoolFalse
+			i.cur = 0
+			i.tape.Tape[i.off-1] = uint64(TagBoolFalse) << JSONTAGOFFSET
+		}
+		return nil
+	}
+	return fmt.Errorf("cannot set tag %s to bool", i.t.String())
+}
+
+// SetNull can change a bool or null type to bool with null.
+// Attempting to change other types will return an error.
+func (i *Iter) SetNull() error {
+	switch i.t {
+	case TagBoolTrue, TagBoolFalse, TagNull:
+		i.t = TagNull
+		i.cur = 0
+		i.tape.Tape[i.off-1] = uint64(TagNull) << JSONTAGOFFSET
+		return nil
+	}
+	return fmt.Errorf("cannot set tag %s to null", i.t.String())
 }
 
 // Interface returns the value as an interface.
@@ -802,7 +907,7 @@ func (i *Iter) Array(dst *Array) (*Array, error) {
 
 func (pj *ParsedJson) Reset() {
 	pj.Tape = pj.Tape[:0]
-	pj.Strings = pj.Strings[:0]
+	pj.Strings.B = pj.Strings.B[:0]
 	pj.Message = pj.Message[:0]
 }
 
