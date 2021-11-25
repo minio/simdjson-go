@@ -124,23 +124,20 @@ func addNumber(buf []byte, pj *ParsedJson) bool {
 }
 
 func isValidTrueAtom(buf []byte) bool {
-	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
-		tv := uint64(0x0000000065757274) // "true    "
-		mask4 := uint64(0x00000000ffffffff)
-		locval := binary.LittleEndian.Uint64(buf)
-		error := (locval & mask4) ^ tv
-		error |= uint64(isNotStructuralOrWhitespace(buf[4]))
+	if len(buf) >= 5 { // fast path when there is enough space left in the buffer
+		const tv = uint32(0x0000000065757274) // "true    "
+		locval := binary.LittleEndian.Uint32(buf)
+		error := locval ^ tv
+		error |= uint32(isNotStructuralOrWhitespace(buf[4]))
 		return error == 0
-	} else if len(buf) >= 5 {
-		return bytes.Compare(buf[:4], []byte("true")) == 0 && isNotStructuralOrWhitespace(buf[4]) == 0
 	}
 	return false
 }
 
 func isValidFalseAtom(buf []byte) bool {
 	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
-		fv := uint64(0x00000065736c6166) // "false   "
-		mask5 := uint64(0x000000ffffffffff)
+		const fv = uint64(0x00000065736c6166) // "false   "
+		const mask5 = uint64(0x000000ffffffffff)
 		locval := binary.LittleEndian.Uint64(buf)
 		error := (locval & mask5) ^ fv
 		error |= uint64(isNotStructuralOrWhitespace(buf[5]))
@@ -152,15 +149,12 @@ func isValidFalseAtom(buf []byte) bool {
 }
 
 func isValidNullAtom(buf []byte) bool {
-	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
-		nv := uint64(0x000000006c6c756e) // "null    "
-		mask4 := uint64(0x00000000ffffffff)
-		locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
-		error := (locval & mask4) ^ nv
-		error |= uint64(isNotStructuralOrWhitespace(buf[4]))
+	if len(buf) >= 5 { // fast path when there is enough space left in the buffer
+		const nv = 0x000000006c6c756e             // "null    "
+		locval := binary.LittleEndian.Uint32(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
+		error := locval ^ nv
+		error |= uint32(isNotStructuralOrWhitespace(buf[4]))
 		return error == 0
-	} else if len(buf) >= 5 {
-		return bytes.Compare(buf[:4], []byte("null")) == 0 && isNotStructuralOrWhitespace(buf[4]) == 0
 	}
 	return false
 }
@@ -281,11 +275,6 @@ object_key_state:
 		}
 		pj.write_tape(0, buf[idx])
 
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !addNumber(buf[idx:], &pj.ParsedJson) {
-			goto fail
-		}
-
 	case '-':
 		if !addNumber(buf[idx:], &pj.ParsedJson) {
 			goto fail
@@ -304,6 +293,12 @@ object_key_state:
 		goto arrayBegin
 
 	default:
+		if buf[idx] >= '0' && buf[idx] <= '9' {
+			if !addNumber(buf[idx:], &pj.ParsedJson) {
+				goto fail
+			}
+			break
+		}
 		goto fail
 	}
 
@@ -387,7 +382,7 @@ mainArraySwitch:
 		pj.write_tape(0, buf[idx])
 		/* goto array_continue */
 
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
+	case '-':
 		if !addNumber(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
@@ -405,6 +400,12 @@ mainArraySwitch:
 		goto arrayBegin
 
 	default:
+		if buf[idx] >= '0' && buf[idx] <= '9' {
+			if !addNumber(buf[idx:], &pj.ParsedJson) {
+				goto fail
+			}
+			break
+		}
 		goto fail
 	}
 
