@@ -67,7 +67,7 @@ func Parse(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, erro
 	if err != nil {
 		return nil, err
 	}
-	err = pj.parseMessage(b)
+	err = pj.parseMessage(b, false)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func ParseND(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, er
 	if err != nil {
 		return nil, err
 	}
-	err = pj.parseMessageNdjson(bytes.TrimSpace(b))
+	err = pj.parseMessage(bytes.TrimSpace(b), true)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func ParseNDStream(r io.Reader, res chan<- Stream, reuse <-chan *ParsedJson) {
 
 					default:
 					}
-					parseErr := pj.parseMessageNdjson(tmp)
+					parseErr := pj.parseMessage(tmp, true)
 					if parseErr != nil {
 						result <- Stream{
 							Value: nil,

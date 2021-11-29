@@ -138,6 +138,47 @@ func (o *Object) FindKey(key string, dst *Element) *Element {
 	}
 }
 
+// ForEach will call back fn for each key.
+// A key filter can be provided for optional filtering.
+func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct{}) error {
+	tmp := o.tape.Iter()
+	tmp.off = o.off
+	n := 0
+	for {
+		typ := tmp.Advance()
+		// We want name and at least one value.
+		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			return fmt.Errorf("object: unexpected name tag %v", tmp.t)
+		}
+		// Advance must be string or end of object
+		offset := tmp.cur
+		length := tmp.tape.Tape[tmp.off]
+		// Read name
+		name, err := tmp.tape.stringByteAt(offset, length)
+		if err != nil {
+			return fmt.Errorf("getting object name: %w", err)
+		}
+
+		if len(onlyKeys) > 0 {
+			if _, ok := onlyKeys[string(name)]; !ok {
+				// Skip the value
+				tmp.Advance()
+				continue
+			}
+		}
+
+		t := tmp.Advance()
+		if t == TypeNone {
+			return nil
+		}
+		fn(name, tmp)
+		n++
+		if n == len(onlyKeys) {
+			return nil
+		}
+	}
+}
+
 // ErrPathNotFound is returned
 var ErrPathNotFound = errors.New("path not found")
 

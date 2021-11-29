@@ -49,16 +49,7 @@ func (pj *internalParsedJson) initialize(size int) {
 	pj.containingScopeOffset = pj.containingScopeOffset[:0]
 }
 
-func (pj *internalParsedJson) parseMessage(msg []byte) error {
-	return pj.parseMessageInternal(msg, false)
-}
-
-func (pj *internalParsedJson) parseMessageNdjson(msg []byte) error {
-	return pj.parseMessageInternal(msg, true)
-}
-
-func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err error) {
-
+func (pj *internalParsedJson) parseMessage(msg []byte, ndjson bool) (err error) {
 	// Cache message so we can point directly to strings
 	// TODO: Find out why TestVerifyTape/instruments fails without bytes.TrimSpace
 	pj.Message = bytes.TrimSpace(msg)
@@ -70,9 +61,6 @@ func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err
 		pj.ndjson = 0
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	// Make the capacity of the channel smaller than the number of slots.
 	// This way the sender will automatically block until the consumer
 	// has finished the slot it is working on.
@@ -80,23 +68,39 @@ func (pj *internalParsedJson) parseMessageInternal(msg []byte, ndjson bool) (err
 	pj.buffersOffset = ^uint64(0)
 
 	var errStage1 error
-	go func() {
-		if !findStructuralIndices(pj.Message, pj) {
+
+	// Do long inputs async
+	if len(pj.Message) > 8<<10 {
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if !pj.unifiedMachine(pj.Message) {
+				err = errors.New("Bad parsing while executing stage 2")
+				// drain the channel until empty
+				for range pj.indexChans {
+				}
+			}
+		}()
+		if !pj.findStructuralIndices(pj.Message) {
 			errStage1 = errors.New("Failed to find all structural indices for stage 1")
 		}
-		wg.Done()
-	}()
-	go func() {
-		if !unifiedMachine(pj.Message, pj) {
-			err = errors.New("Bad parsing while executing stage 2")
+		wg.Wait()
+	} else {
+		if !pj.findStructuralIndices(pj.Message) {
 			// drain the channel until empty
 			for range pj.indexChans {
 			}
+			return errors.New("Failed to find all structural indices for stage 1")
 		}
-		wg.Done()
-	}()
-
-	wg.Wait()
+		if !pj.unifiedMachine(pj.Message) {
+			// drain the channel until empty
+			for range pj.indexChans {
+			}
+			return errors.New("Bad parsing while executing stage 2")
+		}
+		return nil
+	}
 
 	if errStage1 != nil {
 		return errStage1

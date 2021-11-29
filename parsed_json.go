@@ -582,7 +582,7 @@ func (i *Iter) Int() (int64, error) {
 		}
 		return int64(v), nil
 	default:
-		return 0, fmt.Errorf("unable to convert type %v to float", i.t)
+		return 0, fmt.Errorf("unable to convert type %v to int", i.t)
 	}
 }
 
@@ -633,7 +633,7 @@ func (i *Iter) Uint() (uint64, error) {
 		v := i.tape.Tape[i.off]
 		return v, nil
 	default:
-		return 0, fmt.Errorf("unable to convert type %v to float", i.t)
+		return 0, fmt.Errorf("unable to convert type %v to uint", i.t)
 	}
 }
 

@@ -42,6 +42,19 @@ func (a *Array) Iter() Iter {
 	return i
 }
 
+// ForEach calls the provided function for every element.
+func (a *Array) ForEach(fn func(t Type, i Iter)) {
+	i := a.Iter()
+	for {
+		t := i.Advance()
+		if t == TypeNone {
+			break
+		}
+		fn(t, i)
+	}
+	return
+}
+
 // FirstType will return the type of the first element.
 // If there are no elements, TypeNone is returned.
 func (a *Array) FirstType() Type {

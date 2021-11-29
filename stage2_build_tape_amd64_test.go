@@ -169,7 +169,7 @@ func TestStage2BuildTape(t *testing.T) {
 
 		pj := internalParsedJson{}
 
-		if err := pj.parseMessage([]byte(tc.input)); err != nil {
+		if err := pj.parseMessage([]byte(tc.input), false); err != nil {
 			t.Errorf("TestStage2BuildTape(%d): got: %v want: nil", i, err)
 		}
 

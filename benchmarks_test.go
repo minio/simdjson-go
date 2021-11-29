@@ -60,6 +60,9 @@ func benchmarkFromFile(b *testing.B, filename string) {
 
 }
 
+func BenchmarkSmall(b *testing.B)          { benchmarkFromFile(b, "payload-small") }
+func BenchmarkMedium(b *testing.B)         { benchmarkFromFile(b, "payload-medium") }
+func BenchmarkLarge(b *testing.B)          { benchmarkFromFile(b, "payload-large") }
 func BenchmarkApache_builds(b *testing.B)  { benchmarkFromFile(b, "apache_builds") }
 func BenchmarkCanada(b *testing.B)         { benchmarkFromFile(b, "canada") }
 func BenchmarkCitm_catalog(b *testing.B)   { benchmarkFromFile(b, "citm_catalog") }
@@ -72,7 +75,7 @@ func BenchmarkMesh_pretty(b *testing.B)    { benchmarkFromFile(b, "mesh.pretty")
 func BenchmarkNumbers(b *testing.B)        { benchmarkFromFile(b, "numbers") }
 func BenchmarkRandom(b *testing.B)         { benchmarkFromFile(b, "random") }
 func BenchmarkTwitter(b *testing.B)        { benchmarkFromFile(b, "twitter") }
-func BenchmarkTwitterescaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
+func BenchmarkTwitterEscaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
 func BenchmarkUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center") }
 
 func benchmarkJsoniter(b *testing.B, filename string) {
@@ -138,3 +141,92 @@ func BenchmarkJsoniterRandom(b *testing.B)         { benchmarkJsoniter(b, "rando
 func BenchmarkJsoniterTwitter(b *testing.B)        { benchmarkJsoniter(b, "twitter") }
 func BenchmarkJsoniterTwitterescaped(b *testing.B) { benchmarkJsoniter(b, "twitterescaped") }
 func BenchmarkJsoniterUpdate_center(b *testing.B)  { benchmarkJsoniter(b, "update-center") }
+
+func BenchmarkJsonParserLarge(b *testing.B) {
+	largeFixture := loadCompressed(b, "payload-large")
+
+	b.Run("nocopy", func(b *testing.B) {
+		pj := &ParsedJson{}
+		b.SetBytes(int64(len(largeFixture)))
+		b.ReportAllocs()
+		b.ResetTimer()
+		var elem *Element
+		var ar *Array
+		var obj *Object
+		var onlyKeys = map[string]struct{}{
+			"id":   {},
+			"slug": {},
+		}
+		const checkErrs = false
+		for i := 0; i < b.N; i++ {
+			// Reset tape
+			var err error
+			pj, err = Parse(largeFixture, pj, WithCopyStrings(false))
+			if checkErrs && err != nil {
+				b.Fatal(err)
+			}
+			iter := pj.Iter()
+			elem, err = iter.FindElement("users", elem)
+			if checkErrs && err != nil {
+				b.Fatal(err)
+			}
+			ar, err = elem.Iter.Array(ar)
+			if checkErrs && err != nil {
+				b.Fatal(err)
+			}
+			ar.ForEach(func(t Type, i Iter) {
+				elem, err = i.FindElement("username", elem)
+				if checkErrs && err != nil {
+					b.Fatal(err)
+				}
+				_, _ = elem.Iter.StringBytes()
+			})
+
+			elem, err = iter.FindElement("topics/topics", elem)
+			if checkErrs && err != nil {
+				b.Fatal(err)
+			}
+			ar, err = elem.Iter.Array(ar)
+			if checkErrs && err != nil {
+				b.Fatal(err)
+			}
+			ar.ForEach(func(t Type, i Iter) {
+				if true {
+					// Use foreach...
+					obj, err = i.Object(obj)
+					if checkErrs && err != nil {
+						b.Fatal(err)
+					}
+					obj.ForEach(func(key []byte, i Iter) {
+						if string(key) == "id" {
+							_, err = i.Int()
+							if checkErrs && err != nil {
+								b.Fatal(err)
+							}
+						}
+						if string(key) == "slug" {
+							_, err = i.StringBytes()
+							if checkErrs && err != nil {
+								b.Fatal(err)
+							}
+						}
+
+					}, onlyKeys)
+				} else {
+					elem, err = i.FindElement("id", elem)
+					if checkErrs && err != nil {
+						b.Fatal(err)
+					}
+					_, _ = elem.Iter.Int()
+					//b.Log(elem.Iter.Int())
+					elem, err = i.FindElement("slug", elem)
+					if checkErrs && err != nil {
+						b.Fatal(err)
+					}
+					_, _ = elem.Iter.StringBytes()
+					//b.Log(elem.Iter.String())
+				}
+			})
+		}
+	})
+}

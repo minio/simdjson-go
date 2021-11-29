@@ -165,7 +165,7 @@ func isValidNullAtom(buf []byte) bool {
 	return false
 }
 
-func unifiedMachine(buf []byte, pj *internalParsedJson) bool {
+func (pj *internalParsedJson) unifiedMachine(buf []byte) bool {
 
 	const addOneForRoot = 1
 
