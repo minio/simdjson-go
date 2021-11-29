@@ -115,11 +115,11 @@ func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64, needCopy bool
 }
 
 func addNumber(buf []byte, pj *ParsedJson) bool {
-	tag, val, flags := parseNumber(buf)
-	if tag == TagEnd {
+	tag, val := parseNumber(buf)
+	if tag == 0 {
 		return false
 	}
-	pj.writeTapeTagValFlags(tag, val, flags)
+	pj.writeTapeTagValFlags(tag, val)
 	return true
 }
 
@@ -127,9 +127,9 @@ func isValidTrueAtom(buf []byte) bool {
 	if len(buf) >= 5 { // fast path when there is enough space left in the buffer
 		const tv = uint32(0x0000000065757274) // "true    "
 		locval := binary.LittleEndian.Uint32(buf)
-		error := locval ^ tv
-		error |= uint32(isNotStructuralOrWhitespace(buf[4]))
-		return error == 0
+		if locval == tv {
+			return isNotStructuralOrWhitespace(buf[4]) == 0
+		}
 	}
 	return false
 }
@@ -138,12 +138,12 @@ func isValidFalseAtom(buf []byte) bool {
 	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
 		const fv = uint64(0x00000065736c6166) // "false   "
 		const mask5 = uint64(0x000000ffffffffff)
+		error := uint64(isNotStructuralOrWhitespace(buf[5]))
 		locval := binary.LittleEndian.Uint64(buf)
-		error := (locval & mask5) ^ fv
-		error |= uint64(isNotStructuralOrWhitespace(buf[5]))
+		error |= (locval & mask5) ^ fv
 		return error == 0
 	} else if len(buf) >= 6 {
-		return bytes.Compare(buf[:5], []byte("false")) == 0 && isNotStructuralOrWhitespace(buf[5]) == 0
+		return bytes.Equal(buf[:5], []byte("false")) && isNotStructuralOrWhitespace(buf[5]) == 0
 	}
 	return false
 }
@@ -152,9 +152,9 @@ func isValidNullAtom(buf []byte) bool {
 	if len(buf) >= 5 { // fast path when there is enough space left in the buffer
 		const nv = 0x000000006c6c756e             // "null    "
 		locval := binary.LittleEndian.Uint32(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
-		error := locval ^ nv
-		error |= uint32(isNotStructuralOrWhitespace(buf[4]))
-		return error == 0
+		if locval == nv {
+			return isNotStructuralOrWhitespace(buf[4]) == 0
+		}
 	}
 	return false
 }
@@ -180,11 +180,11 @@ continueRoot:
 	switch buf[idx] {
 	case '{':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '{')
 		goto object_begin
 	case '[':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '[')
 		goto arrayBegin
 	default:
 		goto fail
@@ -261,19 +261,19 @@ object_key_state:
 		if !isValidTrueAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 't')
 
 	case 'f':
 		if !isValidFalseAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'f')
 
 	case 'n':
 		if !isValidNullAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'n')
 
 	case '-':
 		if !addNumber(buf[idx:], &pj.ParsedJson) {
@@ -282,13 +282,13 @@ object_key_state:
 
 	case '{':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '{')
 		// we have not yet encountered } so we need to come back for it
 		goto object_begin
 
 	case '[':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '[')
 		// we have not yet encountered } so we need to come back for it
 		goto arrayBegin
 
@@ -367,19 +367,19 @@ mainArraySwitch:
 		if !isValidTrueAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 't')
 
 	case 'f':
 		if !isValidFalseAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'f')
 
 	case 'n':
 		if !isValidNullAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'n')
 		/* goto array_continue */
 
 	case '-':
@@ -390,13 +390,13 @@ mainArraySwitch:
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
-		pj.write_tape(0, buf[idx]) //  here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, '{') //  here the compilers knows what c is so this gets optimized
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
-		pj.write_tape(0, buf[idx]) // here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, '[') // here the compilers knows what c is so this gets optimized
 		goto arrayBegin
 
 	default:

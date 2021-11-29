@@ -233,7 +233,9 @@ func TestParseNumber(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tag, val, flags := parseNumber([]byte(fmt.Sprintf(`%s:`, tc.input)))
+		id, val := parseNumber([]byte(fmt.Sprintf(`%s:`, tc.input)))
+		tag := Tag(id >> JSONTAGOFFSET)
+		flags := id & JSONVALUEMASK
 		if tag != tc.wantTag {
 			t.Errorf("TestParseNumber: got: %v want: %v", tag, tc.wantTag)
 		}
@@ -304,7 +306,8 @@ func TestParseInt64(t *testing.T) {
 		test := &parseInt64Tests[i]
 		t.Run(test.in, func(t *testing.T) {
 
-			tag, val, _ := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			id, val := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			tag := Tag(id >> JSONTAGOFFSET)
 			if tag != test.tag {
 				// Ignore intentionally bad syntactical errors
 				t.Errorf("TestParseInt64: got: %v want: %v", tag, test.tag)
@@ -487,7 +490,8 @@ func TestParseFloat64(t *testing.T) {
 	for i := 0; i < len(atoftests); i++ {
 		test := &atoftests[i]
 		t.Run(test.in, func(t *testing.T) {
-			tag, val, _ := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			id, val := parseNumber([]byte(fmt.Sprintf(`%s:`, test.in)))
+			tag := Tag(id >> JSONTAGOFFSET)
 			switch tag {
 			case TagEnd:
 				if test.err == nil {

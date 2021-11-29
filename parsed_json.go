@@ -962,8 +962,8 @@ func (pj *ParsedJson) writeTapeTagVal(tag Tag, val uint64) {
 	pj.Tape = append(pj.Tape, uint64(tag)<<56, val)
 }
 
-func (pj *ParsedJson) writeTapeTagValFlags(tag Tag, val, flags uint64) {
-	pj.Tape = append(pj.Tape, uint64(tag)<<56|flags, val)
+func (pj *ParsedJson) writeTapeTagValFlags(id, val uint64) {
+	pj.Tape = append(pj.Tape, id, val)
 }
 
 func (pj *ParsedJson) write_tape_s64(val int64) {
