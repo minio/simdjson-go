@@ -307,7 +307,7 @@ func loadFile(filename string) []byte {
 		}
 		if os.IsNotExist(err) {
 			fmt.Println("downloading file" + filename)
-			resp, err := http.DefaultClient.Get("https://files.klauspost.com/compress/" + filepath.Base(filename))
+			resp, err := http.DefaultClient.Get("https://dl.minio.io/assets/" + filepath.Base(filename))
 			if err == nil && resp.StatusCode == http.StatusOK {
 				b, err := ioutil.ReadAll(resp.Body)
 				if err == nil {
@@ -318,7 +318,7 @@ func loadFile(filename string) []byte {
 				}
 			}
 		}
-		panic("Failed to (down)load file:" + err.Error())
+		panic("Failed to download file:" + err.Error())
 	}
 	dec, err := zstd.NewReader(f)
 	if err != nil {

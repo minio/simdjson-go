@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/bytedance/sonic"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -77,6 +78,21 @@ func BenchmarkRandom(b *testing.B)         { benchmarkFromFile(b, "random") }
 func BenchmarkTwitter(b *testing.B)        { benchmarkFromFile(b, "twitter") }
 func BenchmarkTwitterEscaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
 func BenchmarkUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center") }
+
+func benchmarkSonicJson(b *testing.B, filename string) {
+	msg := loadCompressed(b, filename)
+
+	b.SetBytes(int64(len(msg)))
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	var parsed interface{}
+	for i := 0; i < b.N; i++ {
+		if err := sonic.Unmarshal(msg, &parsed); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
 
 func benchmarkJsoniter(b *testing.B, filename string) {
 
@@ -141,6 +157,21 @@ func BenchmarkJsoniterRandom(b *testing.B)         { benchmarkJsoniter(b, "rando
 func BenchmarkJsoniterTwitter(b *testing.B)        { benchmarkJsoniter(b, "twitter") }
 func BenchmarkJsoniterTwitterescaped(b *testing.B) { benchmarkJsoniter(b, "twitterescaped") }
 func BenchmarkJsoniterUpdate_center(b *testing.B)  { benchmarkJsoniter(b, "update-center") }
+
+func BenchmarkSonicJsonApache_builds(b *testing.B)  { benchmarkSonicJson(b, "apache_builds") }
+func BenchmarkSonicJsonCanada(b *testing.B)         { benchmarkSonicJson(b, "canada") }
+func BenchmarkSonicJsonCitm_catalog(b *testing.B)   { benchmarkSonicJson(b, "citm_catalog") }
+func BenchmarkSonicJsonGithub_events(b *testing.B)  { benchmarkSonicJson(b, "github_events") }
+func BenchmarkSonicJsonGsoc_2018(b *testing.B)      { benchmarkSonicJson(b, "gsoc-2018") }
+func BenchmarkSonicJsonInstruments(b *testing.B)    { benchmarkSonicJson(b, "instruments") }
+func BenchmarkSonicJsonMarine_ik(b *testing.B)      { benchmarkSonicJson(b, "marine_ik") }
+func BenchmarkSonicJsonMesh(b *testing.B)           { benchmarkSonicJson(b, "mesh") }
+func BenchmarkSonicJsonMesh_pretty(b *testing.B)    { benchmarkSonicJson(b, "mesh.pretty") }
+func BenchmarkSonicJsonNumbers(b *testing.B)        { benchmarkSonicJson(b, "numbers") }
+func BenchmarkSonicJsonRandom(b *testing.B)         { benchmarkSonicJson(b, "random") }
+func BenchmarkSonicJsonTwitter(b *testing.B)        { benchmarkSonicJson(b, "twitter") }
+func BenchmarkSonicJsonTwitterescaped(b *testing.B) { benchmarkSonicJson(b, "twitterescaped") }
+func BenchmarkSonicJsonUpdate_center(b *testing.B)  { benchmarkSonicJson(b, "update-center") }
 
 func BenchmarkJsonParserLarge(b *testing.B) {
 	largeFixture := loadCompressed(b, "payload-large")
