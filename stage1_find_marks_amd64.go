@@ -39,7 +39,7 @@ func jsonMarkup(b byte) bool {
 	return jsonMarkupTable[b]
 }
 
-func findStructuralIndices(buf []byte, pj *internalParsedJson) bool {
+func (pj *internalParsedJson) findStructuralIndices(buf []byte) bool {
 
 	f := find_structural_bits_in_slice
 	if cpuid.CPU.Has(cpuid.AVX512F) {

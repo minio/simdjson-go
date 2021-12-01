@@ -36,7 +36,7 @@ func TestDemoNdjson(t *testing.T) {
 
 	pj := internalParsedJson{}
 
-	if err := pj.parseMessageNdjson([]byte(demo_ndjson)); err != nil {
+	if err := pj.parseMessage([]byte(demo_ndjson), true); err != nil {
 		t.Errorf("TestDemoNdjson: got: %v want: nil", err)
 	}
 
@@ -63,7 +63,7 @@ func TestNdjsonEmptyLines(t *testing.T) {
 	pj := internalParsedJson{}
 
 	for _, json := range ndjson_emptylines {
-		if err := pj.parseMessageNdjson([]byte(json)); err != nil {
+		if err := pj.parseMessage([]byte(json), true); err != nil {
 			t.Errorf("TestNdjsonEmptyLine: got: %v want: nil", err)
 		}
 	}
@@ -77,7 +77,7 @@ func BenchmarkNdjsonStage2(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := pj.parseMessageNdjson(ndjson)
+		err := pj.parseMessage(ndjson, true)
 		if err != nil {
 			panic(err)
 		}
@@ -97,7 +97,7 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
 		pj.indexChans = make(chan indexChan, 128*10240)
-		findStructuralIndices([]byte(ndjson), &pj)
+		pj.findStructuralIndices([]byte(ndjson))
 	}
 }
 
@@ -113,7 +113,7 @@ func BenchmarkNdjsonColdCountStar(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		pj.parseMessageNdjson(ndjson)
+		pj.parseMessage(ndjson, true)
 		count_raw_tape(pj.Tape)
 	}
 }
@@ -129,7 +129,7 @@ func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
 		b.ReportAllocs()
 
 		for i := 0; i < b.N; i++ {
-			err := pj.parseMessageNdjson(ndjson)
+			err := pj.parseMessage(ndjson, true)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -654,7 +654,7 @@ func TestVerifyTape(t *testing.T) {
 			ref := loadCompressed(t, tt.name)
 
 			pj := internalParsedJson{}
-			if err := pj.parseMessage(ref); err != nil {
+			if err := pj.parseMessage(ref, false); err != nil {
 				t.Errorf("parseMessage failed: %v\n", err)
 				return
 			}

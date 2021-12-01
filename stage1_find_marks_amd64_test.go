@@ -141,7 +141,7 @@ func TestFindStructuralIndices(t *testing.T) {
 	pj.indexChans = make(chan indexChan, 16)
 
 	// No need to spawn go-routine since the channel is large enough
-	findStructuralIndices([]byte(demo_json), &pj)
+	pj.findStructuralIndices([]byte(demo_json))
 
 	ipos, pos := 0, ^uint64(0)
 	for ic := range pj.indexChans {
@@ -169,6 +169,6 @@ func BenchmarkStage1(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
 		pj.indexChans = make(chan indexChan, 128)
-		findStructuralIndices([]byte(msg), &pj)
+		pj.findStructuralIndices([]byte(msg))
 	}
 }
