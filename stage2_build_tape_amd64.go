@@ -115,52 +115,46 @@ func parseString(pj *ParsedJson, idx uint64, maxStringSize uint64, needCopy bool
 }
 
 func addNumber(buf []byte, pj *ParsedJson) bool {
-	tag, val, flags := parseNumber(buf)
-	if tag == TagEnd {
+	tag, val := parseNumber(buf)
+	if tag == 0 {
 		return false
 	}
-	pj.writeTapeTagValFlags(tag, val, flags)
+	pj.writeTapeTagValFlags(tag, val)
 	return true
 }
 
 func isValidTrueAtom(buf []byte) bool {
-	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
-		tv := uint64(0x0000000065757274) // "true    "
-		mask4 := uint64(0x00000000ffffffff)
-		locval := binary.LittleEndian.Uint64(buf)
-		error := (locval & mask4) ^ tv
-		error |= uint64(isNotStructuralOrWhitespace(buf[4]))
-		return error == 0
-	} else if len(buf) >= 5 {
-		return bytes.Compare(buf[:4], []byte("true")) == 0 && isNotStructuralOrWhitespace(buf[4]) == 0
+	if len(buf) >= 5 { // fast path when there is enough space left in the buffer
+		const tv = uint32(0x0000000065757274) // "true    "
+		locval := binary.LittleEndian.Uint32(buf)
+		if locval == tv {
+			return isNotStructuralOrWhitespace(buf[4]) == 0
+		}
 	}
 	return false
 }
 
 func isValidFalseAtom(buf []byte) bool {
 	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
-		fv := uint64(0x00000065736c6166) // "false   "
-		mask5 := uint64(0x000000ffffffffff)
+		const fv = uint64(0x00000065736c6166) // "false   "
+		const mask5 = uint64(0x000000ffffffffff)
+		error := uint64(isNotStructuralOrWhitespace(buf[5]))
 		locval := binary.LittleEndian.Uint64(buf)
-		error := (locval & mask5) ^ fv
-		error |= uint64(isNotStructuralOrWhitespace(buf[5]))
+		error |= (locval & mask5) ^ fv
 		return error == 0
 	} else if len(buf) >= 6 {
-		return bytes.Compare(buf[:5], []byte("false")) == 0 && isNotStructuralOrWhitespace(buf[5]) == 0
+		return bytes.Equal(buf[:5], []byte("false")) && isNotStructuralOrWhitespace(buf[5]) == 0
 	}
 	return false
 }
 
 func isValidNullAtom(buf []byte) bool {
-	if len(buf) >= 8 { // fast path when there is enough space left in the buffer
-		nv := uint64(0x000000006c6c756e) // "null    "
-		mask4 := uint64(0x00000000ffffffff)
-		locval := binary.LittleEndian.Uint64(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
-		error := (locval & mask4) ^ nv
-		error |= uint64(isNotStructuralOrWhitespace(buf[4]))
-		return error == 0
-	} else if len(buf) >= 5 {
-		return bytes.Compare(buf[:4], []byte("null")) == 0 && isNotStructuralOrWhitespace(buf[4]) == 0
+	if len(buf) >= 5 { // fast path when there is enough space left in the buffer
+		const nv = 0x000000006c6c756e             // "null    "
+		locval := binary.LittleEndian.Uint32(buf) // we want to avoid unaligned 64-bit loads (undefined in C/C++)
+		if locval == nv {
+			return isNotStructuralOrWhitespace(buf[4]) == 0
+		}
 	}
 	return false
 }
@@ -186,11 +180,11 @@ continueRoot:
 	switch buf[idx] {
 	case '{':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '{')
 		goto object_begin
 	case '[':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressStartConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '[')
 		goto arrayBegin
 	default:
 		goto fail
@@ -267,24 +261,19 @@ object_key_state:
 		if !isValidTrueAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 't')
 
 	case 'f':
 		if !isValidFalseAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'f')
 
 	case 'n':
 		if !isValidNullAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
-
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-		if !addNumber(buf[idx:], &pj.ParsedJson) {
-			goto fail
-		}
+		pj.write_tape(0, 'n')
 
 	case '-':
 		if !addNumber(buf[idx:], &pj.ParsedJson) {
@@ -293,17 +282,23 @@ object_key_state:
 
 	case '{':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '{')
 		// we have not yet encountered } so we need to come back for it
 		goto object_begin
 
 	case '[':
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressObjectConst)
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, '[')
 		// we have not yet encountered } so we need to come back for it
 		goto arrayBegin
 
 	default:
+		if buf[idx] >= '0' && buf[idx] <= '9' {
+			if !addNumber(buf[idx:], &pj.ParsedJson) {
+				goto fail
+			}
+			break
+		}
 		goto fail
 	}
 
@@ -372,22 +367,22 @@ mainArraySwitch:
 		if !isValidTrueAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 't')
 
 	case 'f':
 		if !isValidFalseAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'f')
 
 	case 'n':
 		if !isValidNullAtom(buf[idx:]) {
 			goto fail
 		}
-		pj.write_tape(0, buf[idx])
+		pj.write_tape(0, 'n')
 		/* goto array_continue */
 
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
+	case '-':
 		if !addNumber(buf[idx:], &pj.ParsedJson) {
 			goto fail
 		}
@@ -395,16 +390,22 @@ mainArraySwitch:
 	case '{':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
-		pj.write_tape(0, buf[idx]) //  here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, '{') //  here the compilers knows what c is so this gets optimized
 		goto object_begin
 
 	case '[':
 		// we have not yet encountered ] so we need to come back for it
 		pj.containingScopeOffset = append(pj.containingScopeOffset, (pj.get_current_loc()<<retAddressShift)|retAddressArrayConst)
-		pj.write_tape(0, buf[idx]) // here the compilers knows what c is so this gets optimized
+		pj.write_tape(0, '[') // here the compilers knows what c is so this gets optimized
 		goto arrayBegin
 
 	default:
+		if buf[idx] >= '0' && buf[idx] <= '9' {
+			if !addNumber(buf[idx:], &pj.ParsedJson) {
+				goto fail
+			}
+			break
+		}
 		goto fail
 	}
 
