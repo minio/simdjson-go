@@ -1,6 +1,5 @@
-//+build !noasm
-//+build !appengine
-//+build gc
+//go:build !noasm && !appengine && gc
+// +build !noasm,!appengine,gc
 
 /*
  * MinIO Cloud Storage, (C) 2020 MinIO, Inc.
@@ -33,7 +32,9 @@ import (
 )
 
 func TestDemoNdjson(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	pj := internalParsedJson{}
 
 	if err := pj.parseMessage([]byte(demo_ndjson), true); err != nil {
@@ -44,6 +45,9 @@ func TestDemoNdjson(t *testing.T) {
 }
 
 func TestNdjsonEmptyLines(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 
 	ndjson_emptylines := []string{`{"zero":"emptylines"}
 {"c":"d"}`,
@@ -70,6 +74,10 @@ func TestNdjsonEmptyLines(t *testing.T) {
 }
 
 func BenchmarkNdjsonStage2(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	pj := internalParsedJson{}
 
@@ -85,7 +93,9 @@ func BenchmarkNdjsonStage2(b *testing.B) {
 }
 
 func BenchmarkNdjsonStage1(b *testing.B) {
-
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	pj := internalParsedJson{}
@@ -102,7 +112,9 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 }
 
 func BenchmarkNdjsonColdCountStar(b *testing.B) {
-
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 
 	b.SetBytes(int64(len(ndjson)))
@@ -119,6 +131,9 @@ func BenchmarkNdjsonColdCountStar(b *testing.B) {
 }
 
 func BenchmarkNdjsonColdCountStarWithWhere(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
 	const want = 110349
 	runtime.GC()
@@ -522,7 +537,9 @@ func TestParseFloat64(t *testing.T) {
 }
 
 func TestParseString(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// enclose test string in quotes (as validated by stage 1)
@@ -548,6 +565,9 @@ func TestParseString(t *testing.T) {
 }
 
 func TestParseStringValidateOnly(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -572,6 +592,9 @@ func TestParseStringValidateOnly(t *testing.T) {
 }
 
 func TestParseStringValidateOnlyBeyondBuffer(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 
 	t.Skip()
 
@@ -651,9 +674,11 @@ func BenchmarkParseNumberRandomFloats(b *testing.B) {
 }
 
 func TestVerifyTape(t *testing.T) {
-	// FIXME: Does not have tapes any more.
-	for _, tt := range testCases {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 
+	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ref := loadCompressed(t, tt.name)
 
@@ -662,10 +687,6 @@ func TestVerifyTape(t *testing.T) {
 				t.Errorf("parseMessage failed: %v\n", err)
 				return
 			}
-
-			//ctape := bytesToUint64(cbuf)
-
-			//testCTapeCtoGoTapeCompare(t, ctape, csbuf, pj)
 		})
 	}
 }

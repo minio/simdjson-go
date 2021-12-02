@@ -1,6 +1,5 @@
-//+build !noasm
-//+build !appengine
-//+build gc
+//go:build !noasm && !appengine && gc
+// +build !noasm,!appengine,gc
 
 /*
  * MinIO Cloud Storage, (C) 2020 MinIO, Inc.
@@ -31,32 +30,30 @@ func _parse_string_validate_only(src, maxStringSize, str_length, dst_length unsa
 //go:noescape
 func _parse_string(src, dst, pcurrent_string_buf_loc unsafe.Pointer) (res uint64)
 
-// Disable new -d=checkptr behaviour for Go 1.14
-//go:nocheckptr
 func parseStringSimdValidateOnly(buf []byte, maxStringSize, dstLength *uint64, needCopy *bool) bool {
 
-	src := uintptr(unsafe.Pointer(&buf[1])) // Use buf[1] in order to skip opening quote
+	src := unsafe.Pointer(&buf[1]) // Use buf[1] in order to skip opening quote
 	src_length := uint64(0)
 
-	success := _parse_string_validate_only(unsafe.Pointer(src), unsafe.Pointer(&maxStringSize), unsafe.Pointer(&src_length), unsafe.Pointer(dstLength))
+	success := _parse_string_validate_only(src, unsafe.Pointer(&maxStringSize), unsafe.Pointer(&src_length), unsafe.Pointer(dstLength))
 
 	*needCopy = *needCopy || src_length != *dstLength
 	return success != 0
 }
 
-// Disable new -d=checkptr behaviour for Go 1.14
-//go:nocheckptr
 func parseStringSimd(buf []byte, stringbuf *[]byte) bool {
 
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(stringbuf))
+	sb := *stringbuf
+	sb = append(sb, 0)
 
-	src := uintptr(unsafe.Pointer(&buf[1])) // Use buf[1] in order to skip opening quote
-	string_buf_loc := uintptr(unsafe.Pointer(sh.Data)) + uintptr(sh.Len)
+	src := unsafe.Pointer(&buf[1]) // Use buf[1] in order to skip opening quote
+	string_buf_loc := unsafe.Pointer(uintptr(unsafe.Pointer(&sb[0])) + uintptr(sh.Len)*unsafe.Sizeof(sb[0]))
 	dst := string_buf_loc
 
-	res := _parse_string(unsafe.Pointer(src), unsafe.Pointer(dst), unsafe.Pointer(&string_buf_loc))
+	res := _parse_string(src, dst, unsafe.Pointer(&string_buf_loc))
 
-	sh.Len += int(uintptr(string_buf_loc) - dst)
+	sh.Len += int(uintptr(string_buf_loc) - uintptr(dst))
 
 	return res != 0
 }
