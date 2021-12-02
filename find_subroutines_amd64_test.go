@@ -31,7 +31,9 @@ import (
 )
 
 func TestFinalizeStructurals(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	testCases := []struct {
 		structurals     uint64
 		whitespace      uint64
@@ -92,6 +94,9 @@ func testFindNewlineDelimiters(t *testing.T, f func([]byte, uint64) uint64) {
 }
 
 func TestFindNewlineDelimiters(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testFindNewlineDelimiters(t, _find_newline_delimiters)
 	})
@@ -103,7 +108,9 @@ func TestFindNewlineDelimiters(t *testing.T) {
 }
 
 func testExcludeNewlineDelimitersWithinQuotes(t *testing.T, f func([]byte, uint64) uint64) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	input := []byte(`  "-------------------------------------"                       `)
 	input[10] = 0x0a // within quoted string, so should be ignored
 	input[50] = 0x0a // outside quoted string, so should be found
@@ -122,6 +129,9 @@ func testExcludeNewlineDelimitersWithinQuotes(t *testing.T, f func([]byte, uint6
 }
 
 func TestExcludeNewlineDelimitersWithinQuotes(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testExcludeNewlineDelimitersWithinQuotes(t, _find_newline_delimiters)
 	})
@@ -190,6 +200,9 @@ func testFindOddBackslashSequences(t *testing.T, f func([]byte, *uint64) uint64)
 }
 
 func TestFindOddBackslashSequences(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testFindOddBackslashSequences(t, find_odd_backslash_sequences)
 	})
@@ -291,6 +304,9 @@ func testFindQuoteMaskAndBits(t *testing.T, f func([]byte, uint64, *uint64, *uin
 }
 
 func TestFindQuoteMaskAndBits(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testFindQuoteMaskAndBits(t, find_quote_mask_and_bits)
 	})
@@ -346,6 +362,9 @@ func testFindStructuralBits(t *testing.T, f func([]byte, *uint64, *uint64, *uint
 }
 
 func TestFindStructuralBits(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testFindStructuralBits(t, find_structural_bits)
 	})
@@ -404,6 +423,9 @@ func testFindStructuralBitsWhitespacePadding(t *testing.T, f func([]byte, *uint6
 }
 
 func TestFindStructuralBitsWhitespacePadding(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testFindStructuralBitsWhitespacePadding(t, find_structural_bits_in_slice)
 	})
@@ -459,6 +481,9 @@ func testFindStructuralBitsLoop(t *testing.T, f func([]byte, *uint64, *uint64, *
 }
 
 func TestFindStructuralBitsLoop(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	t.Run("avx2", func(t *testing.T) {
 		testFindStructuralBitsLoop(t, find_structural_bits_in_slice)
 	})
@@ -491,6 +516,9 @@ func benchmarkFindStructuralBits(b *testing.B, f func([]byte, *uint64, *uint64, 
 }
 
 func BenchmarkFindStructuralBits(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	b.Run("avx2", func(b *testing.B) {
 		benchmarkFindStructuralBits(b, find_structural_bits)
 	})
@@ -531,6 +559,9 @@ func benchmarkFindStructuralBitsLoop(b *testing.B, f func([]byte, *uint64, *uint
 }
 
 func BenchmarkFindStructuralBitsLoop(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	b.Run("avx2", func(b *testing.B) {
 		benchmarkFindStructuralBitsLoop(b, find_structural_bits_in_slice)
 	})
@@ -578,6 +609,10 @@ func benchmarkFindStructuralBitsParallelLoop(b *testing.B, f func([]byte, *uint6
 }
 
 func BenchmarkFindStructuralBitsParallelLoop(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
+
 	b.Run("avx2", func(b *testing.B) {
 		benchmarkFindStructuralBitsParallelLoop(b, find_structural_bits_in_slice)
 	})
@@ -655,6 +690,10 @@ func testFindWhitespaceAndStructurals(t *testing.T, f func([]byte, *uint64, *uin
 }
 
 func TestFindWhitespaceAndStructurals(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+
 	t.Run("avx2", func(t *testing.T) {
 		testFindWhitespaceAndStructurals(t, find_whitespace_and_structurals)
 	})
@@ -666,6 +705,9 @@ func TestFindWhitespaceAndStructurals(t *testing.T) {
 }
 
 func TestFlattenBitsIncremental(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 
 	testCases := []struct {
 		masks    []uint64
@@ -732,6 +774,9 @@ func TestFlattenBitsIncremental(t *testing.T) {
 }
 
 func BenchmarkFlattenBits(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 
 	msg := loadCompressed(b, "twitter")
 
