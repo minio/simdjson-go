@@ -28,7 +28,9 @@ import (
 )
 
 func TestStage1FindMarks(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	testCases := []struct {
 		quoted                string
 		structurals           string
@@ -84,7 +86,9 @@ func TestStage1FindMarks(t *testing.T) {
 }
 
 func TestFindStructuralIndices(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	parsed := []string{
 		`{"Image":{"Width":800,"Height":600,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`,
 		` "Image":{"Width":800,"Height":600,"Title":"View from 15th Floor","Thumbnail":{"Url":"http://www.example.com/image/481989943","Height":125,"Width":100},"Animated":false,"IDs":[116,943,234,38793]}}`,
@@ -158,6 +162,9 @@ func TestFindStructuralIndices(t *testing.T) {
 }
 
 func BenchmarkStage1(b *testing.B) {
+	if !SupportedCPU() {
+		b.SkipNow()
+	}
 	msg := loadCompressed(b, "twitter")
 
 	b.SetBytes(int64(len(msg)))

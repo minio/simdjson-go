@@ -25,7 +25,9 @@ import (
 )
 
 func TestStage2BuildTape(t *testing.T) {
-
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	var floatHexRepresentation1 uint64 = 0x69066666666666
 	var floatHexRepresentation2 uint64 = 0x79066666666666
 
