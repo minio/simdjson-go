@@ -269,7 +269,7 @@ To serialize a block of parsed data use the [`Serialize`](https://pkg.go.dev/git
 To read back use the [`Deserialize`](https://pkg.go.dev/github.com/minio/simdjson-go#Serializer.Deserialize) method.
 For deserializing the compression mode does not need to match since it is read from the stream. 
 
-Example of speed for serializer/deserializer on [`parking-citations-1M`](https://files.klauspost.com/compress/parking-citations-1M.json.zst).
+Example of speed for serializer/deserializer on [`parking-citations-1M`](https://dl.minio.io/assets/parking-citations-1M.json.zst).
 
 | Compress Mode | % of JSON size | Serialize Speed | Deserialize Speed |
 |---------------|----------------|-----------------|-------------------|
