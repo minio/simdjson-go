@@ -89,7 +89,7 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
 	MOVQ odd_ends+8(FP), DX
 	MOVQ prev_iter_inside_quote+16(FP), CX
 
-	KORQ K_ERRORMASK, K_ERRORMASK, K_ERRORMASK
+	KXORQ K_ERRORMASK, K_ERRORMASK, K_ERRORMASK
 
 	VMOVDQU32 (DI), Z8
 
