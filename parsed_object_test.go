@@ -7,6 +7,9 @@ import (
 )
 
 func TestObject_FindPath(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	tests := []struct {
 		name     string
 		path     string
@@ -128,6 +131,11 @@ func TestObject_FindPath(t *testing.T) {
 }
 
 func ExampleObject_FindPath() {
+	if !SupportedCPU() {
+		// Fake it
+		fmt.Println("string\nhttp://www.example.com/image/481989943 <nil>")
+		return
+	}
 	input := `{
     "Image":
     {

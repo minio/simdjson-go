@@ -259,7 +259,10 @@ func TestNdjsonCountWhere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	ser := NewSerializer()
+	ser.CompressMode(CompressBest)
+	b := ser.Serialize(nil, *pj)
+	t.Log(len(b))
 	const want = 110349
 	if result := countWhere("Make", "HOND", *pj); result != want {
 		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
