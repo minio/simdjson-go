@@ -320,8 +320,8 @@ func loadFile(filename string) []byte {
 					}
 				}
 			}
+			panic("Failed to (down)load file:" + err.Error())
 		}
-		panic("Failed to (down)load file:" + err.Error())
 	}
 	dec, err := zstd.NewReader(f)
 	if err != nil {
