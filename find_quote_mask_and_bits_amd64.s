@@ -96,9 +96,9 @@ TEXT ·_find_quote_mask_and_bits_avx512(SB), $0-48
 	CALL ·__init_quote_mask_and_bits_avx512(SB)
 	CALL ·__find_quote_mask_and_bits_avx512(SB)
 
-	VZEROUPPER
 	KMOVQ K_ERRORMASK, error_mask+24(FP)
 	KMOVQ K_QUOTEBITS, quote_bits+32(FP)
+	VZEROUPPER
 	MOVQ  AX, quote_mask+40(FP)
 	RET
 
