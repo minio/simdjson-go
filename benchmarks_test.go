@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/buger/jsonparser"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -229,4 +230,38 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 			})
 		}
 	})
+}
+
+func BenchmarkBugerJsonParserLarge(b *testing.B) {
+	largeFixture := loadCompressed(b, "payload-large")
+	const logVals = false
+	b.SetBytes(int64(len(largeFixture)))
+	b.ReportAllocs()
+	b.ResetTimer()
+	var dump int
+	for i := 0; i < b.N; i++ {
+		jsonparser.ArrayEach(largeFixture, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			sval, _, _, _ := jsonparser.Get(value, "username")
+			if logVals && i == 0 {
+				b.Log(string(sval))
+			}
+			dump += len(sval)
+		}, "users")
+
+		jsonparser.ArrayEach(largeFixture, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			ival, _ := jsonparser.GetInt(value, "id")
+			if logVals && i == 0 {
+				b.Log(ival)
+			}
+			dump += int(ival)
+			sval, _, _, _ := jsonparser.Get(value, "slug")
+			if logVals && i == 0 {
+				b.Log(string(sval))
+			}
+			dump += len(sval)
+		}, "topics", "topics")
+	}
+	if dump == 0 {
+		b.Log("")
+	}
 }
