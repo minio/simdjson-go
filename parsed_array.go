@@ -43,14 +43,14 @@ func (a *Array) Iter() Iter {
 }
 
 // ForEach calls the provided function for every element.
-func (a *Array) ForEach(fn func(t Type, i Iter)) {
+func (a *Array) ForEach(fn func(i Iter)) {
 	i := a.Iter()
 	for {
 		t := i.Advance()
 		if t == TypeNone {
 			break
 		}
-		fn(t, i)
+		fn(i)
 	}
 	return
 }

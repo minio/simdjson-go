@@ -19,7 +19,6 @@ package simdjson
 import (
 	"errors"
 	"fmt"
-	"strings"
 )
 
 // Object represents a JSON object.
@@ -189,12 +188,14 @@ var ErrPathNotFound = errors.New("path not found")
 // ErrPathNotFound is returned if any part of the path cannot be found.
 // If the tape contains an error it will be returned.
 // The object will not be advanced.
-func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
+func (o *Object) FindPath(dst *Element, path ...string) (*Element, error) {
+	if len(path) == 0 {
+		return dst, ErrPathNotFound
+	}
 	tmp := o.tape.Iter()
 	tmp.off = o.off
-	p := strings.Split(path, "/")
-	key := p[0]
-	p = p[1:]
+	key := path[0]
+	path = path[1:]
 	for {
 		typ := tmp.Advance()
 		// We want name and at least one value.
@@ -225,7 +226,7 @@ func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
 			continue
 		}
 		// Done...
-		if len(p) == 0 {
+		if len(path) == 0 {
 			if dst == nil {
 				dst = &Element{}
 			}
@@ -244,8 +245,8 @@ func (o *Object) FindPath(path string, dst *Element) (*Element, error) {
 		if t != TypeObject {
 			return dst, fmt.Errorf("value of key %v is not an object", key)
 		}
-		key = p[0]
-		p = p[1:]
+		key = path[0]
+		path = path[1:]
 	}
 }
 

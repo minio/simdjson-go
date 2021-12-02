@@ -119,6 +119,24 @@ func (pj *ParsedJson) stringByteAt(offset, length uint64) ([]byte, error) {
 	return pj.Strings.B[offset : offset+length], nil
 }
 
+// ForEach returns each line in NDJSON, or the top element in non-ndjson.
+// This will usually be an object or an array.
+// If the callback returns a non-nil error parsing stops and the errors is returned.
+func (pj *ParsedJson) ForEach(fn func(i Iter) error) error {
+	i := Iter{tape: *pj}
+	var elem Iter
+	for {
+		t, err := i.AdvanceIter(&elem)
+		if err != nil || t != TypeRoot {
+			return err
+		}
+		elem.AdvanceInto()
+		if err = fn(elem); err != nil {
+			return err
+		}
+	}
+}
+
 // Clone returns a deep clone of the ParsedJson.
 // If a nil destination is sent a new will be created.
 func (pj *ParsedJson) Clone(dst *ParsedJson) *ParsedJson {
@@ -751,13 +769,15 @@ func (i *Iter) Root(dst *Iter) (Type, *Iter, error) {
 
 // FindElement allows searching for fields and objects by path from the iter and forward,
 // moving into root and objects, but not arrays.
-// Separate each object name by /.
-// For example `Image/Url` will search the current root/object for an "Image"
+// For example "Image", "Url" will search the current root/object for an "Image"
 // object and return the value of the "Url" element.
 // ErrPathNotFound is returned if any part of the path cannot be found.
 // If the tape contains an error it will be returned.
 // The iter will *not* be advanced.
-func (i *Iter) FindElement(path string, dst *Element) (*Element, error) {
+func (i *Iter) FindElement(dst *Element, path ...string) (*Element, error) {
+	if len(path) == 0 {
+		return dst, ErrPathNotFound
+	}
 	// Local copy.
 	cp := *i
 	for {
@@ -768,7 +788,7 @@ func (i *Iter) FindElement(path string, dst *Element) (*Element, error) {
 			if err != nil {
 				return dst, err
 			}
-			return obj.FindPath(path, dst)
+			return obj.FindPath(dst, path...)
 		case TagRoot:
 			_, _, err := cp.Root(&cp)
 			if err != nil {

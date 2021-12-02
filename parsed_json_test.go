@@ -783,7 +783,7 @@ func ExampleIter_FindElement() {
 	i := pj.Iter()
 
 	// Find element in path.
-	elem, err := i.FindElement("Image/Thumbnail/Width", nil)
+	elem, err := i.FindElement(nil, "Image", "Thumbnail", "Width")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -795,4 +795,36 @@ func ExampleIter_FindElement() {
 	// Output:
 	// int
 	// 100 <nil>
+}
+
+func ExampleParsedJson_ForEach() {
+	if !SupportedCPU() {
+		// Fake results
+		fmt.Println("Got iterator for type: object\nFound element: URL Type: string Value: http://example.com/example.gif")
+		return
+	}
+
+	// Parse JSON:
+	pj, err := Parse([]byte(`{"Image":{"URL":"http://example.com/example.gif"}}`), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create an element we can reuse.
+	var element *Element
+	err = pj.ForEach(func(i Iter) error {
+		fmt.Println("Got iterator for type:", i.Type())
+		element, err = i.FindElement(element, "Image", "URL")
+		if err == nil {
+			value, _ := element.Iter.StringCvt()
+			fmt.Println("Found element:", element.Name, "Type:", element.Type, "Value:", value)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Output:
+	// Got iterator for type: object
+	// Found element: URL Type: string Value: http://example.com/example.gif
 }
