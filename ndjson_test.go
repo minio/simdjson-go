@@ -254,13 +254,13 @@ func TestNdjsonCountWhere(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping... too long")
 	}
-	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations.json.zst")
 	pj, err := ParseND(ndjson, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	const want = 110349
+	const want = 116
 	t.Run("countWhere", func(t *testing.T) {
 		if result := countWhere("Make", "HOND", *pj); result != want {
 			t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
@@ -380,8 +380,8 @@ func loadFile(filename string) []byte {
 			break
 		}
 		if os.IsNotExist(err) {
-			fmt.Println("downloading file" + filename)
-			resp, err := http.DefaultClient.Get("https://files.klauspost.com/compress/" + filepath.Base(filename))
+			fmt.Println("downloading file", filename)
+			resp, err := http.DefaultClient.Get("https://dl.minio.io/assets/" + filepath.Base(filename))
 			if err == nil && resp.StatusCode == http.StatusOK {
 				b, err := ioutil.ReadAll(resp.Body)
 				if err == nil {
@@ -389,10 +389,12 @@ func loadFile(filename string) []byte {
 					if err == nil {
 						continue
 					}
+					panic("Failed to write file:" + err.Error())
 				}
+				panic("Failed to read file:" + err.Error())
 			}
+			panic("Failed to download file:" + err.Error())
 		}
-		panic("Failed to (down)load file:" + err.Error())
 	}
 	dec, err := zstd.NewReader(f)
 	if err != nil {

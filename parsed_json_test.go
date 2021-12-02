@@ -188,6 +188,9 @@ func TestPrintJson(t *testing.T) {
 }
 
 func TestExchange(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
 	input := `{"value": -20}`
 	pj, err := Parse([]byte(input), nil)
 	if err != nil {
@@ -753,6 +756,11 @@ func TestIter_SetStringBytes(t *testing.T) {
 }
 
 func ExampleIter_FindElement() {
+	if !SupportedCPU() {
+		// Fake it
+		fmt.Println("int\n100 <nil>")
+		return
+	}
 	input := `{
     "Image":
     {

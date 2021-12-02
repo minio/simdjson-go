@@ -700,7 +700,6 @@ func (s *Serializer) decBlock(br *bytes.Buffer, dst []byte, wg *sync.WaitGroup, 
 	case blockTypeUncompressed:
 		// uncompressed
 		if len(compressed) != len(dst) {
-			panic("err")
 			return fmt.Errorf("short uncompressed block: in (%d) != out (%d)", len(compressed), len(dst))
 		}
 		copy(dst, compressed)
@@ -742,7 +741,7 @@ const (
 var zDec *zstd.Decoder
 
 var zEncFast = sync.Pool{New: func() interface{} {
-	e, _ := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedFastest), zstd.WithEncoderCRC(false))
+	e, _ := zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedDefault), zstd.WithEncoderCRC(false))
 	return e
 }}
 

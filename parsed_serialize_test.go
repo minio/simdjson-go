@@ -224,7 +224,7 @@ func TestDeSerializeNDJSON(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping... too long")
 	}
-	ndjson := loadFile("testdata/parking-citations-1M.json.zst")
+	ndjson := loadFile("testdata/parking-citations.json.zst")
 
 	pj, err := ParseND(ndjson, nil)
 	if err != nil {

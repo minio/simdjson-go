@@ -1,7 +1,3 @@
-//+build !noasm
-//+build !appengine
-//+build gc
-
 /*
  * MinIO Cloud Storage, (C) 2020 MinIO, Inc.
  *
