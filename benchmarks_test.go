@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/buger/jsonparser"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -166,7 +167,7 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 				b.Fatal(err)
 			}
 			iter := pj.Iter()
-			elem, err = iter.FindElement("users", elem)
+			elem, err = iter.FindElement(elem, "users")
 			if checkErrs && err != nil {
 				b.Fatal(err)
 			}
@@ -174,15 +175,15 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 			if checkErrs && err != nil {
 				b.Fatal(err)
 			}
-			ar.ForEach(func(t Type, i Iter) {
-				elem, err = i.FindElement("username", elem)
+			ar.ForEach(func(i Iter) {
+				elem, err = i.FindElement(elem, "username")
 				if checkErrs && err != nil {
 					b.Fatal(err)
 				}
 				_, _ = elem.Iter.StringBytes()
 			})
 
-			elem, err = iter.FindElement("topics/topics", elem)
+			elem, err = iter.FindElement(elem, "topics", "topics")
 			if checkErrs && err != nil {
 				b.Fatal(err)
 			}
@@ -190,7 +191,7 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 			if checkErrs && err != nil {
 				b.Fatal(err)
 			}
-			ar.ForEach(func(t Type, i Iter) {
+			ar.ForEach(func(i Iter) {
 				if true {
 					// Use foreach...
 					obj, err = i.Object(obj)
@@ -213,13 +214,13 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 
 					}, onlyKeys)
 				} else {
-					elem, err = i.FindElement("id", elem)
+					elem, err = i.FindElement(elem, "id")
 					if checkErrs && err != nil {
 						b.Fatal(err)
 					}
 					_, _ = elem.Iter.Int()
 					//b.Log(elem.Iter.Int())
-					elem, err = i.FindElement("slug", elem)
+					elem, err = i.FindElement(elem, "slug")
 					if checkErrs && err != nil {
 						b.Fatal(err)
 					}
@@ -229,4 +230,38 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 			})
 		}
 	})
+}
+
+func BenchmarkBugerJsonParserLarge(b *testing.B) {
+	largeFixture := loadCompressed(b, "payload-large")
+	const logVals = false
+	b.SetBytes(int64(len(largeFixture)))
+	b.ReportAllocs()
+	b.ResetTimer()
+	var dump int
+	for i := 0; i < b.N; i++ {
+		jsonparser.ArrayEach(largeFixture, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			sval, _, _, _ := jsonparser.Get(value, "username")
+			if logVals && i == 0 {
+				b.Log(string(sval))
+			}
+			dump += len(sval)
+		}, "users")
+
+		jsonparser.ArrayEach(largeFixture, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+			ival, _ := jsonparser.GetInt(value, "id")
+			if logVals && i == 0 {
+				b.Log(ival)
+			}
+			dump += int(ival)
+			sval, _, _, _ := jsonparser.Get(value, "slug")
+			if logVals && i == 0 {
+				b.Log(string(sval))
+			}
+			dump += len(sval)
+		}, "topics", "topics")
+	}
+	if dump == 0 {
+		b.Log("")
+	}
 }

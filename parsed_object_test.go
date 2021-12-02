@@ -12,7 +12,7 @@ func TestObject_FindPath(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		path     string
+		path     []string
 		wantName string
 		wantType Type
 		wantVal  string
@@ -20,49 +20,49 @@ func TestObject_FindPath(t *testing.T) {
 	}{
 		{
 			name:     "top",
-			path:     "Alt",
+			path:     []string{"Alt"},
 			wantName: "Alt",
 			wantType: TypeString,
 			wantVal:  `"Image of city"`,
 		},
 		{
 			name:     "nested-1",
-			path:     "Image/Animated",
+			path:     []string{"Image", "Animated"},
 			wantName: "Animated",
 			wantType: TypeBool,
 			wantVal:  "false",
 		},
 		{
 			name:     "nested-2",
-			path:     "Image/Thumbnail/Url",
+			path:     []string{"Image", "Thumbnail", "Url"},
 			wantName: "Url",
 			wantType: TypeString,
 			wantVal:  `"http://www.example.com/image/481989943"`,
 		},
 		{
 			name:     "int",
-			path:     "Image/Height",
+			path:     []string{"Image", "Height"},
 			wantName: "Height",
 			wantType: TypeInt,
 			wantVal:  `600`,
 		},
 		{
 			name:     "obj",
-			path:     "Image/Thumbnail",
+			path:     []string{"Image", "Thumbnail"},
 			wantName: "Thumbnail",
 			wantType: TypeObject,
 			wantVal:  `{"Height":125,"Url":"http://www.example.com/image/481989943","Width":100}`,
 		},
 		{
 			name:     "array",
-			path:     "Image/IDs",
+			path:     []string{"Image", "IDs"},
 			wantName: "IDs",
 			wantType: TypeArray,
 			wantVal:  `[116,943,234,38793]`,
 		},
 		{
 			name:    "404",
-			path:    "Image/NonEx",
+			path:    []string{"Image", "NonEx"},
 			wantErr: true,
 		},
 	}
@@ -106,7 +106,7 @@ func TestObject_FindPath(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			elem, err := obj.FindPath(tt.path, nil)
+			elem, err := obj.FindPath(nil, tt.path...)
 			if err != nil && !tt.wantErr {
 				t.Fatal(err)
 			}
@@ -178,7 +178,7 @@ func ExampleObject_FindPath() {
 	}
 
 	// Find element in path.
-	elem, err := obj.FindPath("Image/Thumbnail/Url", nil)
+	elem, err := obj.FindPath(nil, "Image", "Thumbnail", "Url")
 	if err != nil {
 		log.Fatal(err)
 	}

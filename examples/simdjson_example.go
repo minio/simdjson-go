@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -8,35 +9,22 @@ import (
 	"github.com/minio/simdjson-go"
 )
 
-func printKey(iter simdjson.Iter, key string) (err error) {
-
-	obj, tmp, elem := &simdjson.Object{}, &simdjson.Iter{}, simdjson.Element{}
-
-	for {
-		typ := iter.Advance()
-
-		switch typ {
-		case simdjson.TypeRoot:
-			if typ, tmp, err = iter.Root(tmp); err != nil {
-				return
-			}
-
-			if typ == simdjson.TypeObject {
-				if obj, err = tmp.Object(obj); err != nil {
-					return
-				}
-
-				e := obj.FindKey(key, &elem)
-				if e != nil && elem.Type == simdjson.TypeString {
-					v, _ := elem.Iter.StringBytes()
-					fmt.Println(string(v))
-				}
-			}
-
-		default:
-			return
+func printKeyHistogram(pj *simdjson.ParsedJson, key string) (err error) {
+	var elem *simdjson.Element
+	count := make(map[string]int)
+	err = pj.ForEach(func(i simdjson.Iter) error {
+		if elem, err = i.FindElement(elem, key); err != nil {
+			return nil
 		}
-	}
+		if elem.Type == simdjson.TypeString {
+			s, _ := elem.Iter.String()
+			count[s]++
+		}
+		return nil
+	})
+	res, _ := json.Marshal(count)
+	fmt.Println(key, ":", string(res)+"\n")
+	return err
 }
 
 func main() {
@@ -53,5 +41,7 @@ func main() {
 		log.Fatalf("Failed to parse JSON: %v", err)
 	}
 
-	printKey(parsed.Iter(), "Make")
+	printKeyHistogram(parsed, "Make")
+	printKeyHistogram(parsed, "MeterId")
+	printKeyHistogram(parsed, "ViolationCode")
 }

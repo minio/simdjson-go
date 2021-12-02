@@ -259,14 +259,60 @@ func TestNdjsonCountWhere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ser := NewSerializer()
-	ser.CompressMode(CompressBest)
-	b := ser.Serialize(nil, *pj)
-	t.Log(len(b))
+
 	const want = 116
-	if result := countWhere("Make", "HOND", *pj); result != want {
-		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
-	}
+	t.Run("countWhere", func(t *testing.T) {
+		if result := countWhere("Make", "HOND", *pj); result != want {
+			t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
+		}
+	})
+	t.Run("foreach", func(t *testing.T) {
+		var result int
+		var elem *Element
+		var obj *Object
+		err := pj.ForEach(func(i Iter) error {
+			var err error
+			obj, err = i.Object(obj)
+			if err == nil {
+				elem = obj.FindKey("Make", elem)
+				if elem != nil {
+					bts, _ := elem.Iter.StringBytes()
+					if string(bts) == "HOND" {
+						result++
+					}
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result != want {
+			t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
+		}
+	})
+	t.Run("foreach-findelement", func(t *testing.T) {
+		var result int
+		var elem *Element
+		err := pj.ForEach(func(i Iter) error {
+			var err error
+			elem, err = i.FindElement(elem, "Make")
+			if err != nil {
+				return nil
+			}
+			bts, _ := elem.Iter.StringBytes()
+			if string(bts) == "HOND" {
+				result++
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result != want {
+			t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
+		}
+	})
 }
 
 func TestNdjsonCountWhere2(t *testing.T) {
@@ -287,9 +333,34 @@ func TestNdjsonCountWhere2(t *testing.T) {
 		t.Fatal(err)
 	}
 	const want = 170315
-	if result := countWhere("subreddit", "reddit.com", *pj); result != want {
-		t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
-	}
+	t.Run("countWhere", func(t *testing.T) {
+		if result := countWhere("subreddit", "reddit.com", *pj); result != want {
+			t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
+		}
+
+	})
+	t.Run("foreach-findelement", func(t *testing.T) {
+		var result int
+		var elem *Element
+		err := pj.ForEach(func(i Iter) error {
+			var err error
+			elem, err = i.FindElement(elem, "subreddit")
+			if err != nil {
+				return nil
+			}
+			bts, _ := elem.Iter.StringBytes()
+			if string(bts) == "reddit.com" {
+				result++
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result != want {
+			t.Errorf("TestNdjsonCountWhere: got: %d want: %d", result, want)
+		}
+	})
 }
 
 func loadFile(filename string) []byte {
