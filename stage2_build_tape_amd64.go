@@ -33,10 +33,9 @@ const retAddressArrayConst = 3
 
 func updateChar(pj *internalParsedJson, idx_in uint64) (done bool, idx uint64) {
 	if pj.indexesChan.index >= pj.indexesChan.length {
-		var ok bool
-		pj.indexesChan, ok = <-pj.indexChans // Get next element from channel
-		if !ok {
-			done = true // return done if channel closed
+		pj.indexesChan = <-pj.indexChans // Get next element from channel
+		done = pj.indexesChan.index == -1
+		if done {
 			return
 		}
 	}
@@ -158,8 +157,8 @@ func isValidNullAtom(buf []byte) bool {
 	return false
 }
 
-func (pj *internalParsedJson) unifiedMachine(buf []byte) bool {
-
+func (pj *internalParsedJson) unifiedMachine() bool {
+	buf := pj.Message
 	const addOneForRoot = 1
 
 	done := false

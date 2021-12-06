@@ -104,10 +104,11 @@ func BenchmarkNdjsonStage1(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
+	pj.Message = ndjson
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
 		pj.indexChans = make(chan indexChan, 128*10240)
-		pj.findStructuralIndices([]byte(ndjson))
+		pj.findStructuralIndices()
 	}
 }
 
