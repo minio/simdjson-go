@@ -57,6 +57,22 @@ func benchmarkFromFile(b *testing.B, filename string) {
 			}
 		}
 	})
+	b.Run("nocopy-par", func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			pj := &ParsedJson{}
+			b.SetBytes(int64(len(msg)))
+			b.ReportAllocs()
+			b.ResetTimer()
+			for pb.Next() {
+				// Reset tape
+				var err error
+				pj, err = Parse(msg, pj, WithCopyStrings(false))
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	})
 
 }
 

@@ -28,7 +28,7 @@ import (
 func (pj *internalParsedJson) initialize(size int) {
 	// Estimate the tape size to be about 15% of the length of the JSON message
 	avgTapeSize := size * 15 / 100
-	if cap(pj.Tape) < avgTapeSize {
+	if cap(pj.Tape) <= avgTapeSize {
 		pj.Tape = make([]uint64, 0, avgTapeSize)
 	}
 	pj.Tape = pj.Tape[:0]
