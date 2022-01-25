@@ -58,26 +58,42 @@ func benchmarkFromFile(b *testing.B, filename string) {
 			}
 		}
 	})
+	b.Run("nocopy-par", func(b *testing.B) {
+		b.RunParallel(func(pb *testing.PB) {
+			pj := &ParsedJson{}
+			b.SetBytes(int64(len(msg)))
+			b.ReportAllocs()
+			b.ResetTimer()
+			for pb.Next() {
+				// Reset tape
+				var err error
+				pj, err = Parse(msg, pj, WithCopyStrings(false))
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	})
 
 }
 
-func BenchmarkSmall(b *testing.B)          { benchmarkFromFile(b, "payload-small") }
-func BenchmarkMedium(b *testing.B)         { benchmarkFromFile(b, "payload-medium") }
-func BenchmarkLarge(b *testing.B)          { benchmarkFromFile(b, "payload-large") }
-func BenchmarkApache_builds(b *testing.B)  { benchmarkFromFile(b, "apache_builds") }
-func BenchmarkCanada(b *testing.B)         { benchmarkFromFile(b, "canada") }
-func BenchmarkCitm_catalog(b *testing.B)   { benchmarkFromFile(b, "citm_catalog") }
-func BenchmarkGithub_events(b *testing.B)  { benchmarkFromFile(b, "github_events") }
-func BenchmarkGsoc_2018(b *testing.B)      { benchmarkFromFile(b, "gsoc-2018") }
-func BenchmarkInstruments(b *testing.B)    { benchmarkFromFile(b, "instruments") }
-func BenchmarkMarine_ik(b *testing.B)      { benchmarkFromFile(b, "marine_ik") }
-func BenchmarkMesh(b *testing.B)           { benchmarkFromFile(b, "mesh") }
-func BenchmarkMesh_pretty(b *testing.B)    { benchmarkFromFile(b, "mesh.pretty") }
-func BenchmarkNumbers(b *testing.B)        { benchmarkFromFile(b, "numbers") }
-func BenchmarkRandom(b *testing.B)         { benchmarkFromFile(b, "random") }
-func BenchmarkTwitter(b *testing.B)        { benchmarkFromFile(b, "twitter") }
-func BenchmarkTwitterEscaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
-func BenchmarkUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center") }
+func BenchmarkParseSmall(b *testing.B)          { benchmarkFromFile(b, "payload-small") }
+func BenchmarkParseMedium(b *testing.B)         { benchmarkFromFile(b, "payload-medium") }
+func BenchmarkParseLarge(b *testing.B)          { benchmarkFromFile(b, "payload-large") }
+func BenchmarkParseApache_builds(b *testing.B)  { benchmarkFromFile(b, "apache_builds") }
+func BenchmarkParseCanada(b *testing.B)         { benchmarkFromFile(b, "canada") }
+func BenchmarkParseCitm_catalog(b *testing.B)   { benchmarkFromFile(b, "citm_catalog") }
+func BenchmarkParseGithub_events(b *testing.B)  { benchmarkFromFile(b, "github_events") }
+func BenchmarkParseGsoc_2018(b *testing.B)      { benchmarkFromFile(b, "gsoc-2018") }
+func BenchmarkParseInstruments(b *testing.B)    { benchmarkFromFile(b, "instruments") }
+func BenchmarkParseMarine_ik(b *testing.B)      { benchmarkFromFile(b, "marine_ik") }
+func BenchmarkParseMesh(b *testing.B)           { benchmarkFromFile(b, "mesh") }
+func BenchmarkParseMesh_pretty(b *testing.B)    { benchmarkFromFile(b, "mesh.pretty") }
+func BenchmarkParseNumbers(b *testing.B)        { benchmarkFromFile(b, "numbers") }
+func BenchmarkParseRandom(b *testing.B)         { benchmarkFromFile(b, "random") }
+func BenchmarkParseTwitter(b *testing.B)        { benchmarkFromFile(b, "twitter") }
+func BenchmarkParseTwitterEscaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
+func BenchmarkParseUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center") }
 
 func benchmarkJsoniter(b *testing.B, filename string) {
 

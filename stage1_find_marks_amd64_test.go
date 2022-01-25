@@ -144,10 +144,14 @@ func TestFindStructuralIndices(t *testing.T) {
 	pj.indexChans = make(chan indexChan, 16)
 
 	// No need to spawn go-routine since the channel is large enough
-	pj.findStructuralIndices([]byte(demo_json))
+	pj.Message = []byte(demo_json)
+	pj.findStructuralIndices()
 
 	ipos, pos := 0, ^uint64(0)
 	for ic := range pj.indexChans {
+		if ic.index == -1 {
+			break
+		}
 		for j := 0; j < ic.length; j++ {
 			pos += uint64((*ic.indexes)[j])
 			result := fmt.Sprintf("%s%s", strings.Repeat(" ", int(pos)), demo_json[pos:])
@@ -171,10 +175,10 @@ func BenchmarkStage1(b *testing.B) {
 	b.ResetTimer()
 
 	pj := internalParsedJson{}
-
+	pj.Message = msg
 	for i := 0; i < b.N; i++ {
 		// Create new channel (large enough so we won't block)
 		pj.indexChans = make(chan indexChan, 128)
-		pj.findStructuralIndices([]byte(msg))
+		pj.findStructuralIndices()
 	}
 }

@@ -38,13 +38,9 @@ func jsonMarkup(b byte) bool {
 	return jsonMarkupTable[b]
 }
 
-func (pj *internalParsedJson) findStructuralIndices(buf []byte) bool {
-
-	f := find_structural_bits_in_slice
-	if cpuid.CPU.Has(cpuid.AVX512F) {
-		f = find_structural_bits_in_slice_avx512
-	}
-
+func (pj *internalParsedJson) findStructuralIndices() bool {
+	avx512 := cpuid.CPU.Has(cpuid.AVX512F)
+	buf := pj.Message
 	// persistent state across loop
 	// does the last iteration end with an odd-length sequence of backslashes?
 	// either 0 or 1, but a 64-bit value
@@ -84,10 +80,18 @@ func (pj *internalParsedJson) findStructuralIndices(buf []byte) bool {
 			stripped_index = ^uint64(0)
 		}
 
-		processed := f(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
-			&prev_iter_inside_quote, &error_mask,
-			&prev_iter_ends_pseudo_pred,
-			index.indexes, &index.length, &carried, &position, pj.ndjson)
+		var processed uint64
+		if avx512 {
+			processed = find_structural_bits_in_slice_avx512(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
+				&prev_iter_inside_quote, &error_mask,
+				&prev_iter_ends_pseudo_pred,
+				index.indexes, &index.length, &carried, &position, pj.ndjson)
+		} else {
+			processed = find_structural_bits_in_slice(buf[:len(buf) & ^63], &prev_iter_ends_odd_backslash,
+				&prev_iter_inside_quote, &error_mask,
+				&prev_iter_ends_pseudo_pred,
+				index.indexes, &index.length, &carried, &position, pj.ndjson)
+		}
 
 		// Check if we have at most a single iteration of 64 bytes left, tag on to previous invocation
 		if uint64(len(buf))-processed <= 64 {
@@ -95,10 +99,17 @@ func (pj *internalParsedJson) findStructuralIndices(buf []byte) bool {
 			paddedBuf := [128]byte{}
 			copy(paddedBuf[:], buf[processed:])
 			paddedBytes := uint64(len(buf)) - processed
-			processed += f(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
-				&prev_iter_inside_quote, &error_mask,
-				&prev_iter_ends_pseudo_pred,
-				index.indexes, &index.length, &carried, &position, pj.ndjson)
+			if avx512 {
+				processed += find_structural_bits_in_slice_avx512(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
+					&prev_iter_inside_quote, &error_mask,
+					&prev_iter_ends_pseudo_pred,
+					index.indexes, &index.length, &carried, &position, pj.ndjson)
+			} else {
+				processed += find_structural_bits_in_slice(paddedBuf[:paddedBytes], &prev_iter_ends_odd_backslash,
+					&prev_iter_inside_quote, &error_mask,
+					&prev_iter_ends_pseudo_pred,
+					index.indexes, &index.length, &carried, &position, pj.ndjson)
+			}
 		}
 
 		if index.length == 0 { // No structural chars found, so error out
@@ -130,7 +141,7 @@ func (pj *internalParsedJson) findStructuralIndices(buf []byte) bool {
 		buf = buf[processed:]
 		position -= processed
 	}
-	close(pj.indexChans)
+	pj.indexChans <- indexChan{index: -1}
 
 	// a valid JSON file cannot have zero structural indexes - we should have found something
 	return error_mask == 0 && indexTotal > 0
