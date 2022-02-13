@@ -17,11 +17,7 @@
 package simdjson
 
 import (
-	"encoding/json"
 	"testing"
-
-	"github.com/buger/jsonparser"
-	jsoniter "github.com/json-iterator/go"
 )
 
 func benchmarkFromFile(b *testing.B, filename string) {
@@ -77,87 +73,9 @@ func benchmarkFromFile(b *testing.B, filename string) {
 
 }
 
-func BenchmarkParseSmall(b *testing.B)          { benchmarkFromFile(b, "payload-small") }
-func BenchmarkParseMedium(b *testing.B)         { benchmarkFromFile(b, "payload-medium") }
-func BenchmarkParseLarge(b *testing.B)          { benchmarkFromFile(b, "payload-large") }
-func BenchmarkParseApache_builds(b *testing.B)  { benchmarkFromFile(b, "apache_builds") }
-func BenchmarkParseCanada(b *testing.B)         { benchmarkFromFile(b, "canada") }
-func BenchmarkParseCitm_catalog(b *testing.B)   { benchmarkFromFile(b, "citm_catalog") }
-func BenchmarkParseGithub_events(b *testing.B)  { benchmarkFromFile(b, "github_events") }
-func BenchmarkParseGsoc_2018(b *testing.B)      { benchmarkFromFile(b, "gsoc-2018") }
-func BenchmarkParseInstruments(b *testing.B)    { benchmarkFromFile(b, "instruments") }
-func BenchmarkParseMarine_ik(b *testing.B)      { benchmarkFromFile(b, "marine_ik") }
-func BenchmarkParseMesh(b *testing.B)           { benchmarkFromFile(b, "mesh") }
-func BenchmarkParseMesh_pretty(b *testing.B)    { benchmarkFromFile(b, "mesh.pretty") }
-func BenchmarkParseNumbers(b *testing.B)        { benchmarkFromFile(b, "numbers") }
-func BenchmarkParseRandom(b *testing.B)         { benchmarkFromFile(b, "random") }
-func BenchmarkParseTwitter(b *testing.B)        { benchmarkFromFile(b, "twitter") }
-func BenchmarkParseTwitterEscaped(b *testing.B) { benchmarkFromFile(b, "twitterescaped") }
-func BenchmarkParseUpdate_center(b *testing.B)  { benchmarkFromFile(b, "update-center") }
-
-func benchmarkJsoniter(b *testing.B, filename string) {
-
-	msg := loadCompressed(b, filename)
-
-	b.SetBytes(int64(len(msg)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
-	var parsed interface{}
-	for i := 0; i < b.N; i++ {
-		if err := json.Unmarshal(msg, &parsed); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func benchmarkEncodingJson(b *testing.B, filename string) {
-
-	msg := loadCompressed(b, filename)
-
-	b.SetBytes(int64(len(msg)))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	var parsed interface{}
-	for i := 0; i < b.N; i++ {
-
-		if err := json.Unmarshal(msg, &parsed); err != nil {
-			b.Fatal(err)
-		}
-	}
-}
-
-func BenchmarkEncodingJsonApache_builds(b *testing.B)  { benchmarkEncodingJson(b, "apache_builds") }
-func BenchmarkEncodingJsonCanada(b *testing.B)         { benchmarkEncodingJson(b, "canada") }
-func BenchmarkEncodingJsonCitm_catalog(b *testing.B)   { benchmarkEncodingJson(b, "citm_catalog") }
-func BenchmarkEncodingJsonGithub_events(b *testing.B)  { benchmarkEncodingJson(b, "github_events") }
-func BenchmarkEncodingJsonGsoc_2018(b *testing.B)      { benchmarkEncodingJson(b, "gsoc-2018") }
-func BenchmarkEncodingJsonInstruments(b *testing.B)    { benchmarkEncodingJson(b, "instruments") }
-func BenchmarkEncodingJsonMarine_ik(b *testing.B)      { benchmarkEncodingJson(b, "marine_ik") }
-func BenchmarkEncodingJsonMesh(b *testing.B)           { benchmarkEncodingJson(b, "mesh") }
-func BenchmarkEncodingJsonMesh_pretty(b *testing.B)    { benchmarkEncodingJson(b, "mesh.pretty") }
-func BenchmarkEncodingJsonNumbers(b *testing.B)        { benchmarkEncodingJson(b, "numbers") }
-func BenchmarkEncodingJsonRandom(b *testing.B)         { benchmarkEncodingJson(b, "random") }
-func BenchmarkEncodingJsonTwitter(b *testing.B)        { benchmarkEncodingJson(b, "twitter") }
-func BenchmarkEncodingJsonTwitterescaped(b *testing.B) { benchmarkEncodingJson(b, "twitterescaped") }
-func BenchmarkEncodingJsonUpdate_center(b *testing.B)  { benchmarkEncodingJson(b, "update-center") }
-
-func BenchmarkJsoniterApache_builds(b *testing.B)  { benchmarkJsoniter(b, "apache_builds") }
-func BenchmarkJsoniterCanada(b *testing.B)         { benchmarkJsoniter(b, "canada") }
-func BenchmarkJsoniterCitm_catalog(b *testing.B)   { benchmarkJsoniter(b, "citm_catalog") }
-func BenchmarkJsoniterGithub_events(b *testing.B)  { benchmarkJsoniter(b, "github_events") }
-func BenchmarkJsoniterGsoc_2018(b *testing.B)      { benchmarkJsoniter(b, "gsoc-2018") }
-func BenchmarkJsoniterInstruments(b *testing.B)    { benchmarkJsoniter(b, "instruments") }
-func BenchmarkJsoniterMarine_ik(b *testing.B)      { benchmarkJsoniter(b, "marine_ik") }
-func BenchmarkJsoniterMesh(b *testing.B)           { benchmarkJsoniter(b, "mesh") }
-func BenchmarkJsoniterMesh_pretty(b *testing.B)    { benchmarkJsoniter(b, "mesh.pretty") }
-func BenchmarkJsoniterNumbers(b *testing.B)        { benchmarkJsoniter(b, "numbers") }
-func BenchmarkJsoniterRandom(b *testing.B)         { benchmarkJsoniter(b, "random") }
-func BenchmarkJsoniterTwitter(b *testing.B)        { benchmarkJsoniter(b, "twitter") }
-func BenchmarkJsoniterTwitterescaped(b *testing.B) { benchmarkJsoniter(b, "twitterescaped") }
-func BenchmarkJsoniterUpdate_center(b *testing.B)  { benchmarkJsoniter(b, "update-center") }
+func BenchmarkParseSmall(b *testing.B)  { benchmarkFromFile(b, "payload-small") }
+func BenchmarkParseMedium(b *testing.B) { benchmarkFromFile(b, "payload-medium") }
+func BenchmarkParseLarge(b *testing.B)  { benchmarkFromFile(b, "payload-large") }
 
 func BenchmarkJsonParserLarge(b *testing.B) {
 	largeFixture := loadCompressed(b, "payload-large")
@@ -246,38 +164,4 @@ func BenchmarkJsonParserLarge(b *testing.B) {
 			})
 		}
 	})
-}
-
-func BenchmarkBugerJsonParserLarge(b *testing.B) {
-	largeFixture := loadCompressed(b, "payload-large")
-	const logVals = false
-	b.SetBytes(int64(len(largeFixture)))
-	b.ReportAllocs()
-	b.ResetTimer()
-	var dump int
-	for i := 0; i < b.N; i++ {
-		jsonparser.ArrayEach(largeFixture, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-			sval, _, _, _ := jsonparser.Get(value, "username")
-			if logVals && i == 0 {
-				b.Log(string(sval))
-			}
-			dump += len(sval)
-		}, "users")
-
-		jsonparser.ArrayEach(largeFixture, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
-			ival, _ := jsonparser.GetInt(value, "id")
-			if logVals && i == 0 {
-				b.Log(ival)
-			}
-			dump += int(ival)
-			sval, _, _, _ := jsonparser.Get(value, "slug")
-			if logVals && i == 0 {
-				b.Log(string(sval))
-			}
-			dump += len(sval)
-		}, "topics", "topics")
-	}
-	if dump == 0 {
-		b.Log("")
-	}
 }
