@@ -77,12 +77,14 @@ func (pj *internalParsedJson) parseMessage(msg []byte, ndjson bool) (err error) 
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if !pj.unifiedMachine() {
+			if ok, done := pj.unifiedMachine(); !ok {
 				err = errors.New("Bad parsing while executing stage 2")
 				// Keep consuming...
-				for idx := range pj.indexChans {
-					if idx.index == -1 {
-						break
+				if !done {
+					for idx := range pj.indexChans {
+						if idx.index == -1 {
+							break
+						}
 					}
 				}
 			}
@@ -101,7 +103,7 @@ func (pj *internalParsedJson) parseMessage(msg []byte, ndjson bool) (err error) 
 			}
 			return errors.New("Failed to find all structural indices for stage 1")
 		}
-		if !pj.unifiedMachine() {
+		if ok, _ := pj.unifiedMachine(); !ok {
 			// drain the channel until empty
 			for {
 				select {
