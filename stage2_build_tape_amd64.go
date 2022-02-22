@@ -157,11 +157,10 @@ func isValidNullAtom(buf []byte) bool {
 	return false
 }
 
-func (pj *internalParsedJson) unifiedMachine() bool {
+func (pj *internalParsedJson) unifiedMachine() (ok, done bool) {
 	buf := pj.Message
 	const addOneForRoot = 1
 
-	done := false
 	idx := ^uint64(0)   // location of the structural character in the input (buf)
 	offset := uint64(0) // used to contain last element of containing_scope_offset
 
@@ -433,17 +432,17 @@ succeed:
 
 	// Sanity checks
 	if len(pj.containingScopeOffset) != 0 {
-		return false
+		return false, done
 	}
 
 	pj.annotate_previousloc(offset>>retAddressShift, pj.get_current_loc()+addOneForRoot)
 	pj.write_tape(offset>>retAddressShift, 'r') // r is root
 
 	pj.isvalid = true
-	return true
+	return true, done
 
 fail:
-	return false
+	return false, done
 }
 
 // structural chars here are

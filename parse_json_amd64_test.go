@@ -637,26 +637,31 @@ func benchmarkParseNumber(b *testing.B, neg int) {
 }
 
 func BenchmarkParseNumberFloat(b *testing.B) {
+	b.SetBytes(1)
 	for i := 0; i < b.N; i++ {
 		parseNumber([]byte("339.7784:"))
 	}
 }
 
 func BenchmarkParseAtof64FloatGolang(b *testing.B) {
+	b.SetBytes(1)
 	for i := 0; i < b.N; i++ {
 		strconv.ParseFloat("339.7784", 64)
 	}
 }
 
 func BenchmarkParseNumberFloatExp(b *testing.B) {
+	b.SetBytes(1)
 	for i := 0; i < b.N; i++ {
 		parseNumber([]byte("-5.09e75:"))
 	}
 }
 
 func BenchmarkParseNumberBig(b *testing.B) {
+	b.SetBytes(1)
+	x := []byte("123456789123456789123456789:")
 	for i := 0; i < b.N; i++ {
-		parseNumber([]byte("123456789123456789123456789:"))
+		parseNumber(x)
 	}
 }
 
