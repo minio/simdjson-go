@@ -30,13 +30,13 @@ func SupportedCPU() bool {
 	return false
 }
 
-// Parse a block of data and return the parsed JSON.
+// Parse an object or array from a block of data and return the parsed JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func Parse(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, error) {
 	return nil, errors.New("Unsupported platform")
 }
 
-// ParseND will parse newline delimited JSON.
+// ParseND will parse newline delimited JSON objects or arrays.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func ParseND(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, error) {
 	return nil, errors.New("Unsupported platform")
