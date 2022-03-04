@@ -59,7 +59,7 @@ func newInternalParsedJson(reuse *ParsedJson, opts []ParserOption) (*internalPar
 	return pj, nil
 }
 
-// Parse a block of data and return the parsed JSON.
+// Parse an object or array from a block of data and return the parsed JSON.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func Parse(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, error) {
 	pj, err := newInternalParsedJson(reuse, opts)
@@ -75,7 +75,7 @@ func Parse(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, erro
 	return parsed, nil
 }
 
-// ParseND will parse newline delimited JSON.
+// ParseND will parse newline delimited JSON objects or arrays.
 // An optional block of previously parsed json can be supplied to reduce allocations.
 func ParseND(b []byte, reuse *ParsedJson, opts ...ParserOption) (*ParsedJson, error) {
 	pj, err := newInternalParsedJson(reuse, opts)
