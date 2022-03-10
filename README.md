@@ -59,7 +59,7 @@ func main() {
 	// Iterate each top level element.
 	_ = pj.ForEach(func(i Iter) error {
 		fmt.Println("Got iterator for type:", i.Type())
-		element, err := i.FindElement(element, "Image", "URL")
+		element, err := i.FindElement(nil, "Image", "URL")
 		if err == nil {
 			value, _ := element.Iter.StringCvt()
 			fmt.Println("Found element:", element.Name, "Type:", element.Type, "Value:", value)
