@@ -191,3 +191,74 @@ func ExampleObject_FindPath() {
 	// string
 	// http://www.example.com/image/481989943 <nil>
 }
+
+func ExampleArray() {
+	if !SupportedCPU() {
+		// Fake it
+		fmt.Println("Found array\nType: int value: 116\nType: int value: 943\nType: int value: 234\nType: int value: 38793")
+		return
+	}
+	input := `{
+    "Image":
+    {
+        "Animated": false,
+        "Height": 600,
+        "IDs":
+        [
+            116,
+            943,
+            234,
+            38793
+        ],
+        "Thumbnail":
+        {
+            "Height": 125,
+            "Url": "http://www.example.com/image/481989943",
+            "Width": 100
+        },
+        "Title": "View from 15th Floor",
+        "Width": 800
+    },
+	"Alt": "Image of city" 
+}`
+	pj, err := Parse([]byte(input), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	i := pj.Iter()
+	i.AdvanceInto()
+
+	// Grab root
+	_, root, err := i.Root(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Grab top object
+	obj, err := root.Object(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Find element in path.
+	elem, err := obj.FindPath(nil, "Image", "IDs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Found", elem.Type)
+	if elem.Type == TypeArray {
+		array, err := elem.Iter.Array(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		array.ForEach(func(i Iter) {
+			asString, _ := i.StringCvt()
+			fmt.Println("Type:", i.Type(), "value:", asString)
+		})
+	}
+	//Output:
+	//Found array
+	//Type: int value: 116
+	//Type: int value: 943
+	//Type: int value: 234
+	//Type: int value: 38793
+}
