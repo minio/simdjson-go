@@ -195,16 +195,24 @@ type Iter struct {
 // and queues up the value on the same level.
 func (i *Iter) Advance() Type {
 	i.off += i.addNext
-	if i.off >= len(i.tape.Tape) {
-		i.addNext = 0
-		i.t = TagEnd
-		return TypeNone
-	}
 
-	v := i.tape.Tape[i.off]
-	i.cur = v & JSONVALUEMASK
-	i.t = Tag(v >> 56)
-	i.off++
+	for {
+		if i.off >= len(i.tape.Tape) {
+			i.addNext = 0
+			i.t = TagEnd
+			return TypeNone
+		}
+
+		v := i.tape.Tape[i.off]
+		i.t = Tag(v >> 56)
+		i.off++
+		i.cur = v & JSONVALUEMASK
+		if i.t == TagNop {
+			i.off += int(i.cur)
+			continue
+		}
+		break
+	}
 	i.calcNext(false)
 	if i.addNext < 0 {
 		// We can't send error, so move to end.
@@ -219,16 +227,27 @@ func (i *Iter) Advance() Type {
 // This should only be used for strictly manual parsing.
 func (i *Iter) AdvanceInto() Tag {
 	i.off += i.addNext
-	if i.off >= len(i.tape.Tape) {
-		i.addNext = 0
-		i.t = TagEnd
-		return TagEnd
-	}
+	for {
+		if i.off >= len(i.tape.Tape) {
+			i.addNext = 0
+			i.t = TagEnd
+			return TagEnd
+		}
 
-	v := i.tape.Tape[i.off]
-	i.cur = v & JSONVALUEMASK
-	i.t = Tag(v >> 56)
-	i.off++
+		v := i.tape.Tape[i.off]
+		i.t = Tag(v >> 56)
+		i.cur = v & JSONVALUEMASK
+		if i.t == TagNop {
+			if i.cur <= 0 {
+				i.moveToEnd()
+				return TagEnd
+			}
+			i.off += int(i.cur)
+			continue
+		}
+		i.off++
+		break
+	}
 	i.calcNext(true)
 	if i.addNext < 0 {
 		// We can't send error, so end tape.
@@ -271,20 +290,31 @@ func (i *Iter) Type() Type {
 // If dst and i are the same, both will contain the value inside.
 func (i *Iter) AdvanceIter(dst *Iter) (Type, error) {
 	i.off += i.addNext
-	if i.off == len(i.tape.Tape) {
-		i.addNext = 0
-		i.t = TagEnd
-		return TypeNone, nil
-	}
-	if i.off > len(i.tape.Tape) {
-		return TypeNone, errors.New("offset bigger than tape")
-	}
 
 	// Get current value off tape.
-	v := i.tape.Tape[i.off]
-	i.cur = v & JSONVALUEMASK
-	i.t = Tag(v >> 56)
-	i.off++
+	for {
+		if i.off == len(i.tape.Tape) {
+			i.addNext = 0
+			i.t = TagEnd
+			return TypeNone, nil
+		}
+		if i.off > len(i.tape.Tape) {
+			return TypeNone, errors.New("offset bigger than tape")
+		}
+
+		v := i.tape.Tape[i.off]
+		i.cur = v & JSONVALUEMASK
+		i.t = Tag(v >> 56)
+		i.off++
+		if i.t == TagNop {
+			if i.cur <= 0 {
+				return TypeNone, errors.New("invalid nop skip")
+			}
+			i.off += int(i.cur)
+			continue
+		}
+		break
+	}
 	i.calcNext(false)
 	if i.addNext < 0 {
 		i.moveToEnd()
@@ -319,19 +349,45 @@ func (i *Iter) AdvanceIter(dst *Iter) (Type, error) {
 // PeekNext will return the next value type.
 // Returns TypeNone if next ends iterator.
 func (i *Iter) PeekNext() Type {
-	if i.off+i.addNext >= len(i.tape.Tape) {
-		return TypeNone
+	off := i.off + i.addNext
+	for {
+		if off >= len(i.tape.Tape) {
+			return TypeNone
+		}
+		v := i.tape.Tape[off]
+		t := Tag(v >> 56)
+		if t == TagNop {
+			skip := int(v & JSONVALUEMASK)
+			if skip <= 0 {
+				return TypeNone
+			}
+			off += skip
+			continue
+		}
+		return TagToType[t]
 	}
-	return TagToType[Tag(i.tape.Tape[i.off+i.addNext]>>56)]
 }
 
 // PeekNextTag will return the tag at the current offset.
 // Will return TagEnd if at end of iterator.
 func (i *Iter) PeekNextTag() Tag {
-	if i.off+i.addNext >= len(i.tape.Tape) {
-		return TagEnd
+	off := i.off + i.addNext
+	for {
+		if off >= len(i.tape.Tape) {
+			return TagEnd
+		}
+		v := i.tape.Tape[off]
+		t := Tag(v >> 56)
+		if t == TagNop {
+			skip := int(v & JSONVALUEMASK)
+			if skip <= 0 {
+				return TagEnd
+			}
+			off += skip
+			continue
+		}
+		return t
 	}
-	return Tag(i.tape.Tape[i.off+i.addNext] >> 56)
 }
 
 // MarshalJSON will marshal the entire remaining scope of the iterator.
@@ -1014,6 +1070,7 @@ const (
 	TagArrayStart  = Tag('[')
 	TagArrayEnd    = Tag(']')
 	TagRoot        = Tag('r')
+	TagNop         = Tag('N')
 	TagEnd         = Tag(0)
 )
 

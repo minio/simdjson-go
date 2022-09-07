@@ -36,7 +36,7 @@ const (
 	stringBits        = 14
 	stringSize        = 1 << stringBits
 	stringmask        = stringSize - 1
-	serializedVersion = 2
+	serializedVersion = 3
 )
 
 // Serializer allows to serialize parsed json and read it back.
@@ -287,6 +287,8 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 		payload := entry & JSONVALUEMASK
 
 		switch ntype {
+		case TagNop:
+			// We recreate the skip count when we unmarshal
 		case TagString:
 			sb, err := pj.stringByteAt(payload, pj.Tape[off+1])
 			if err != nil {
@@ -466,6 +468,7 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	if v, err := br.ReadByte(); err != nil {
 		return dst, err
 	} else if v > serializedVersion {
+		// v3 reads v2.
 		// v2 reads v1.
 		return dst, errors.New("unknown version")
 	}
@@ -577,6 +580,7 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 	// Reconstruct tape:
 	var off int
 	values := s.valuesBuf
+	nSkips := 0
 	for _, t := range s.tagsBuf {
 		if off == len(dst.Tape) {
 			return dst, errors.New("tags extended beyond tape")
@@ -584,7 +588,17 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		tag := Tag(t)
 
 		tagDst := uint64(t) << 56
+		if nSkips > 0 && tag != TagNop {
+			// We owe skips. Add with jumps
+			for i := 0; i < nSkips; i++ {
+				dst.Tape[off] = (uint64(TagNop) << JSONTAGOFFSET) | uint64(nSkips-i)
+				off++
+			}
+			nSkips = 0
+		}
 		switch tag {
+		case TagNop:
+			nSkips++
 		case TagString:
 			if len(values) < 16 {
 				return dst, fmt.Errorf("reading %v: no values left", tag)
@@ -651,7 +665,7 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		case TagObjectEnd, TagArrayEnd:
 			// This should already have been written.
 			if dst.Tape[off]&JSONTAGMASK != tagDst {
-				return dst, fmt.Errorf("reading %v, offset:%d, start tag did not match %x != %x", tag, off, dst.Tape[off]>>56, uint8(tag))
+				return dst, fmt.Errorf("reading %v, offset:%d, start tag did not match %x != %x", tag, off, dst.Tape[off]>>56, uint8(tagDst))
 			}
 			off++
 		default:

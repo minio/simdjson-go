@@ -302,6 +302,145 @@ func TestIter_SetNull(t *testing.T) {
 	}
 }
 
+func TestIter_Delete(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{"one": 1, "two": 2.02, "three": "33333", "four": 0, "five": false, "six": true, "seven": {"key": "value"}, "eight": [1,2,2,3]}`
+	tests := []struct {
+		want string
+		fn   func(key string) bool
+	}{
+		{
+			want: `{}`,
+			fn: func(key string) bool {
+				return true
+			},
+		},
+		{
+			want: `{"two":2.02,"three":"33333","four":0,"five":false,"six":true,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "one"
+			},
+		},
+		{
+			want: `{"one":1,"three":"33333","four":0,"five":false,"six":true,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "two"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"four":0,"five":false,"six":true,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "three"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"three":"33333","five":false,"six":true,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "four"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"three":"33333","four":0,"six":true,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "five"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"three":"33333","four":0,"five":false,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "six"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"three":"33333","four":0,"five":false,"six":true,"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return key == "seven"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"three":"33333","four":0,"five":false,"six":true,"seven":{"key":"value"}}`,
+			fn: func(key string) bool {
+				return key == "eight"
+			},
+		},
+		{
+			want: `{"one":1,"two":2.02,"three":"33333","four":0,"five":false,"six":true,"seven":{"key":"value"},"eight":[1,2,2,3]}`,
+			fn: func(key string) bool {
+				return false
+			},
+		},
+	}
+
+	for i, test := range tests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+
+			// Queue root
+			iter := pj.Iter()
+			iter.AdvanceInto()
+
+			_, root, err := iter.Root(nil)
+			if err != nil {
+				t.Fatalf("root failed: %v", err)
+				return
+			}
+			obj, err := root.Object(nil)
+			if err != nil {
+				t.Fatalf("obj failed: %v", err)
+				return
+			}
+
+			err = obj.DeleteElems(func(key []byte, i Iter) bool {
+				return test.fn(string(key))
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = obj.DeleteElems(nil, map[string]struct{}{"unwanted": {}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			b := ser.Serialize(nil, *pj)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pj2, err := ser.Deserialize(b, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter = pj2.Iter()
+			iter.AdvanceInto()
+
+			_, root, err = iter.Root(nil)
+			if err != nil {
+				t.Fatalf("root failed: %v", err)
+				return
+			}
+			out, err = root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
 func TestIter_SetBool(t *testing.T) {
 	if !SupportedCPU() {
 		t.SkipNow()

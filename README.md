@@ -513,6 +513,34 @@ It is not possible to remove or add elements.
 To replace a value, of value referenced by an `Iter` simply call `SetNull`, `SetBool`, `SetFloat`, `SetInt`, `SetUInt`,
 `SetString` or `SetStringBytes`.
 
+### Object element deletion
+
+It is possible to delete one or more elements in an object.
+
+(*Object). DeleteElems will call back fn for each key+ value.
+
+If true is returned, the key+value is deleted. A key filter can be provided for optional filtering.
+If the callback function is nil all elements matching the filter will be deleted.
+If both are nil all elements are deleted.
+
+Example:
+
+```Go
+	// The object we are modifying
+	var obj *simdjson.Object
+
+	// Delete all entries where the key is "unwanted"
+	err = obj.DeleteElems(func(key []byte, i Iter) bool {
+		return string(key) == "unwanted")
+	}, nil)
+
+	// Alternative version with prefiltered keys:
+	err = obj.DeleteElems(func(key []byte, i Iter) bool {
+		return true
+	}, map[string]struct{}{"unwanted": {}})
+
+```
+
 ## Design
 
 `simdjson-go` follows the same two stage design as `simdjson`.
@@ -564,6 +592,8 @@ format with the following 2 exceptions:
 - In order to support ndjson, it is possible to have more than one root element on the tape.
 Also, to allow for fast navigation over root elements, a root points to the next root element
 (and as such the last root element points 1 index past the length of the tape).
+
+A "NOP" tag is added. The value contains the number of tape entries to skip forward for next tag.
 
 - Strings are handled differently, unlike `simdjson` the string size is not prepended in the String buffer
 but is added as an additional element to the tape itself (much like integers and floats).
