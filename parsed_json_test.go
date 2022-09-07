@@ -302,7 +302,7 @@ func TestIter_SetNull(t *testing.T) {
 	}
 }
 
-func TestIter_Delete(t *testing.T) {
+func TestObject_DeleteElems(t *testing.T) {
 	if !SupportedCPU() {
 		t.SkipNow()
 	}
@@ -402,10 +402,124 @@ func TestIter_Delete(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			// Test we don't delete more than we should
 			err = obj.DeleteElems(nil, map[string]struct{}{"unwanted": {}})
 			if err != nil {
 				t.Fatal(err)
 			}
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			b := ser.Serialize(nil, *pj)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pj2, err := ser.Deserialize(b, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter = pj2.Iter()
+			iter.AdvanceInto()
+
+			_, root, err = iter.Root(nil)
+			if err != nil {
+				t.Fatalf("root failed: %v", err)
+				return
+			}
+			out, err = root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+		})
+	}
+}
+
+func TestArray_DeleteElements(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `[1, 2.02, "33333", false, true, {"key": "value"}, [1,2,2,3], null, -42]`
+	tests := []struct {
+		want string
+		del  int
+	}{
+		{
+			want: `[]`,
+			del:  -1,
+		},
+		{
+			want: `[1,2.02,"33333",false,true,{"key":"value"},[1,2,2,3],null,-42]`,
+			del:  100,
+		},
+		{
+			want: `[2.02,"33333",false,true,{"key":"value"},[1,2,2,3],null,-42]`,
+			del:  0,
+		},
+		{
+			want: `[1,"33333",false,true,{"key":"value"},[1,2,2,3],null,-42]`,
+			del:  1,
+		}, {
+			want: `[1,2.02,false,true,{"key":"value"},[1,2,2,3],null,-42]`,
+			del:  2,
+		}, {
+			want: `[1,2.02,"33333",true,{"key":"value"},[1,2,2,3],null,-42]`,
+			del:  3,
+		}, {
+			want: `[1,2.02,"33333",false,{"key":"value"},[1,2,2,3],null,-42]`,
+			del:  4,
+		}, {
+			want: `[1,2.02,"33333",false,true,[1,2,2,3],null,-42]`,
+			del:  5,
+		}, {
+			want: `[1,2.02,"33333",false,true,{"key":"value"},null,-42]`,
+			del:  6,
+		}, {
+			want: `[1,2.02,"33333",false,true,{"key":"value"},[1,2,2,3],-42]`,
+			del:  7,
+		}, {
+			want: `[1,2.02,"33333",false,true,{"key":"value"},[1,2,2,3],null]`,
+			del:  8,
+		},
+	}
+
+	for i, test := range tests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			pj, err := Parse([]byte(input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+
+			// Queue root
+			iter := pj.Iter()
+			iter.AdvanceInto()
+
+			_, root, err := iter.Root(nil)
+			if err != nil {
+				t.Fatalf("root failed: %v", err)
+				return
+			}
+			arr, err := root.Array(nil)
+			if err != nil {
+				t.Fatalf("obj failed: %v", err)
+				return
+			}
+			var idx int
+			arr.DeleteElems(func(i Iter) bool {
+				del := test.del < 0 || idx == test.del
+				idx++
+				return del
+			})
+
 			out, err := root.MarshalJSON()
 			if err != nil {
 				t.Fatal(err)

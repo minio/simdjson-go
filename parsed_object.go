@@ -145,8 +145,12 @@ func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct
 	n := 0
 	for {
 		typ := tmp.Advance()
+
 		// We want name and at least one value.
 		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			if typ == TypeNone {
+				return nil
+			}
 			return fmt.Errorf("object: unexpected name tag %v", tmp.t)
 		}
 		// Advance must be string or end of object
@@ -161,8 +165,10 @@ func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct
 		if len(onlyKeys) > 0 {
 			if _, ok := onlyKeys[string(name)]; !ok {
 				// Skip the value
-				tmp.Advance()
-				continue
+				t := tmp.Advance()
+				if t == TypeNone {
+					return nil
+				}
 			}
 		}
 
@@ -191,6 +197,9 @@ func (o *Object) DeleteElems(fn func(key []byte, i Iter) bool, onlyKeys map[stri
 		typ := tmp.Advance()
 		// We want name and at least one value.
 		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			if typ == TypeNone {
+				return nil
+			}
 			return fmt.Errorf("object: unexpected name tag %v", tmp.t)
 		}
 		startO := tmp.off - 1
@@ -206,7 +215,10 @@ func (o *Object) DeleteElems(fn func(key []byte, i Iter) bool, onlyKeys map[stri
 		if len(onlyKeys) > 0 {
 			if _, ok := onlyKeys[string(name)]; !ok {
 				// Skip the value
-				tmp.Advance()
+				t := tmp.Advance()
+				if t == TypeNone {
+					return nil
+				}
 				continue
 			}
 		}

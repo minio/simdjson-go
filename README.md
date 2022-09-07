@@ -513,11 +513,11 @@ It is not possible to remove or add elements.
 To replace a value, of value referenced by an `Iter` simply call `SetNull`, `SetBool`, `SetFloat`, `SetInt`, `SetUInt`,
 `SetString` or `SetStringBytes`.
 
-### Object element deletion
+### Object & Array Element Deletion
 
 It is possible to delete one or more elements in an object.
 
-(*Object). DeleteElems will call back fn for each key+ value.
+`(*Object).DeleteElems(fn, onlyKeys)` will call back fn for each key+ value.
 
 If true is returned, the key+value is deleted. A key filter can be provided for optional filtering.
 If the callback function is nil all elements matching the filter will be deleted.
@@ -529,16 +529,26 @@ Example:
 	// The object we are modifying
 	var obj *simdjson.Object
 
-	// Delete all entries where the key is "unwanted"
+	// Delete all entries where the key is "unwanted":
 	err = obj.DeleteElems(func(key []byte, i Iter) bool {
 		return string(key) == "unwanted")
 	}, nil)
 
 	// Alternative version with prefiltered keys:
-	err = obj.DeleteElems(func(key []byte, i Iter) bool {
-		return true
-	}, map[string]struct{}{"unwanted": {}})
+	err = obj.DeleteElems(nil, map[string]struct{}{"unwanted": {}})
+```
 
+`(*Array).DeleteElems(fn func(i Iter) bool)` will call back fn for each array value.
+If the function returns true the element is deleted in the array.
+
+```Go
+	// The array we are modifying
+	var array *simdjson.Array
+
+	// Delete all entries that are strings.
+	array.DeleteElems(func(i Iter) bool {
+		return i.Type() == TypeString
+	})
 ```
 
 ## Design
