@@ -145,8 +145,12 @@ func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct
 	n := 0
 	for {
 		typ := tmp.Advance()
+
 		// We want name and at least one value.
 		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			if typ == TypeNone {
+				return nil
+			}
 			return fmt.Errorf("object: unexpected name tag %v", tmp.t)
 		}
 		// Advance must be string or end of object
@@ -161,8 +165,10 @@ func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct
 		if len(onlyKeys) > 0 {
 			if _, ok := onlyKeys[string(name)]; !ok {
 				// Skip the value
-				tmp.Advance()
-				continue
+				t := tmp.Advance()
+				if t == TypeNone {
+					return nil
+				}
 			}
 		}
 
@@ -171,6 +177,64 @@ func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct
 			return nil
 		}
 		fn(name, tmp)
+		n++
+		if n == len(onlyKeys) {
+			return nil
+		}
+	}
+}
+
+// DeleteElems will call back fn for each key.
+// If true is returned, the key+value is deleted.
+// A key filter can be provided for optional filtering.
+// If fn is nil all elements in onlyKeys will be deleted.
+// If both are nil all elements are deleted.
+func (o *Object) DeleteElems(fn func(key []byte, i Iter) bool, onlyKeys map[string]struct{}) error {
+	tmp := o.tape.Iter()
+	tmp.off = o.off
+	n := 0
+	for {
+		typ := tmp.Advance()
+		// We want name and at least one value.
+		if typ != TypeString || tmp.off+1 >= len(tmp.tape.Tape) {
+			if typ == TypeNone {
+				return nil
+			}
+			return fmt.Errorf("object: unexpected name tag %v", tmp.t)
+		}
+		startO := tmp.off - 1
+		// Advance must be string or end of object
+		offset := tmp.cur
+		length := tmp.tape.Tape[tmp.off]
+		// Read name
+		name, err := tmp.tape.stringByteAt(offset, length)
+		if err != nil {
+			return fmt.Errorf("getting object name: %w", err)
+		}
+
+		if len(onlyKeys) > 0 {
+			if _, ok := onlyKeys[string(name)]; !ok {
+				// Skip the value
+				t := tmp.Advance()
+				if t == TypeNone {
+					return nil
+				}
+				continue
+			}
+		}
+
+		t := tmp.Advance()
+		if t == TypeNone {
+			return nil
+		}
+		if fn == nil || fn(name, tmp) {
+			end := tmp.off + tmp.addNext
+			skip := uint64(end - startO)
+			for i := startO; i < end; i++ {
+				tmp.tape.Tape[i] = (uint64(TagNop) << JSONTAGOFFSET) | skip
+				skip--
+			}
+		}
 		n++
 		if n == len(onlyKeys) {
 			return nil

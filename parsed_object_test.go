@@ -262,3 +262,71 @@ func ExampleArray() {
 	//Type: int value: 234
 	//Type: int value: 38793
 }
+
+func ExampleArray_DeleteElems() {
+	if !SupportedCPU() {
+		// Fake it
+		fmt.Println("Found array\nModified: {\"Image\":{\"Animated\":false,\"Height\":600,\"IDs\":[943,38793]},\"Alt\":\"Image of city\"}")
+		return
+	}
+	input := `{
+    "Image":
+    {
+        "Animated": false,
+        "Height": 600,
+        "IDs":
+        [
+            116,
+            943,
+            234,
+            38793
+        ]
+    },
+	"Alt": "Image of city" 
+}`
+	pj, err := Parse([]byte(input), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	i := pj.Iter()
+	i.AdvanceInto()
+
+	// Grab root
+	_, root, err := i.Root(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Grab top object
+	obj, err := root.Object(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Find element in path.
+	elem, err := obj.FindPath(nil, "Image", "IDs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Found", elem.Type)
+	if elem.Type == TypeArray {
+		array, err := elem.Iter.Array(nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Delete all integer elements that are < 500
+		array.DeleteElems(func(i Iter) bool {
+			if id, err := i.Int(); err == nil {
+				return id < 500
+			}
+			return false
+		})
+	}
+	b, err := root.MarshalJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Modified:", string(b))
+	//Output:
+	//Found array
+	//Modified: {"Image":{"Animated":false,"Height":600,"IDs":[943,38793]},"Alt":"Image of city"}
+}

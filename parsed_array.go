@@ -55,6 +55,28 @@ func (a *Array) ForEach(fn func(i Iter)) {
 	return
 }
 
+// DeleteElems calls the provided function for every element.
+// If the function returns true the element is deleted in the array.
+func (a *Array) DeleteElems(fn func(i Iter) bool) {
+	i := a.Iter()
+	for {
+		t := i.Advance()
+		if t == TypeNone {
+			break
+		}
+		if fn(i) {
+			startO := i.off - 1
+			end := i.off + i.addNext
+			skip := uint64(end - startO)
+			for off := startO; off < end; off++ {
+				i.tape.Tape[off] = (uint64(TagNop) << JSONTAGOFFSET) | skip
+				skip--
+			}
+		}
+	}
+	return
+}
+
 // FirstType will return the type of the first element.
 // If there are no elements, TypeNone is returned.
 func (a *Array) FirstType() Type {

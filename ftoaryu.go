@@ -288,8 +288,9 @@ func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
 // The returned boolean is true if all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult64bitPow10(m uint32, e2, q int) (resM uint32, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<63
@@ -323,8 +324,9 @@ const (
 // The returned boolean is true is all trimmed bits were zero.
 //
 // That is:
-//     m*2^e2 * round(10^q) = resM * 2^resE + ε
-//     exact = ε == 0
+//
+//	m*2^e2 * round(10^q) = resM * 2^resE + ε
+//	exact = ε == 0
 func mult128bitPow10(m uint64, e2, q int) (resM uint64, resE int, exact bool) {
 	if q == 0 {
 		// P == 1<<127
@@ -379,8 +381,8 @@ const host32bit = ^uint(0)>>32 == 0
 // detailedPowersOfTen contains 128-bit mantissa approximations (rounded down)
 // to the powers of 10. For example:
 //
-//  - 1e43 ≈ (0xE596B7B0_C643C719                   * (2 ** 79))
-//  - 1e43 = (0xE596B7B0_C643C719_6D9CCD05_D0000000 * (2 ** 15))
+//   - 1e43 ≈ (0xE596B7B0_C643C719                   * (2 ** 79))
+//   - 1e43 = (0xE596B7B0_C643C719_6D9CCD05_D0000000 * (2 ** 15))
 //
 // The mantissas are explicitly listed. The exponents are implied by a linear
 // expression with slope 217706.0/65536.0 ≈ log(10)/log(2).
