@@ -6,8 +6,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/minio/simdjson-go"
 )
@@ -34,7 +34,7 @@ func main() {
 	if !simdjson.SupportedCPU() {
 		log.Fatal("Unsupported CPU")
 	}
-	msg, err := ioutil.ReadFile("parking-citations.json")
+	msg, err := os.ReadFile("parking-citations.json")
 	if err != nil {
 		log.Fatalf("Failed to load file: %v", err)
 	}
