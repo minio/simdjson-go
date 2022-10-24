@@ -14,13 +14,18 @@ Compared to Golang's standard package `encoding/json`, `simdjson-go` is about 10
 ## Features
 
 `simdjson-go` is a validating parser, meaning that it amongst others validates and checks numerical values, booleans etc.
- Therefore these values are available as the appropriate `int` and `float64` representations after parsing.
+ Therefore, these values are available as the appropriate `int` and `float64` representations after parsing.
 
 Additionally `simdjson-go` has the following features:
 
 - No 4 GB object limit
 - Support for [ndjson](http://ndjson.org/) (newline delimited json)
 - Pure Go (no need for cgo)
+- Object search/traversal.
+- In-place value replacement.
+- Remove object/array members.
+- Serialize parsed JSONas binary data.
+- Re-serialize parts as JSON.
 
 ## Requirements
 
@@ -265,6 +270,65 @@ func findHondas(r io.Reader) {
 
 More examples can be found in the examples subdirectory and further documentation can be found at [godoc](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc).
 
+
+### In-place Value Replacement
+
+It is possible to replace a few, basic internal values.
+This means that when re-parsing or re-serializing the parsed JSON these values will be output.
+
+Boolean (true/false) and null values can be freely exchanged.
+
+Numeric values (float, int, uint) can be exchanged freely.
+
+Strings can also be exchanged with different values.
+
+Strings and numbers can be exchanged. However, note that there is no checks for numbers inserted as object keys,
+so if used for this invalid JSON is possible.
+
+There is no way to modify objects, arrays, other than value types above inside each.
+It is not possible to remove or add elements.
+
+To replace a value, of value referenced by an `Iter` simply call `SetNull`, `SetBool`, `SetFloat`, `SetInt`, `SetUInt`,
+`SetString` or `SetStringBytes`.
+
+### Object & Array Element Deletion
+
+It is possible to delete one or more elements in an object.
+
+`(*Object).DeleteElems(fn, onlyKeys)` will call back fn for each key+ value.
+
+If true is returned, the key+value is deleted. A key filter can be provided for optional filtering.
+If the callback function is nil all elements matching the filter will be deleted.
+If both are nil all elements are deleted.
+
+Example:
+
+```Go
+	// The object we are modifying
+	var obj *simdjson.Object
+
+	// Delete all entries where the key is "unwanted":
+	err = obj.DeleteElems(func(key []byte, i Iter) bool {
+		return string(key) == "unwanted")
+	}, nil)
+
+	// Alternative version with prefiltered keys:
+	err = obj.DeleteElems(nil, map[string]struct{}{"unwanted": {}})
+```
+
+`(*Array).DeleteElems(fn func(i Iter) bool)` will call back fn for each array value.
+If the function returns true the element is deleted in the array.
+
+```Go
+	// The array we are modifying
+	var array *simdjson.Array
+
+	// Delete all entries that are strings.
+	array.DeleteElems(func(i Iter) bool {
+		return i.Type() == TypeString
+	})
+```
+
 ## Serializing parsed json
 
 It is possible to serialize parsed JSON for more compact storage and faster load time.
@@ -493,64 +557,6 @@ BenchmarkUpdate_center/copy-32                	    1665	    708717 ns/op	 752.31
 BenchmarkUpdate_center/nocopy-32              	    2241	    536027 ns/op	 994.68 MB/s	    2130 B/op	      58 allocs/op
 ```
 
-### In-place Value Replacement
-
-It is possible to replace a few, basic internal values.
-This means that when re-parsing or re-serializing the parsed JSON these values will be output.
-
-Boolean (true/false) and null values can be freely exchanged.
-
-Numeric values (float, int, uint) can be exchanged freely.
-
-Strings can also be exchanged with different values.
-
-Strings and numbers can be exchanged. However, note that there is no checks for numbers inserted as object keys,
-so if used for this invalid JSON is possible.
-
-There is no way to modify objects, arrays, other than value types above inside each.
-It is not possible to remove or add elements.
-
-To replace a value, of value referenced by an `Iter` simply call `SetNull`, `SetBool`, `SetFloat`, `SetInt`, `SetUInt`,
-`SetString` or `SetStringBytes`.
-
-### Object & Array Element Deletion
-
-It is possible to delete one or more elements in an object.
-
-`(*Object).DeleteElems(fn, onlyKeys)` will call back fn for each key+ value.
-
-If true is returned, the key+value is deleted. A key filter can be provided for optional filtering.
-If the callback function is nil all elements matching the filter will be deleted.
-If both are nil all elements are deleted.
-
-Example:
-
-```Go
-	// The object we are modifying
-	var obj *simdjson.Object
-
-	// Delete all entries where the key is "unwanted":
-	err = obj.DeleteElems(func(key []byte, i Iter) bool {
-		return string(key) == "unwanted")
-	}, nil)
-
-	// Alternative version with prefiltered keys:
-	err = obj.DeleteElems(nil, map[string]struct{}{"unwanted": {}})
-```
-
-`(*Array).DeleteElems(fn func(i Iter) bool)` will call back fn for each array value.
-If the function returns true the element is deleted in the array.
-
-```Go
-	// The array we are modifying
-	var array *simdjson.Array
-
-	// Delete all entries that are strings.
-	array.DeleteElems(func(i Iter) bool {
-		return i.Type() == TypeString
-	})
-```
-
 ## Design
 
 `simdjson-go` follows the same two stage design as `simdjson`.
@@ -619,9 +625,7 @@ For more information, see `TestStage2BuildTape` in `stage2_build_tape_test.go`.
 `simdjson-go` has been extensively fuzz tested to ensure that input cannot generate crashes and that output matches
 the standard library.
 
-The fuzzers and corpus are contained in a separate repository at [github.com/minio/simdjson-fuzz](https://github.com/minio/simdjson-fuzz)
-
-The repo contains information on how to run them.
+The fuzz tests are included as Go 1.18+ compatible tests.
 
 ## License
 
