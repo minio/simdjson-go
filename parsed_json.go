@@ -893,17 +893,36 @@ func (i *Iter) SetBool(v bool) error {
 	return fmt.Errorf("cannot set tag %s to bool", i.t.String())
 }
 
-// SetNull can change a bool or null type to bool with null.
+// SetNull can change the following types to null:
+// Bool, String, (Unsigned) Integer, Float, Objects and Arrays.
 // Attempting to change other types will return an error.
 func (i *Iter) SetNull() error {
 	switch i.t {
 	case TagBoolTrue, TagBoolFalse, TagNull:
+		// 1 value on stream
 		i.t = TagNull
 		i.cur = 0
 		i.tape.Tape[i.off-1] = uint64(TagNull) << JSONTAGOFFSET
-		return nil
+	case TagString, TagFloat, TagInteger, TagUint:
+		// 2 values
+		i.tape.Tape[i.off-1] = uint64(TagNull) << JSONTAGOFFSET
+		i.tape.Tape[i.off] = uint64(TagNop)<<JSONTAGOFFSET | 1
+		i.t = TagNull
+		i.cur = 0
+	case TagObjectStart, TagArrayStart, TagRoot:
+		// Read length, skipping the object/array:
+		i.addNext = int(i.cur) - i.off
+		i.tape.Tape[i.off-1] = uint64(TagNull) << JSONTAGOFFSET
+		// Fill with nops
+		for j := i.off; j < int(i.cur); j++ {
+			i.tape.Tape[j] = uint64(TagNop)<<JSONTAGOFFSET | (i.cur - uint64(j))
+		}
+		i.t = TagNull
+		i.cur = 0
+	default:
+		return fmt.Errorf("cannot set tag %s to null", i.t.String())
 	}
-	return fmt.Errorf("cannot set tag %s to null", i.t.String())
+	return nil
 }
 
 // Interface returns the value as an interface.
