@@ -103,7 +103,7 @@ func (s *Serializer) CompressMode(c CompressMode) {
 		s.fasterComp = true
 	case CompressDefault:
 		s.compValues = blockTypeS2
-		s.compTags = blockTypeS2
+		s.compTags = blockTypeZstd
 		s.compStrings = blockTypeS2
 	case CompressBest:
 		s.compValues = blockTypeZstd
@@ -224,6 +224,7 @@ func (s *Serializer) Serialize(dst []byte, pj ParsedJson) []byte {
 	// Read next tag. Depending on the tag, read a number of values:
 	// Values:
 	// 	 - Null, BoolTrue/BoolFalse: No value.
+	//   - Nop, Skip distances must be reconstructed.
 	//   - TagObjectStart, TagArrayStart, TagRoot: (Offset - Current offset). Write end tag for object and array.
 	//   - TagObjectEnd, TagArrayEnd: No value stored, derived from start.
 	//   - TagInteger, TagUint, TagFloat: 64 bits
@@ -671,6 +672,14 @@ func (s *Serializer) Deserialize(src []byte, dst *ParsedJson) (*ParsedJson, erro
 		default:
 			return nil, fmt.Errorf("unknown tag: %v", tag)
 		}
+	}
+	if nSkips > 0 {
+		// We owe skips. Add with jumps
+		for i := 0; i < nSkips; i++ {
+			dst.Tape[off] = (uint64(TagNop) << JSONTAGOFFSET) | uint64(nSkips-i)
+			off++
+		}
+		nSkips = 0
 	}
 	sWG.Wait()
 	if off != len(dst.Tape) {
