@@ -248,7 +248,7 @@ func TestIter_SetNull(t *testing.T) {
 		want string
 	}{
 		{
-			want: `{"0val":{"true":null,"false":null,"nullval":null},"1val":{"float":12.3456,"int":-42,"uint":9223372036854775808},"stringval":"initial value","array":[null,null,null,"astring",-42,9223372036854775808,1.23455]}`,
+			want: `{"0val":{"true":null,"false":null,"nullval":null},"1val":{"float":null,"int":null,"uint":null},"stringval":null,"array":[null,null,null,null,null,null,null]}`,
 		},
 	}
 
@@ -280,6 +280,30 @@ func TestIter_SetNull(t *testing.T) {
 					if iter.Type() != TypeNull {
 						t.Errorf("Want type %v, got %v", TypeNull, iter.Type())
 					}
+				case TypeFloat, TypeUint, TypeInt:
+					err := iter.SetNull()
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+
+					if iter.Type() != TypeNull {
+						t.Errorf("Want type %v, got %v", TypeNull, iter.Type())
+					}
+				case TypeString:
+					// Most are keys so cannot be nulled.
+					s, _ := iter.String()
+					switch s {
+					case "astring", "initial value":
+						err := iter.SetNull()
+						if err != nil {
+							t.Errorf("Unable to set value: %v", err)
+						}
+
+						if iter.Type() != TypeNull {
+							t.Errorf("Want type %v, got %v", TypeNull, iter.Type())
+						}
+					}
+				case TypeRoot, TypeObject, TypeArray:
 				default:
 					err := iter.SetNull()
 					if err == nil {
@@ -297,6 +321,128 @@ func TestIter_SetNull(t *testing.T) {
 			}
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
+			}
+		})
+	}
+}
+
+func TestIter_SetNull_ObjArr(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+
+	tests := []struct {
+		input    string
+		skipN    int
+		want     string
+		nullRoot bool
+	}{
+		{
+			input: `{"0val":{"true":true}}`,
+			skipN: 1,
+			want:  `{"0val":null}`,
+		},
+		{
+			input: `{"0val":[1,2,334,5,454,6,5,true,5,6,78]}`,
+			skipN: 1,
+			want:  `{"0val":null}`,
+		},
+		{
+			input: `[{"0val":[1,2,334,5,454,6,5,true,5,6,78]}, {"2val":{"true":true}}]`,
+			skipN: 1,
+			want:  `[null,null]`,
+		},
+		{
+			input:    `[{"0val":[1,2,334,5,454,6,5,true,5,6,78]}, {"2val":{"true":true}}]`,
+			nullRoot: true,
+			want:     `null`,
+		},
+	}
+
+	for i, test := range tests {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			skip := test.skipN
+			pj, err := ParseND([]byte(test.input), nil)
+			if err != nil {
+				t.Errorf("parseMessage failed\n")
+				return
+			}
+			root := pj.Iter()
+			// Queue root
+			root.AdvanceInto()
+			if err != nil {
+				t.Errorf("root failed: %v", err)
+				return
+			}
+			iter := root
+			for {
+				typ := iter.Type()
+				switch typ {
+				case TypeObject, TypeArray:
+					if skip > 0 {
+						skip--
+						break
+					}
+					//t.Logf("setting to %v", test.setTo)
+					err := iter.SetNull()
+					if err != nil {
+						t.Errorf("Unable to set value: %v", err)
+					}
+
+					if iter.Type() != TypeNull {
+						t.Errorf("Want type %v, got %v", TypeNull, iter.Type())
+					}
+				case TypeRoot:
+					if test.nullRoot {
+						err := iter.SetNull()
+						if err != nil {
+							t.Errorf("Unable to set value: %v", err)
+						}
+
+						if iter.Type() != TypeNull {
+							t.Errorf("Want type %v, got %v", TypeNull, iter.Type())
+						}
+					}
+				default:
+				}
+				if iter.PeekNextTag() == TagEnd {
+					break
+				}
+				iter.AdvanceInto()
+			}
+			root = pj.Iter()
+			out, err := root.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(out) != test.want {
+				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
 			}
 		})
 	}
@@ -624,6 +770,19 @@ func TestIter_SetBool(t *testing.T) {
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
 			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
+			}
 		})
 	}
 }
@@ -698,6 +857,19 @@ func TestIter_SetFloat(t *testing.T) {
 			}
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
 			}
 		})
 	}
@@ -775,6 +947,19 @@ func TestIter_SetInt(t *testing.T) {
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
 			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
+			}
 		})
 	}
 }
@@ -849,6 +1034,19 @@ func TestIter_SetUInt(t *testing.T) {
 			}
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
 			}
 		})
 	}
@@ -927,6 +1125,19 @@ func TestIter_SetString(t *testing.T) {
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
 			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
+			}
 		})
 	}
 }
@@ -1003,6 +1214,19 @@ func TestIter_SetStringBytes(t *testing.T) {
 			}
 			if string(out) != test.want {
 				t.Errorf("want: %s\n got: %s", test.want, string(out))
+			}
+			ser := NewSerializer()
+			pj2, err := ser.Deserialize(ser.Serialize(nil, *pj), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			iter2 := pj2.Iter()
+			out2, err := iter2.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out, out2) {
+				t.Errorf("roundtrip mismatch: %s != %s", out, out2)
 			}
 		})
 	}
