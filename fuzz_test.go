@@ -38,8 +38,11 @@ import (
 )
 
 func FuzzParse(f *testing.F) {
+	if !SupportedCPU() {
+		f.SkipNow()
+	}
 	addBytesFromTarZst(f, "testdata/fuzz/corpus.tar.zst", testing.Short())
-	addBytesFromTarZst(f, "testdata/fuzz/go-corpus.tar.zst", false)
+	addBytesFromTarZst(f, "testdata/fuzz/go-corpus.tar.zst", testing.Short())
 	f.Fuzz(func(t *testing.T, data []byte) {
 		var dst map[string]interface{}
 		var dstA []interface{}
@@ -89,6 +92,9 @@ func FuzzParse(f *testing.F) {
 
 // FuzzCorrect will check for correctness and compare output to stdlib.
 func FuzzCorrect(f *testing.F) {
+	if !SupportedCPU() {
+		f.SkipNow()
+	}
 	const (
 		// fail if simdjson doesn't report error, but json.Unmarshal does
 		failOnMissingError = true
@@ -96,7 +102,7 @@ func FuzzCorrect(f *testing.F) {
 		filterRaw = true
 	)
 	addBytesFromTarZst(f, "testdata/fuzz/corpus.tar.zst", testing.Short())
-	addBytesFromTarZst(f, "testdata/fuzz/go-corpus.tar.zst", false)
+	addBytesFromTarZst(f, "testdata/fuzz/go-corpus.tar.zst", testing.Short())
 	f.Fuzz(func(t *testing.T, data []byte) {
 		var want map[string]interface{}
 		var wantA []interface{}
@@ -251,8 +257,11 @@ func FuzzCorrect(f *testing.F) {
 
 // FuzzCorrect will check for correctness and compare output to stdlib.
 func FuzzSerialize(f *testing.F) {
+	if !SupportedCPU() {
+		f.SkipNow()
+	}
 	addBytesFromTarZst(f, "testdata/fuzz/corpus.tar.zst", testing.Short())
-	addBytesFromTarZst(f, "testdata/fuzz/go-corpus.tar.zst", false)
+	addBytesFromTarZst(f, "testdata/fuzz/go-corpus.tar.zst", testing.Short())
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Create a tape from the input and ensure that the output of JSON matches.
 		pj, err := Parse(data, nil)
@@ -311,7 +320,7 @@ func addBytesFromTarZst(f *testing.F, filename string, short bool) {
 	i := 0
 	for h, err := tr.Next(); err == nil; h, err = tr.Next() {
 		i++
-		if short && i%10 != 0 {
+		if short && i%100 != 0 {
 			continue
 		}
 		b := make([]byte, h.Size)
