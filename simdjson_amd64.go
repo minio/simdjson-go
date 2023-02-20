@@ -31,15 +31,11 @@ import (
 	"github.com/klauspost/cpuid/v2"
 )
 
-var cpuIsSupported = false
-
-func init() {
-	cpuIsSupported = cpuid.CPU.Supports(cpuid.AVX2, cpuid.CLMUL)
-}
+var wantFeatures = cpuid.CombineFeatures(cpuid.AVX2, cpuid.CLMUL)
 
 // SupportedCPU will return whether the CPU is supported.
 func SupportedCPU() bool {
-	return cpuIsSupported
+	return cpuid.CPU.HasAll(wantFeatures)
 }
 
 func newInternalParsedJson(reuse *ParsedJson, opts []ParserOption) (*internalParsedJson, error) {
