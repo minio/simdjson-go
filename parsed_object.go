@@ -346,6 +346,9 @@ func (o *Object) NextElementBytes(dst *Iter) (name []byte, t Type, err error) {
 		o.off += 2
 	case TagObjectEnd:
 		return nil, TypeNone, nil
+	case TagNop:
+		o.off += int(v & JSONVALUEMASK)
+		return o.NextElementBytes(dst)
 	default:
 		return nil, TypeNone, fmt.Errorf("object: unexpected tag %c", byte(v>>56))
 	}
