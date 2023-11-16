@@ -557,7 +557,7 @@ func TestParseString(t *testing.T) {
 				if size != len(tt.want) {
 					t.Errorf("TestParseString() got = %d, want %d", size, len(tt.want))
 				}
-				if bytes.Compare(dest[:size], tt.want) != 0 {
+				if !bytes.Equal(dest[:size], tt.want) {
 					t.Errorf("TestParseString() got = %v, want %v", dest[:size], tt.want)
 				}
 			}
