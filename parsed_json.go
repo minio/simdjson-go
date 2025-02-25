@@ -1021,7 +1021,7 @@ func (i *Iter) Object(dst *Object) (*Object, error) {
 // An optional destination can be given.
 func (i *Iter) Array(dst *Array) (*Array, error) {
 	if i.t != TagArrayStart {
-		return nil, errors.New("next item is not object")
+		return nil, errors.New("next item is not array")
 	}
 	end := i.cur
 	if uint64(len(i.tape.Tape)) < end {
