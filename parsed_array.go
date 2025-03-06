@@ -220,8 +220,7 @@ readArray:
 			if val > math.MaxInt64 {
 				return nil, errors.New("unsigned integer value overflows int64")
 			}
-
-			dst = append(dst)
+			dst = append(dst, int64(val))
 		case TagArrayEnd:
 			break readArray
 		default:
