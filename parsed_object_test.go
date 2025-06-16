@@ -3,6 +3,7 @@ package simdjson
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"testing"
 )
 
@@ -125,6 +126,119 @@ func TestObject_FindPath(t *testing.T) {
 			}
 			if string(ser) != tt.wantVal {
 				t.Errorf("want '%s', got '%s'", tt.wantVal, string(ser))
+			}
+		})
+	}
+}
+
+func TestObject_ForEach(t *testing.T) {
+	if !SupportedCPU() {
+		t.SkipNow()
+	}
+	input := `{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+		"key4": "value4",
+		"key5": "value5",
+		"key6": "value6",
+		"key7": "value7",
+		"key8": "value8",
+		"key9": "value9",
+		"key10": "value10"
+	}`
+	tests := []struct {
+		name     string
+		onlyKeys []string
+		want     map[string]string
+	}{
+		{
+			name:     "all-keys",
+			onlyKeys: nil,
+			want: map[string]string{
+				"key1":  "value1",
+				"key2":  "value2",
+				"key3":  "value3",
+				"key4":  "value4",
+				"key5":  "value5",
+				"key6":  "value6",
+				"key7":  "value7",
+				"key8":  "value8",
+				"key9":  "value9",
+				"key10": "value10",
+			},
+		},
+		{
+			name:     "some-keys",
+			onlyKeys: []string{"key1", "key3"},
+			want: map[string]string{
+				"key1": "value1",
+				"key3": "value3"},
+		},
+		{
+			name: "sparse-keys",
+			onlyKeys: []string{
+				"key1", "key3", "key5", "key7", "key9"},
+			want: map[string]string{
+				"key1": "value1",
+				"key3": "value3",
+				"key5": "value5",
+				"key7": "value7",
+				"key9": "value9",
+			},
+		},
+		{
+			name:     "sparse-keys",
+			onlyKeys: []string{"key1", "key2", "key3", "key9", "key10"},
+			want: map[string]string{
+				"key1":  "value1",
+				"key2":  "value2",
+				"key3":  "value3",
+				"key9":  "value9",
+				"key10": "value10",
+			},
+		},
+		{
+			name:     "no-keys",
+			onlyKeys: []string{"key20"},
+			want:     map[string]string{},
+		},
+	}
+	for _, tt := range tests {
+		pj, err := Parse([]byte(input), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			filtered := make(map[string]string)
+			var onlyKeys map[string]struct{}
+			if len(tt.onlyKeys) > 0 {
+				onlyKeys = make(map[string]struct{}, len(tt.onlyKeys))
+				for _, key := range tt.onlyKeys {
+					onlyKeys[key] = struct{}{}
+				}
+			}
+			i := pj.Iter()
+			var elem Iter
+			ty, err := i.AdvanceIter(&elem)
+
+			if err != nil || ty != TypeRoot {
+				t.Fatal(err)
+			}
+			_ = elem.AdvanceInto()
+			obj, err := elem.Object(nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = obj.ForEach(func(key []byte, i Iter) {
+				value, _ := i.StringCvt()
+				filtered[string(key)] = value
+			}, onlyKeys)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(tt.want, filtered) {
+				t.Errorf("want %v\ngot %v\n", tt.want, filtered)
 			}
 		})
 	}

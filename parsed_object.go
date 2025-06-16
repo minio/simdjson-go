@@ -169,6 +169,7 @@ func (o *Object) ForEach(fn func(key []byte, i Iter), onlyKeys map[string]struct
 				if t == TypeNone {
 					return nil
 				}
+				continue
 			}
 		}
 
