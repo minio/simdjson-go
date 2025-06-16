@@ -19,7 +19,7 @@ Compared to Golang's standard package `encoding/json`, `simdjson-go` is about 10
 Additionally `simdjson-go` has the following features:
 
 - No 4 GB object limit
-- Support for [ndjson](http://ndjson.org/) (newline delimited json)
+- Support for [ndjson](https://github.com/ndjson/ndjson-spec) (newline delimited json)
 - Pure Go (no need for cgo)
 - Object search/traversal.
 - In-place value replacement.
