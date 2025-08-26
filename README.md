@@ -32,7 +32,7 @@ Additionally `simdjson-go` has the following features:
 `simdjson-go` has the following requirements for parsing:
 
 A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPYC CPU (Q1 2017) should be sufficient).
-This can be checked using the provided [`SupportedCPU()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#SupportedCPU`) function.
+This can be checked using the provided [`SupportedCPU()`](https://pkg.go.dev/github.com/minio/simdjson-go?tab=doc#SupportedCPU) function.
 
 The package does not provide fallback for unsupported CPUs, but serialized data can be deserialized on an unsupported CPU.
 
